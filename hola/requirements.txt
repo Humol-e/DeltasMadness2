@@ -1,0 +1,13 @@
+earthengine-api>=1.7.0
+google-cloud-storage>=3.0.0
+asf-search>=10.0.0
+hyp3-sdk>=7.0.0
+pydantic>=2.10.0
+pydantic-settings>=2.10.0
+python-dotenv>=1.0.0
+click>=8.1.0
+rich>=13.0.0
+pytest>=8.0.0
+
+# Opcional: puente comunitario gee-community/sar-asf-to-gee
+# pip install git+https://github.com/gee-community/sar-asf-to-gee.git

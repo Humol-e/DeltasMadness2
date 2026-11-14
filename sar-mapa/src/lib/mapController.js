@@ -272,9 +272,9 @@ export class MapController {
   }
 
   setSunAzimuth(deg) {
-    this.sunAzimuth = deg;
+    this.sunAzimuth = ((deg % 360) + 360) % 360;
     const m = this.map;
-    if (m.getLayer(HILLSHADE_LAYER)) m.setPaintProperty(HILLSHADE_LAYER, 'hillshade-illumination-direction', deg);
+    if (m.getLayer(HILLSHADE_LAYER)) m.setPaintProperty(HILLSHADE_LAYER, 'hillshade-illumination-direction', this.sunAzimuth);
     if (m.getLayer(SKY_LAYER)) m.setPaintProperty(SKY_LAYER, 'sky-atmosphere-sun', this.#sunPosition());
   }
 

@@ -1,0 +1,80 @@
+// Ejemplo COMENTADO de un caso (esquema v2). La app admite comentarios // y /* */ en los JSON.
+// Copia este archivo a public/data/cases/<tu-caso>/case.json (puedes dejar los comentarios)
+// y añade la ruta a public/data/catalog.json. Valida con: npm run validate
+{
+  "schemaVersion": 2,                 // obligatorio; versión del esquema
+  "id": "mi-caso",                    // único; letras, números, _ y -
+  "title": "Mi zona",
+  "status": "demo",                   // "demo" | "real". Si no se declara, se asume "demo"
+  "view": { "center": [85.53, 28.22], "zoom": 11, "pitch": 45, "bearing": 0 },
+
+  "datasets": [                       // RÁSTERES. Cada dataset tiene sus propias fechas (frames)
+    {
+      "id": "sar1",                   // sin ":" ni espacios
+      "name": "SAR satélite 1",
+      "kind": "raster",
+      "status": "demo",
+      // Metadatos opcionales: null = «pendiente». La interfaz muestra «pendiente», no inventa.
+      "platform": null, "sensor": null, "provider": null, "product": null,
+      "attribution": "Datos sintéticos",
+
+      // Variables disponibles EN ESTE dataset (pueden diferir entre satélites: HH y/o HV)
+      "variables": [
+        { "id": "HH", "label": "HH", "quantity": "backscatter", "polarization": "HH", "unit": "dB",
+          "legend": { "min": -25, "max": 0, "colors": ["#0B0F14", "#8A97A6", "#F4F7FA"] } },
+        { "id": "HV", "label": "HV", "quantity": "backscatter", "polarization": "HV", "unit": "dB",
+          "legend": { "min": -30, "max": -5, "colors": ["#0B0F14", "#8A97A6", "#F4F7FA"] } }
+      ],
+
+      // Composiciones RGB opcionales (solo image + gray8). Un canal puede ser null.
+      // No se asigna ningún compuesto por defecto: lo define el equipo.
+      "composites": [
+        { "id": "rgb-ejemplo", "label": "RGB de ejemplo", "channels": { "r": "HH", "g": "HV", "b": "HH" } }
+      ],
+
+      // Cómo vienen los archivos:
+      //  { "type": "image", "encoding": "gray8" }  PNG local 8 bits (0 = sin dato; 1..255 = min..max de la leyenda)
+      //  { "type": "image", "encoding": "rgba" }   PNG/JPG ya coloreado (se muestra tal cual)
+      //  { "type": "tiles", "tileSize": 256 }      teselas XYZ (URL con {z}/{x}/{y}); sin swipe ni valor de píxel
+      "source": { "type": "image", "encoding": "gray8", "nodata": 0 },
+
+      "extent": [85.46, 28.13, 85.61, 28.31],   // [oeste, sur, este, norte] en grados
+      "crs": null,                               // pendiente
+      "resolution": null,                        // p. ej. { "value": 10, "unit": "m" }
+      "render": { "opacity": 0.85, "resampling": "linear" },   // "nearest" muestra los píxeles gruesos
+
+      // Un frame por fecha. Cada fuente puede tener fechas distintas.
+      "frames": [
+        { "id": "s1-20260304", "datetime": "2026-03-04",
+          "files": { "HH": "data/cases/mi-caso/rasters/sar1_HH_20260304.png",
+                     "HV": "data/cases/mi-caso/rasters/sar1_HV_20260304.png" } },
+        { "datetime": "2026-03-16T05:30:00Z",   // "id" es opcional; también se admite hora ISO 8601
+          "files": { "HH": "data/cases/mi-caso/rasters/sar1_HH_20260316.png" } }   // un frame puede traer solo algunas variables
+      ]
+    }
+    // Ejemplo de dataset con teselas (futuro; sin credenciales en el frontend, usa un proxy propio):
+    // { "id": "modis", ..., "source": { "type": "tiles", "tileSize": 256, "minzoom": 0, "maxzoom": 10 },
+    //   "frames": [ { "datetime": "2026-03-06", "files": { "T": "https://tu-proxy.example/tiles/modis/20260306/{z}/{x}/{y}.png" } } ] }
+  ],
+
+  "vectors": [                        // VECTORES (GeoJSON): categoría independiente de los rásteres
+    {
+      "id": "zonas",
+      "name": "Zonas",
+      "type": "fill",                 // "fill" | "line" | "circle"
+      "status": "demo",
+      "simulated": true,              // true = se rotula SIMULADO en capa, panel y leyenda
+      // Indicador opcional (deshielo, riesgo, SWE, lluvia...). La app NO calcula nada:
+      // si no es simulado y falta "validation", se muestra «sin validación».
+      "indicator": { "kind": "risk_zone", "simulated": true, "validation": null },
+      "source": { "type": "geojson", "data": "data/cases/mi-caso/zonas.geojson" },
+      // Cada feature lleva la fecha en properties.date (ISO 8601).
+      //  "asof": muestra los datos de la fecha más reciente <= fecha elegida
+      //  "cumulative": muestra todo hasta esa fecha
+      "time": { "property": "date", "mode": "asof" },
+      "paint": { "fill-color": "#E4572E", "fill-opacity": 0.4 },     // estilo Mapbox GL
+      "legend": { "title": "Zona", "items": [{ "color": "#E4572E", "label": "SIMULADO" }] },
+      "popupFields": [["zone_id", "Zona"], ["area_km2", "Área", "km²"]]   // [clave, etiqueta, unidad]; falta → «No disponible»
+    }
+  ]
+}

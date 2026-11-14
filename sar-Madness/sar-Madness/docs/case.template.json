@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 2,
+  "id": "mi-caso",
+  "title": "Título del caso",
+  "description": "",
+  "status": "demo",
+  "view": { "center": [0, 0], "zoom": 8, "pitch": 0, "bearing": 0 },
+  "datasets": [
+    {
+      "id": "mi-dataset",
+      "name": "",
+      "kind": "raster",
+      "status": "demo",
+      "platform": null,
+      "sensor": null,
+      "provider": null,
+      "product": null,
+      "attribution": null,
+      "variables": [
+        {
+          "id": "VAR1",
+          "label": "",
+          "quantity": null,
+          "polarization": null,
+          "unit": null,
+          "legend": { "min": 0, "max": 1, "colors": ["#000000", "#FFFFFF"] }
+        }
+      ],
+      "composites": [],
+      "source": { "type": "image", "encoding": "gray8", "nodata": 0 },
+      "extent": [0, 0, 0.1, 0.1],
+      "crs": null,
+      "resolution": null,
+      "render": { "opacity": 0.85, "resampling": "linear" },
+      "frames": [
+        { "id": "f1", "datetime": "AAAA-MM-DD", "files": { "VAR1": "data/cases/mi-caso/rasters/archivo.png" } }
+      ]
+    }
+  ],
+  "vectors": [
+    {
+      "id": "mi-vector",
+      "name": "",
+      "type": "fill",
+      "status": "demo",
+      "simulated": true,
+      "indicator": null,
+      "source": { "type": "geojson", "data": "data/cases/mi-caso/zonas.geojson" },
+      "time": { "property": "date", "mode": "asof" },
+      "paint": { "fill-color": "#E4572E", "fill-opacity": 0.4 },
+      "legend": { "title": "", "items": [{ "color": "#E4572E", "label": "" }] },
+      "description": "",
+      "popupFields": [["campo", "Etiqueta", "unidad"]]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "sar-cambios",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "node scripts/validate-catalog.mjs && vite build",
+    "preview": "vite preview",
+    "demo-data": "python3 scripts/make_demo_data.py",
+    "validate": "node scripts/validate-catalog.mjs"
+  },
+  "dependencies": {
+    "mapbox-gl": "^3.9.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.11"
+  }
+}

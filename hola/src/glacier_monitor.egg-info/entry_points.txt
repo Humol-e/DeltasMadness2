@@ -1,0 +1,2 @@
+[console_scripts]
+glacier-stage1 = glacier_monitor.cli:main

@@ -1,3 +1,5 @@
 config/greecreds.json
 HDFView/
 hola/config/service_account.json
+/hola/.env
+hola2/

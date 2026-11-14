@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glacier-monitor"
+version = "0.1.0"
+description = "Monitoreo satelital de glaciares y lagos glaciares en Google Earth Engine + ASF HyP3"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "asf-search>=10.0.0",
+    "click>=8.1.0",
+    "earthengine-api>=1.7.0",
+    "google-cloud-storage>=3.0.0",
+    "hyp3-sdk>=7.0.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.10.0",
+    "python-dotenv>=1.0.0",
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+community-bridge = [
+    "sar-asf-to-gee @ git+https://github.com/gee-community/sar-asf-to-gee.git",
+]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[project.scripts]
+glacier-stage1 = "glacier_monitor.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

@@ -217,7 +217,7 @@ $$C_{\text{AGB}} = 0.47 \cdot W\ [\text{Mg C/ha}], \qquad \Delta W = W_{\text{po
 ### 2. Cryosphere & Glacier Melt (`hola`)
 * **Normalized Difference Snow Index (`Sentinel-2`) and land surface temperature (`MODIS/061/MOD11A1`):**
 
-$$\text{NDSI} = \frac{B_3 - B_{11}}{B_3 + B_{11}}, \qquad \text{LST}\ [^\circ\text{C}] = 0.02 \cdot \text{DN}_{\text{LST\_Day\_1km}} - 273.15$$
+$$\text{NDSI} = \frac{B_3 - B_{11}}{B_3 + B_{11}}, \qquad \text{LST}\ [^\circ\text{C}] = 0.02 \cdot \mathrm{DN}_{\mathrm{LSTDay1km}} - 273.15$$
 
 * **Relative snow loss and boolean melt-perimeter criterion:**
 

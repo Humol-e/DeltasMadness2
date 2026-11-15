@@ -1,0 +1,542 @@
+{
+  "schemaVersion": 2,
+  "id": "glacier-khumbu",
+  "status": "real",
+  "simulated": false,
+  "category": "deshielo",
+  "title": "Glaciar de Khumbu · Deshielo alpino",
+  "region": "Región del Everest, Nepal",
+  "description": "Comparación real Antes/Después de cobertura nival NDSI, temperatura superficial MODIS y retrodispersión SAR Sentinel-1 entre acumulación invernal y ablación de verano 2026.",
+  "view": {
+    "center": [
+      86.83,
+      27.955
+    ],
+    "zoom": 12.0,
+    "pitch": 40,
+    "bearing": 0
+  },
+  "sources": [
+    "Google Earth Engine · COPERNICUS/S2_SR_HARMONIZED (30 pre / 33 post)",
+    "Google Earth Engine · COPERNICUS/S1_GRD IW (12 pre / 18 post)",
+    "Google Earth Engine · MODIS/061/MOD10A1 y MOD11A1 (58 pre / 108 post)"
+  ],
+  "metrics": {
+    "preWindow": "2026-01-01..2026-02-28",
+    "postWindow": "2026-05-15..2026-08-31",
+    "snowPrePct": 20.4,
+    "snowPostPct": 8.4,
+    "lstPreC": -5.3,
+    "lstPostC": 6.1,
+    "meltAreaKm2": 26.42
+  },
+  "datasets": [
+    {
+      "id": "s2_rgb",
+      "name": "Sentinel-2 RGB · Color real",
+      "kind": "raster",
+      "status": "real",
+      "platform": "Sentinel-2A/2B/2C",
+      "sensor": "MSI",
+      "provider": "Google Earth Engine",
+      "product": "Compuesto sin nubes B4/B3/B2",
+      "attribution": "ESA Copernicus Sentinel-2",
+      "extent": [
+        86.78,
+        27.9,
+        86.88,
+        28.01
+      ],
+      "source": {
+        "type": "image",
+        "encoding": "rgba"
+      },
+      "render": {
+        "opacity": 1.0,
+        "resampling": "linear"
+      },
+      "defaultVisible": true,
+      "variables": [
+        {
+          "id": "rgb",
+          "label": "Color verdadero (B4/B3/B2)",
+          "quantity": "reflectance",
+          "polarization": null,
+          "unit": "RGB"
+        }
+      ],
+      "frames": [
+        {
+          "id": "s2-pre",
+          "datetime": "2026-02-28T00:00:00Z",
+          "label": "Antes · 2026-01-01 a 2026-02-28",
+          "phase": "before",
+          "files": {
+            "rgb": "data/cases/glacier-khumbu/s2_pre_rgb.png"
+          }
+        },
+        {
+          "id": "s2-post",
+          "datetime": "2026-08-31T00:00:00Z",
+          "label": "Después · 2026-05-15 a 2026-08-31",
+          "phase": "after",
+          "files": {
+            "rgb": "data/cases/glacier-khumbu/s2_post_rgb.png"
+          }
+        }
+      ]
+    },
+    {
+      "id": "s2_ndsi",
+      "name": "Índice de nieve NDSI · Sentinel-2",
+      "kind": "raster",
+      "status": "real",
+      "platform": "Sentinel-2",
+      "sensor": "MSI B3/B11",
+      "provider": "Google Earth Engine",
+      "product": "Normalized Difference Snow Index",
+      "attribution": "ESA Copernicus Sentinel-2",
+      "extent": [
+        86.78,
+        27.9,
+        86.88,
+        28.01
+      ],
+      "source": {
+        "type": "image",
+        "encoding": "gray8",
+        "nodata": null
+      },
+      "render": {
+        "opacity": 0.88,
+        "resampling": "linear"
+      },
+      "defaultVisible": false,
+      "variables": [
+        {
+          "id": "ndsi",
+          "label": "Índice NDSI de nieve",
+          "quantity": "spectral_index",
+          "polarization": null,
+          "unit": "NDSI",
+          "legend": {
+            "min": -0.5,
+            "max": 1.0,
+            "colors": [
+              "#3b2f2f",
+              "#8c7a6b",
+              "#cbd5e1",
+              "#7dd3fc",
+              "#ffffff"
+            ]
+          }
+        }
+      ],
+      "frames": [
+        {
+          "id": "ndsi-pre",
+          "datetime": "2026-02-28T00:00:00Z",
+          "label": "Antes · 2026-01-01 a 2026-02-28",
+          "phase": "before",
+          "files": {
+            "ndsi": "data/cases/glacier-khumbu/s2_pre_ndsi.png"
+          }
+        },
+        {
+          "id": "ndsi-post",
+          "datetime": "2026-08-31T00:00:00Z",
+          "label": "Después · 2026-05-15 a 2026-08-31",
+          "phase": "after",
+          "files": {
+            "ndsi": "data/cases/glacier-khumbu/s2_post_ndsi.png"
+          }
+        }
+      ]
+    },
+    {
+      "id": "s1_sar",
+      "name": "Radar SAR · Sentinel-1 GRD",
+      "kind": "raster",
+      "status": "real",
+      "platform": "Sentinel-1",
+      "sensor": "C-SAR IW",
+      "provider": "Google Earth Engine",
+      "product": "Retrodispersión σ⁰ en invierno vs deshielo",
+      "attribution": "ESA Copernicus Sentinel-1",
+      "extent": [
+        86.78,
+        27.9,
+        86.88,
+        28.01
+      ],
+      "source": {
+        "type": "image",
+        "encoding": "gray8",
+        "nodata": null
+      },
+      "render": {
+        "opacity": 0.88,
+        "resampling": "linear"
+      },
+      "defaultVisible": false,
+      "variables": [
+        {
+          "id": "vh",
+          "label": "Polarización VH",
+          "quantity": "backscatter",
+          "polarization": "VH",
+          "unit": "dB",
+          "legend": {
+            "min": -26.0,
+            "max": -2.0,
+            "colors": [
+              "#090d16",
+              "#334155",
+              "#94a3b8",
+              "#f8fafc"
+            ]
+          }
+        },
+        {
+          "id": "vv",
+          "label": "Polarización VV",
+          "quantity": "backscatter",
+          "polarization": "VV",
+          "unit": "dB",
+          "legend": {
+            "min": -20.0,
+            "max": 2.0,
+            "colors": [
+              "#090d16",
+              "#334155",
+              "#94a3b8",
+              "#f8fafc"
+            ]
+          }
+        }
+      ],
+      "frames": [
+        {
+          "id": "s1-pre",
+          "datetime": "2026-02-28T00:00:00Z",
+          "label": "Antes · 2026-01-01 a 2026-02-28",
+          "phase": "before",
+          "files": {
+            "vh": "data/cases/glacier-khumbu/s1_pre_vh.png",
+            "vv": "data/cases/glacier-khumbu/s1_pre_vv.png"
+          }
+        },
+        {
+          "id": "s1-post",
+          "datetime": "2026-08-31T00:00:00Z",
+          "label": "Después · 2026-05-15 a 2026-08-31",
+          "phase": "after",
+          "files": {
+            "vh": "data/cases/glacier-khumbu/s1_post_vh.png",
+            "vv": "data/cases/glacier-khumbu/s1_post_vv.png"
+          }
+        }
+      ]
+    },
+    {
+      "id": "modis_cryo",
+      "name": "MODIS Nieve y Temperatura (LST)",
+      "kind": "raster",
+      "status": "real",
+      "platform": "Terra / Aqua",
+      "sensor": "MODIS",
+      "provider": "Google Earth Engine / NASA LP DAAC",
+      "product": "MOD10A1 + MOD11A1",
+      "attribution": "NASA MODIS",
+      "extent": [
+        86.78,
+        27.9,
+        86.88,
+        28.01
+      ],
+      "source": {
+        "type": "image",
+        "encoding": "gray8",
+        "nodata": null
+      },
+      "render": {
+        "opacity": 0.85,
+        "resampling": "linear"
+      },
+      "defaultVisible": false,
+      "variables": [
+        {
+          "id": "snow",
+          "label": "Cobertura de nieve",
+          "quantity": "snow_cover",
+          "polarization": null,
+          "unit": "%",
+          "legend": {
+            "min": 0.0,
+            "max": 100.0,
+            "colors": [
+              "#2d2420",
+              "#64748b",
+              "#38bdf8",
+              "#e0f2fe",
+              "#ffffff"
+            ]
+          }
+        },
+        {
+          "id": "lst",
+          "label": "Temperatura superficial día",
+          "quantity": "temperature",
+          "polarization": null,
+          "unit": "°C",
+          "legend": {
+            "min": -25.0,
+            "max": 20.0,
+            "colors": [
+              "#1e3a8a",
+              "#06b6d4",
+              "#fef08a",
+              "#f97316",
+              "#dc2626"
+            ]
+          }
+        }
+      ],
+      "frames": [
+        {
+          "id": "modis-pre",
+          "datetime": "2026-02-28T00:00:00Z",
+          "label": "Antes · 2026-01-01 a 2026-02-28",
+          "phase": "before",
+          "files": {
+            "snow": "data/cases/glacier-khumbu/mod10_pre_snow.png",
+            "lst": "data/cases/glacier-khumbu/mod11_pre_lst.png"
+          }
+        },
+        {
+          "id": "modis-post",
+          "datetime": "2026-08-31T00:00:00Z",
+          "label": "Después · 2026-05-15 a 2026-08-31",
+          "phase": "after",
+          "files": {
+            "snow": "data/cases/glacier-khumbu/mod10_post_snow.png",
+            "lst": "data/cases/glacier-khumbu/mod11_post_lst.png"
+          }
+        }
+      ]
+    },
+    {
+      "id": "melt_change",
+      "name": "Pérdida neta de nieve (ΔNDSI)",
+      "kind": "raster",
+      "status": "real",
+      "platform": "Sentinel-2",
+      "sensor": "MSI",
+      "provider": "Google Earth Engine",
+      "product": "Diferencia real Pre − Post NDSI",
+      "attribution": "ESA Copernicus Sentinel-2",
+      "extent": [
+        86.78,
+        27.9,
+        86.88,
+        28.01
+      ],
+      "source": {
+        "type": "image",
+        "encoding": "gray8",
+        "nodata": null
+      },
+      "render": {
+        "opacity": 0.85,
+        "resampling": "linear"
+      },
+      "defaultVisible": false,
+      "variables": [
+        {
+          "id": "loss",
+          "label": "Pérdida de nieve (ΔNDSI × 100)",
+          "quantity": "snow_loss",
+          "polarization": null,
+          "unit": "%",
+          "legend": {
+            "min": 0.0,
+            "max": 80.0,
+            "colors": [
+              "#0f172a",
+              "#3b82f6",
+              "#facc15",
+              "#f97316",
+              "#ef4444"
+            ]
+          }
+        }
+      ],
+      "frames": [
+        {
+          "id": "melt-net",
+          "datetime": "2026-08-31T00:00:00Z",
+          "label": "Cambio 2026-01-01 → 2026-08-31",
+          "phase": "change",
+          "files": {
+            "loss": "data/cases/glacier-khumbu/melt_snow_loss.png"
+          }
+        }
+      ]
+    }
+  ],
+  "vectors": [
+    {
+      "id": "aoi",
+      "name": "Área de estudio (AOI)",
+      "type": "line",
+      "status": "real",
+      "simulated": false,
+      "defaultVisible": true,
+      "source": {
+        "type": "geojson",
+        "data": "data/cases/glacier-khumbu/aoi.geojson"
+      },
+      "paint": {
+        "line-color": "#38bdf8",
+        "line-width": 1.6,
+        "line-dasharray": [
+          3,
+          2
+        ]
+      }
+    },
+    {
+      "id": "melt-extent",
+      "name": "Zona de deshielo detectada",
+      "type": "line",
+      "status": "real",
+      "simulated": false,
+      "defaultVisible": true,
+      "source": {
+        "type": "geojson",
+        "data": "data/cases/glacier-khumbu/melt_extent.geojson"
+      },
+      "paint": {
+        "line-color": "#fb923c",
+        "line-width": 1.8
+      },
+      "legend": {
+        "title": "Retroceso nival real",
+        "items": [
+          {
+            "color": "#fb923c",
+            "label": "Pérdida ΔNDSI ≥ 0.16"
+          }
+        ]
+      },
+      "popupFields": [
+        [
+          "area_km2",
+          "Área de deshielo",
+          "km²"
+        ]
+      ]
+    }
+  ],
+  "downloads": [
+    {
+      "id": "s2-pre-rgb-tif",
+      "label": "Sentinel-2 RGB Antes (.tif)",
+      "datasetId": "s2_rgb",
+      "phase": "before",
+      "format": "geotiff",
+      "url": "data/cases/glacier-khumbu/geotiffs/glacier-khumbu_s2_pre_rgb.tif",
+      "sizeBytes": 1404256
+    },
+    {
+      "id": "s2-post-rgb-tif",
+      "label": "Sentinel-2 RGB Después (.tif)",
+      "datasetId": "s2_rgb",
+      "phase": "after",
+      "format": "geotiff",
+      "url": "data/cases/glacier-khumbu/geotiffs/glacier-khumbu_s2_post_rgb.tif",
+      "sizeBytes": 1316412
+    },
+    {
+      "id": "s2-pre-ndsi-tif",
+      "label": "Sentinel-2 NDSI Antes (.tif)",
+      "datasetId": "s2_ndsi",
+      "phase": "before",
+      "format": "geotiff",
+      "url": "data/cases/glacier-khumbu/geotiffs/glacier-khumbu_s2_pre_ndsi.tif",
+      "sizeBytes": 590053
+    },
+    {
+      "id": "s2-post-ndsi-tif",
+      "label": "Sentinel-2 NDSI Después (.tif)",
+      "datasetId": "s2_ndsi",
+      "phase": "after",
+      "format": "geotiff",
+      "url": "data/cases/glacier-khumbu/geotiffs/glacier-khumbu_s2_post_ndsi.tif",
+      "sizeBytes": 584555
+    },
+    {
+      "id": "s1-pre-sar-tif",
+      "label": "Sentinel-1 VV/VH Antes (.tif)",
+      "datasetId": "s1_sar",
+      "phase": "before",
+      "format": "geotiff",
+      "url": "data/cases/glacier-khumbu/geotiffs/glacier-khumbu_s1_pre_sar.tif",
+      "sizeBytes": 1144775
+    },
+    {
+      "id": "s1-post-sar-tif",
+      "label": "Sentinel-1 VV/VH Después (.tif)",
+      "datasetId": "s1_sar",
+      "phase": "after",
+      "format": "geotiff",
+      "url": "data/cases/glacier-khumbu/geotiffs/glacier-khumbu_s1_post_sar.tif",
+      "sizeBytes": 1137962
+    },
+    {
+      "id": "mod10-pre-snow-tif",
+      "label": "MODIS Nieve Antes (.tif)",
+      "datasetId": "modis_cryo",
+      "phase": "before",
+      "format": "geotiff",
+      "url": "data/cases/glacier-khumbu/geotiffs/glacier-khumbu_mod10_pre_snow.tif",
+      "sizeBytes": 6411
+    },
+    {
+      "id": "mod10-post-snow-tif",
+      "label": "MODIS Nieve Después (.tif)",
+      "datasetId": "modis_cryo",
+      "phase": "after",
+      "format": "geotiff",
+      "url": "data/cases/glacier-khumbu/geotiffs/glacier-khumbu_mod10_post_snow.tif",
+      "sizeBytes": 3530
+    },
+    {
+      "id": "mod11-pre-lst-tif",
+      "label": "MODIS Temp °C Antes (.tif)",
+      "datasetId": "modis_cryo",
+      "phase": "before",
+      "format": "geotiff",
+      "url": "data/cases/glacier-khumbu/geotiffs/glacier-khumbu_mod11_pre_lst.tif",
+      "sizeBytes": 7991
+    },
+    {
+      "id": "mod11-post-lst-tif",
+      "label": "MODIS Temp °C Después (.tif)",
+      "datasetId": "modis_cryo",
+      "phase": "after",
+      "format": "geotiff",
+      "url": "data/cases/glacier-khumbu/geotiffs/glacier-khumbu_mod11_post_lst.tif",
+      "sizeBytes": 7970
+    },
+    {
+      "id": "melt-loss-tif",
+      "label": "Pérdida Nieve Neta (.tif)",
+      "datasetId": "melt_change",
+      "phase": "change",
+      "format": "geotiff",
+      "url": "data/cases/glacier-khumbu/geotiffs/glacier-khumbu_melt_snow_loss.tif",
+      "sizeBytes": 373224
+    }
+  ]
+}

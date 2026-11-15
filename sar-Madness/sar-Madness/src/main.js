@@ -1,484 +1,527 @@
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './style.css';
-import { loadCatalog } from './lib/registry.js';
-import { MapController, BASEMAPS, VIEW_MODES } from './lib/mapController.js';
-import { frameAt, vectorCutoff, deltaLabel, fmtTime } from './lib/timeline.js';
+import { loadCatalog, resolveUrl } from './lib/registry.js';
+import { renderFrameCanvas } from './lib/rasterCanvas.js';
+import {
+  downloadSideBySidePng,
+  downloadSingleRenderedPng,
+  frameShortTitle,
+  getBeforeAfterPair,
+} from './lib/beforeAfterExport.js';
+import { MapController } from './lib/mapController.js';
 
-const token = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
-const app = document.getElementById('app');
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const NA = 'No disponible';
+const esc = (s) =>
+  String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 
-// ── Sin token no hay mapa, pero tampoco pantalla rota ──
-if (!token || token.includes('PEGA')) {
-  app.innerHTML = `
-    <div class="setup">
-      <h1>Falta el token de Mapbox</h1>
-      <p>La app necesita un token público de Mapbox para dibujar el mapa.</p>
-      <ol>
-        <li>Crea un token público (<code>pk.…</code>) en <a href="https://account.mapbox.com" target="_blank" rel="noopener">account.mapbox.com</a>.</li>
-        <li>Copia <code>.env.example</code> como <code>.env</code> y pégalo en <code>VITE_MAPBOX_ACCESS_TOKEN</code>.</li>
-        <li>Reinicia con <code>npm run dev</code>.</li>
-      </ol>
-      <p class="muted">Restringe el token por URL/origen y permisos en el panel de Mapbox. Nunca lo subas al repositorio.</p>
-    </div>`;
-  throw new Error('VITE_MAPBOX_ACCESS_TOKEN no configurado');
-}
+const fmtBytes = (b) => {
+  if (!Number.isFinite(b) || b <= 0) return '';
+  return b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.round(b / 1024)} KB`;
+};
 
-const radios = (name, options, checked) => Object.entries(options).map(([k, v]) => {
-  const label = typeof v === 'string' ? v : v.label;
-  return `<label class="seg"><input type="radio" name="${name}" value="${k}" ${k === checked ? 'checked' : ''}/><span>${esc(label)}</span></label>`;
-}).join('');
-
+const app = document.querySelector('#app');
 app.innerHTML = `
   <div class="app">
-    <aside class="side" id="side">
-      <header>
-        <h1>Cambios en superficie con SAR</h1>
-        <p class="flag">DEMO — datos sintéticos, no son observaciones satelitales ni alertas reales.</p>
-      </header>
+    <aside class="side">
+      <div class="hdr">
+        <h1>Monitoreo Satelital Real</h1>
+        <span class="pill-real">100% Datos Reales</span>
+      </div>
 
-      <section>
-        <label for="case-select">Zona de estudio</label>
+      <section class="sec">
+        <label class="sec-title" for="case-select">Zona de estudio</label>
         <select id="case-select"></select>
-        <p id="case-desc" class="muted">Gira el globo y toca un punto, o elige una zona de la lista.</p>
+        <p id="case-desc" class="muted"></p>
+        <div id="case-metrics" class="metrics-grid"></div>
       </section>
 
-      <section class="base-panel">
-        <h2>Mapa base y terreno <span class="tag tag-base">BASE</span></h2>
-        <div class="field"><span class="lbl">Vista</span><div class="segs" id="mode">${radios('mode', VIEW_MODES, 'globe')}</div></div>
-        <div class="field"><span class="lbl">Mapa base</span><div class="segs" id="basemap">${radios('basemap', BASEMAPS, 'satellite')}</div></div>
-        <label class="check"><input type="checkbox" id="hillshade" checked /> Sombreado de relieve</label>
-        <div class="field"><label for="exag" class="lbl">Exageración del relieve: <output id="exag-out">1,5×</output></label>
-          <input id="exag" type="range" min="0.5" max="3" step="0.1" value="1.5" /></div>
-        <div class="field"><label for="sun" class="lbl">Luz solar (azimut): <output id="sun-out">315°</output></label>
-          <input id="sun" type="range" min="0" max="360" step="5" value="315" /></div>
-        <small class="muted">El relieve y el color del mapa base no son datos SAR.</small>
-      </section>
-
-      <section id="time-sec" hidden>
-        <h2>Tiempo</h2>
-        <div class="tbtns">
-          <button id="prev" type="button" aria-label="Frame anterior">◀ Anterior</button>
-          <button id="play" type="button">Reproducir</button>
-          <button id="next" type="button" aria-label="Frame siguiente">Siguiente ▶</button>
-          <select id="speed" aria-label="Velocidad"><option value="2200">0,5×</option><option value="1300" selected>1×</option><option value="650">2×</option></select>
+      <section class="sec" id="layer-sec">
+        <h2 class="sec-title">Capa y variable</h2>
+        <div id="dataset-chips" class="chips"></div>
+        <div id="var-chips" class="chips" hidden></div>
+        <div id="legend-wrap" class="legend-bar" hidden>
+          <div id="legend-ramp" class="legend-ramp"></div>
+          <div class="legend-labels"><span id="legend-min"></span><span id="legend-max"></span></div>
         </div>
-        <input id="slider" type="range" min="0" max="0" step="1" value="0" aria-label="Fecha del eje temporal" />
-        <div id="tlabel" class="tlabel"></div>
-        <small class="muted">Cada capa muestra su último frame disponible hasta la fecha elegida. Las fuentes tienen fechas distintas: mira la fecha de cada capa.</small>
-      </section>
-
-      <section class="sar-panel" id="ds-sec" hidden>
-        <h2>Rásteres <span class="tag tag-sar">DEMO</span></h2>
-        <div id="datasets"></div>
-      </section>
-
-      <section class="sar-panel" id="swipe-sec" hidden>
-        <h2>Comparar antes / después</h2>
-        <label class="check"><input type="checkbox" id="swipe-on" /> Activar comparador (swipe)</label>
-        <div id="swipe-ctl" hidden>
-          <div class="field"><label for="sw-ds" class="lbl">Dataset</label><select id="sw-ds"></select></div>
-          <div class="field"><label for="sw-var" class="lbl">Variable</label><select id="sw-var"></select></div>
-          <div class="field"><label for="sw-before" class="lbl">Antes (izquierda)</label><select id="sw-before"></select></div>
-          <div class="field"><label for="sw-after" class="lbl">Después (derecha)</label><select id="sw-after"></select></div>
-          <div class="field"><label for="sw-split" class="lbl">Posición del corte en la zona</label><input id="sw-split" type="range" min="0" max="100" step="1" value="50" /></div>
-          <small class="muted">El corte divide la zona (de oeste a este), no la pantalla.</small>
+        <div class="range-row">
+          <span>Opacidad en mapa</span>
+          <input id="opacity-range" type="range" min="0.15" max="1" step="0.05" value="0.9" />
+          <strong id="opacity-out">90%</strong>
         </div>
       </section>
 
-      <section class="sar-panel" id="vec-sec" hidden>
-        <h2>Vectores (GeoJSON)</h2>
-        <div id="vectors"></div>
+      <section class="sec" id="ba-sec">
+        <h2 class="sec-title">Visualización Antes / Después y Descargas PNG</h2>
+        <div id="ba-grid" class="ba-grid"></div>
+        <div id="ba-actions" class="actions-row">
+          <button type="button" id="btn-dl-comp" class="btn btn-primary">⬇ Comparación Antes/Después (.png)</button>
+          <button type="button" id="btn-open-modal" class="btn">⛶ Ampliar</button>
+        </div>
+        <div id="map-compare-bar" hidden>
+          <div class="chips" style="margin-bottom:6px">
+            <button type="button" class="chip" id="btn-view-before">Ver Antes en mapa</button>
+            <button type="button" class="chip" id="btn-view-after">Ver Después en mapa</button>
+            <button type="button" class="chip" id="btn-view-swipe">Dividir mapa (Swipe)</button>
+          </div>
+          <div id="swipe-slider-row" class="range-row" hidden>
+            <span>División Antes | Después</span>
+            <input id="swipe-split" type="range" min="0" max="1" step="0.01" value="0.5" />
+            <strong id="swipe-out">50%</strong>
+          </div>
+        </div>
       </section>
 
-      <section class="sar-panel">
-        <h2>Leyenda · datos SAR (DEMO)</h2>
-        <div id="legend"><p class="muted">Sin capas activas.</p></div>
+      <section class="sec" id="vectors-sec" hidden>
+        <h2 class="sec-title">Perímetros GeoJSON reales</h2>
+        <div id="vectors-list" class="vec-list"></div>
       </section>
 
-      <footer class="muted">Mapa base: © Mapbox © OpenStreetMap © Maxar. Datos demo sintéticos generados por <code>scripts/make_demo_data.py</code>.</footer>
+      <section class="sec" id="downloads-sec" hidden>
+        <h2 class="sec-title">Datos crudos GeoTIFF reales (.tif)</h2>
+        <div id="downloads-list" class="dl-list"></div>
+      </section>
     </aside>
+
     <main class="stage">
-      <div class="demo-banner" id="demo-banner">DEMO — datos sintéticos, no son observaciones satelitales ni alertas reales</div>
       <div id="map"></div>
-      <div id="status" class="status" role="status" hidden><span id="status-text"></span><button id="status-act" type="button" hidden></button><button id="status-x" type="button" aria-label="Cerrar aviso">×</button></div>
-      <button id="home" type="button" class="home">Ver el mundo</button>
-      <button id="recenter" type="button" class="home second" hidden>Volver a la zona</button>
-      <div id="swipe-labels" class="swipe-labels" hidden><span id="sl-before"></span><span id="sl-after"></span></div>
-      <div id="info" class="info" hidden></div>
+      <div class="map-overlay-top">
+        <button type="button" id="world-btn" class="btn" hidden>🌐 Ver todas las zonas</button>
+        <button type="button" id="terrain-btn" class="btn" hidden>🏔 Relieve 3D: ON</button>
+        <span id="status-pill" class="pill-real" hidden></span>
+      </div>
+      <div id="inspect-pill" class="inspect-pill" hidden></div>
+      <div id="token-notice" class="token-notice" hidden>
+        <div class="token-card">
+          <strong>Mapa interactivo Mapbox sin token configurado</strong>
+          <p class="muted" style="margin-top:6px">
+            Configura <code>VITE_MAPBOX_ACCESS_TOKEN</code> en <code>.env</code> y recarga para navegar sobre el globo 3D.
+            Mientras tanto, todas las imágenes reales Antes/Después y GeoTIFFs descargables están activos en el panel izquierdo.
+          </p>
+        </div>
+      </div>
     </main>
-  </div>`;
+  </div>
 
-const $ = (id) => document.getElementById(id);
+  <dialog id="compare-modal">
+    <div class="modal-head">
+      <strong id="modal-title"></strong>
+      <button type="button" id="modal-close" class="btn">Cerrar</button>
+    </div>
+    <div id="modal-grid" class="modal-grid"></div>
+    <div class="modal-foot">
+      <button type="button" id="modal-dl-before" class="btn">⬇ Antes (.png)</button>
+      <button type="button" id="modal-dl-after" class="btn">⬇ Después (.png)</button>
+      <button type="button" id="modal-dl-comp" class="btn btn-primary">⬇ Comparación Antes/Después (.png)</button>
+    </div>
+  </dialog>
+`;
 
-// ── Aviso de estado (con acción opcional, nunca reintentos automáticos) ──
-let statusTimer = null;
-function setStatus(kind, text, action) {
-  clearTimeout(statusTimer);
-  const el = $('status');
-  el.hidden = !text;
-  el.className = `status ${kind || ''}`;
-  $('status-text').textContent = text || '';
-  $('status-act').hidden = !action;
-  $('status-act').dataset.action = action || '';
-  $('status-act').textContent = 'Reintentar';
-  if (text && kind !== 'loading' && kind !== 'data') statusTimer = setTimeout(() => { el.hidden = true; }, 20000);
+const el = (id) => document.querySelector(id);
+const state = {
+  cases: [],
+  active: null,
+  datasetId: null,
+  varId: null,
+  mapMode: 'before', // 'before' | 'after' | 'swipe'
+  split: 0.5,
+  renderSeq: 0,
+  previews: { before: null, after: null },
+};
+
+const token = (import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '').trim();
+const ctl = token
+  ? new MapController({
+      container: el('#map'),
+      token,
+      onStatus: (level, msg) => {
+        const pill = el('#status-pill');
+        pill.hidden = !msg;
+        pill.textContent = msg || '';
+        if (level === 'error') pill.style.color = '#fca5a5';
+      },
+    })
+  : null;
+
+if (!ctl) el('#token-notice').hidden = false;
+
+const activeDataset = () => state.active?.datasets?.find((d) => d.id === state.datasetId) ?? null;
+
+function setStatus(msg) {
+  const pill = el('#status-pill');
+  pill.hidden = !msg;
+  pill.textContent = msg || '';
 }
 
-const controller = new MapController({ container: 'map', token, onStatus: setStatus });
-let cases = [];
-let active = null;
-let idx = 0;
-let playing = false;
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const tickMs = () => active?.axis[idx]?.ms ?? null;
-
-// ── Tarjetas de datasets ──
-const badgeOf = (status) => (status === 'real' ? 'REAL' : 'DEMO');
-const unitOf = (u) => (u == null ? 'unidad pendiente' : u);
-
-function renderDatasets() {
-  $('ds-sec').hidden = !active.datasets.length;
-  $('datasets').innerHTML = active.datasets.map((d) => {
-    const meta = [d.platform || 'plataforma pendiente', d.sensor || 'sensor pendiente', d.provider || 'proveedor pendiente'].join(' · ');
-    const opts = d.variables.map((v) => `<option value="${esc(v.id)}">${esc(v.label || v.id)}${v.unit != null ? ` (${esc(v.unit)})` : ''}</option>`).join('')
-      + d.composites.map((c) => `<option value="${esc(c.id)}">${esc(c.label || c.id)}</option>`).join('');
-    return `
-      <div class="card" data-ds="${esc(d.id)}">
-        <label class="layer"><input type="checkbox" data-act="vis" checked />
-          <span><strong>${esc(d.name || d.id)}</strong> <em class="badge">${badgeOf(d.status)}</em><small>${esc(meta)}</small></span></label>
-        <div class="field"><label class="lbl">Variable</label><select data-act="sel">${opts}</select></div>
-        <div class="field"><label class="lbl">Opacidad <output>${Math.round(d.render.opacity * 100)}%</output></label>
-          <input type="range" data-act="op" min="0" max="100" value="${Math.round(d.render.opacity * 100)}" /></div>
-        <div class="dsdate none" data-role="date"></div>
-        <div class="dserr" data-role="err" hidden></div>
-        <button type="button" data-act="retry" class="mini" hidden>Reintentar esta capa</button>
-      </div>`;
-  }).join('');
-  active.datasets.forEach((d) => paintDataset(d.id));
+function renderCaseMetrics(def) {
+  const m = def.metrics;
+  const box = el('#case-metrics');
+  if (!m) { box.innerHTML = ''; return; }
+  const items = [];
+  if (m.preWindow) items.push(['Ventana Antes', m.preWindow]);
+  if (m.postWindow) items.push(['Ventana Después', m.postWindow]);
+  if (m.affectedKm2 != null) items.push(['Área quemada detectada', `${m.affectedKm2} km²`]);
+  if (m.observedKm2 != null) items.push(['Área observada', `${m.observedKm2} km²`]);
+  if (m.snowPrePct != null && m.snowPostPct != null) items.push(['Nieve MODIS (Antes → Después)', `${m.snowPrePct}% → ${m.snowPostPct}%`]);
+  if (m.lstPreC != null && m.lstPostC != null) items.push(['Temp. superficie', `${m.lstPreC}°C → ${m.lstPostC}°C`]);
+  if (m.meltAreaKm2 != null) items.push(['Retroceso nival (ΔNDSI)', `${m.meltAreaKm2} km²`]);
+  box.innerHTML = items.map(([k, v]) => `<div class="metric"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('');
 }
 
-function paintDataset(id) {
-  const card = document.querySelector(`[data-ds="${CSS.escape(id)}"]`);
-  const st = controller.dataset(id);
-  if (!card || !st) return;
-  const date = card.querySelector('[data-role="date"]');
-  const err = card.querySelector('[data-role="err"]');
-  const t = tickMs();
-  if (!st.frame) {
-    const first = st.def.frames[0];
-    date.className = 'dsdate none';
-    date.textContent = first ? `Aún sin frame: el primero es del ${fmtTime(first.datetime)}` : 'Sin frames en la configuración';
+function renderLegend(ds, varId) {
+  const wrap = el('#legend-wrap');
+  const v = (ds?.variables ?? []).find((x) => x.id === varId);
+  if (!v?.legend?.colors?.length) { wrap.hidden = true; return; }
+  wrap.hidden = false;
+  el('#legend-ramp').style.background = `linear-gradient(90deg, ${v.legend.colors.join(', ')})`;
+  const unit = v.unit ? ` ${v.unit}` : '';
+  el('#legend-min').textContent = `${v.legend.min}${unit}`;
+  el('#legend-max').textContent = `${v.legend.max}${unit}`;
+}
+
+function renderDatasetControls(def) {
+  el('#dataset-chips').innerHTML = def.datasets
+    .map((d) => `<button type="button" class="chip${d.id === state.datasetId ? ' active' : ''}" data-ds="${esc(d.id)}">${esc(d.name)}</button>`)
+    .join('');
+
+  el('#dataset-chips').querySelectorAll('button').forEach((btn) => {
+    btn.addEventListener('click', () => selectDataset(btn.dataset.ds));
+  });
+
+  const ds = activeDataset();
+  const varBox = el('#var-chips');
+  if (ds && ds.variables.length > 1) {
+    varBox.hidden = false;
+    varBox.innerHTML = ds.variables
+      .map((v) => `<button type="button" class="chip${v.id === state.varId ? ' active' : ''}" data-v="${esc(v.id)}">${esc(v.label)}</button>`)
+      .join('');
+    varBox.querySelectorAll('button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.varId = btn.dataset.v;
+        renderDatasetControls(def);
+        refreshLayer();
+      });
+    });
   } else {
-    const dl = t == null ? null : deltaLabel(t, st.frame.ms);
-    date.className = `dsdate ${dl ? 'stale' : 'sync'}`;
-    date.textContent = dl
-      ? `Frame del ${fmtTime(st.frame.datetime)} · ${dl} antes de la fecha elegida (no simultáneo)`
-      : `Frame del ${fmtTime(st.frame.datetime)} · coincide con la fecha elegida`;
+    varBox.hidden = true;
+    varBox.innerHTML = '';
   }
-  const bad = st.status === 'error' || st.status === 'novar';
-  err.hidden = !bad;
-  err.textContent = bad ? (st.error || 'Error') : '';
-  card.querySelector('[data-act="retry"]').hidden = st.status !== 'error';
+
+  const opacity = ds?.render?.opacity ?? 0.9;
+  el('#opacity-range').value = String(opacity);
+  el('#opacity-out').textContent = `${Math.round(opacity * 100)}%`;
+  renderLegend(ds, state.varId);
 }
 
-// ── Vectores ──
-function renderVectors() {
-  $('vec-sec').hidden = !active.vectors.length;
-  $('vectors').innerHTML = active.vectors.map((v) => {
-    const bad = v._load !== 'ok';
-    const badge = v.simulated ? 'SIMULADO' : badgeOf(v.status);
-    const warn = v.indicator && !v.indicator.simulated && !v.indicator.validation ? ' <em class="badge warn">sin validación</em>' : '';
-    return `
-      <label class="layer ${bad ? 'bad' : ''}">
-        <input type="checkbox" data-vec="${esc(v.id)}" ${bad ? 'disabled' : 'checked'} />
-        <span><strong>${esc(v.name || v.id)}</strong> <em class="badge">${badge}</em>${warn}
-        <small>${bad ? `No cargó: ${esc(v._error || 'error')}` : esc(v.description || '')}</small>
-        <small class="vdate" data-vdate="${esc(v.id)}"></small></span>
-      </label>`;
-  }).join('');
-  paintVectorDates();
-}
-
-function paintVectorDates() {
-  const t = tickMs();
-  active.vectors.forEach((v) => {
-    const el = document.querySelector(`[data-vdate="${CSS.escape(v.id)}"]`);
-    if (!el || !v.time) return;
-    const cut = t == null ? null : vectorCutoff(v, t);
-    el.textContent = cut == null ? 'Aún sin datos en esta fecha' : `${v.time.mode === 'cumulative' ? 'Acumulado hasta' : 'Datos del'} ${fmtTime(cut)}`;
+function renderVectors(def) {
+  const sec = el('#vectors-sec');
+  const box = el('#vectors-list');
+  const vecs = def.vectors ?? [];
+  if (!vecs.length) { sec.hidden = true; return; }
+  sec.hidden = false;
+  box.innerHTML = vecs
+    .map(
+      (v) => `<label class="check">
+        <input type="checkbox" data-vec="${esc(v.id)}" ${v.defaultVisible !== false ? 'checked' : ''} />
+        <span>${esc(v.name || v.id)}</span>
+      </label>`,
+    )
+    .join('');
+  box.querySelectorAll('input').forEach((inp) => {
+    inp.addEventListener('change', () => ctl?.setVectorVisible(inp.dataset.vec, inp.checked));
   });
 }
 
-// ── Leyenda ──
-function renderLegend() {
-  if (!active) { $('legend').innerHTML = '<p class="muted">Sin capas activas.</p>'; return; }
-  const parts = [];
-  for (const d of active.datasets) {
-    const st = controller.dataset(d.id);
-    if (!st?.visible) continue;
-    const comp = d.composites.find((c) => c.id === st.selection);
-    const title = `${esc(d.name)} · ${esc(comp ? comp.label : (d.variables.find((v) => v.id === st.selection)?.label || st.selection))}`;
-    if (comp) {
-      const rows = ['r', 'g', 'b'].map((ch) => {
-        const vv = d.variables.find((v) => v.id === comp.channels[ch]);
-        return `<div class="legend-item"><span class="sw ch-${ch}"></span>${ch.toUpperCase()} = ${vv ? `${esc(vv.label)} (${vv.legend ? `${vv.legend.min} a ${vv.legend.max} ` : ''}${esc(unitOf(vv.unit))})` : 'sin canal'}</div>`;
-      }).join('');
-      parts.push(`<div class="legend-block"><div class="legend-title">${title}</div>${rows}${comp.note ? `<small class="muted">${esc(comp.note)}</small>` : ''}</div>`);
-      continue;
-    }
-    const v = d.variables.find((x) => x.id === st.selection);
-    const lg = v?.legend;
-    const ramp = lg?.colors ? `<div class="ramp" style="background:linear-gradient(90deg,${lg.colors.map(esc).join(',')})"></div>
-      <div class="ramp-scale"><span>${lg.min ?? ''}</span><span>${esc(unitOf(v.unit))}</span><span>${lg.max ?? ''}</span></div>` : '<small class="muted">Leyenda no definida en la configuración</small>';
-    parts.push(`<div class="legend-block"><div class="legend-title">${title}</div>${ramp}${lg?.nodata_label ? `<small class="muted">${esc(lg.nodata_label)}</small>` : ''}</div>`);
-  }
-  for (const v of active.vectors) {
-    if (!v.legend || v._load !== 'ok' || !controller.isVectorVisible(v.id)) continue;
-    parts.push(`<div class="legend-block"><div class="legend-title">${esc(v.legend.title || v.name)} ${v.simulated ? '<em class="badge">SIMULADO</em>' : ''}</div>
-      ${(v.legend.items || []).map((i) => `<div class="legend-item"><span class="sw" style="background:${esc(i.color)}"></span>${esc(i.label)}</div>`).join('')}</div>`);
-  }
-  $('legend').innerHTML = parts.join('') || '<p class="muted">Activa una capa para ver su leyenda.</p>';
-}
+function renderDownloads(def) {
+  const sec = el('#downloads-sec');
+  const box = el('#downloads-list');
+  const all = def.downloads ?? [];
+  if (!all.length) { sec.hidden = true; return; }
+  sec.hidden = false;
 
-// ── Avisos de carga: se señala cuál capa falló y las demás siguen funcionando ──
-function refreshStatus() {
-  if (!active) return;
-  const failed = [
-    ...active.datasets.filter((d) => ['error'].includes(controller.dataset(d.id)?.status)).map((d) => d.name),
-    ...active.vectors.filter((v) => v._load !== 'ok').map((v) => v.name),
-  ];
-  if (failed.length) setStatus('data', `No cargó: ${failed.join(', ')}. Las demás capas siguen disponibles.`);
-  else if ($('status').className.includes('data')) setStatus('', '');
-}
+  const primary = all.filter((d) => d.datasetId === state.datasetId);
+  const others = all.filter((d) => d.datasetId !== state.datasetId);
+  const shown = primary.length ? primary : all;
+  const linkHtml = (dl) =>
+    `<a class="dl-item" href="${esc(resolveUrl(dl.url))}" download>
+      <span>⬇ ${esc(dl.label)}</span>
+      <span class="dl-size">${esc(fmtBytes(dl.sizeBytes))}</span>
+    </a>`;
 
-// ── Panel de atributos (vector + valores ráster en el punto) ──
-const fmtVal = (x) => (Math.abs(x) >= 100 ? x.toFixed(0) : x.toFixed(2));
-
-async function showInfo(layer, feature, lngLat) {
-  const box = $('info');
-  const samples = lngLat ? await controller.sampleAt(lngLat) : [];
-  if (!layer && !samples.length) { box.hidden = true; return; }
-  let html = '<button type="button" class="close" aria-label="Cerrar panel">×</button>';
-  if (layer) {
-    const p = feature.properties || {};
-    const fields = layer.popupFields || Object.keys(p).map((k) => [k, k]);
-    const rows = fields.map(([k, label, unit]) => {
-      const has = p[k] !== undefined && p[k] !== null && p[k] !== '';
-      return `<tr><th>${esc(label || k)}</th><td>${has ? `${esc(p[k])}${unit ? ` ${esc(unit)}` : ''}` : `<span class="na">${NA}</span>`}</td></tr>`;
-    }).join('');
-    const when = layer.time ? p[layer.time.property] : null;
-    html += `<h3>${esc(p.name || p.zone_id || p.zone || layer.name)}</h3>
-      <p class="muted">Vector · ${esc(layer.name)} · ${layer.simulated ? 'SIMULADO' : badgeOf(layer.status)}</p>
-      ${layer.simulated ? '<p class="sim">SIMULADO: no es una medición ni una alerta.</p>' : ''}
-      <p>${esc(layer.description || 'Sin descripción disponible.')}</p>
-      <table><tr><th>Fecha del dato</th><td>${when ? esc(fmtTime(when)) : `<span class="na">${NA}</span>`}</td></tr>${rows}</table>`;
-  }
-  if (samples.length) {
-    html += `<h4>Valores ráster en este punto</h4><table>${samples.map((s) => {
-      const vals = s.values
-        ? s.values.map((v) => `${esc(v.label)}: ${v.value == null ? `<span class="na">${NA}</span>` : `${fmtVal(v.value)} ${esc(unitOf(v.unit))}`}`).join('<br>')
-        : `<span class="na">${NA} (ráster en teselas)</span>`;
-      return `<tr><th>${esc(s.name)}<br><small>${fmtTime(s.frame.datetime)} · ${badgeOf(s.status)}</small></th><td>${vals}</td></tr>`;
-    }).join('')}</table>`;
+  let html = shown.map(linkHtml).join('');
+  if (primary.length && others.length) {
+    html += `<details class="dl-more"><summary>Ver otros ${others.length} GeoTIFFs reales de este caso</summary><div class="dl-list">${others.map(linkHtml).join('')}</div></details>`;
   }
   box.innerHTML = html;
-  box.hidden = false;
-  box.querySelector('.close').onclick = () => { box.hidden = true; };
 }
 
-// ── Comparador (swipe) ──
-const swipeDatasets = () => active.datasets.filter((d) => d.source.type === 'image' && d.source.encoding === 'gray8' && d.frames.length >= 2);
-const optionList = (items) => items.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('');
+async function renderBeforeAfterPreviews(def, ds, varId) {
+  const seq = ++state.renderSeq;
+  const grid = el('#ba-grid');
+  const { hasPair, before, after } = getBeforeAfterPair(ds);
+  const compareBar = el('#map-compare-bar');
+  compareBar.hidden = !ctl || !hasPair;
+  el('#btn-dl-comp').hidden = !hasPair;
 
-function setupSwipe() {
-  const list = swipeDatasets();
-  $('swipe-sec').hidden = !list.length;
-  $('swipe-on').checked = false;
-  $('swipe-ctl').hidden = true;
-  $('swipe-labels').hidden = true;
-  if (!list.length) return;
-  $('sw-ds').innerHTML = optionList(list.map((d) => [d.id, d.name || d.id]));
-  fillSwipeDataset();
+  const cards = [];
+  if (hasPair && before && after) {
+    grid.className = 'ba-grid';
+    const [rb, ra] = await Promise.all([
+      renderFrameCanvas(ds, before, varId),
+      renderFrameCanvas(ds, after, varId),
+    ]);
+    if (seq !== state.renderSeq) return;
+    state.previews = {
+      before: { frame: before, url: rb.url },
+      after: { frame: after, url: ra.url },
+    };
+    cards.push({ tag: 'ANTES', cls: 'ba-tag-before', date: frameShortTitle(before, 'Antes'), url: rb.url, phase: 'antes', frame: before });
+    cards.push({ tag: 'DESPUÉS', cls: 'ba-tag-after', date: frameShortTitle(after, 'Después'), url: ra.url, phase: 'despues', frame: after });
+  } else {
+    grid.className = 'ba-grid single';
+    const only = after || before;
+    if (!only) { grid.innerHTML = ''; return; }
+    const rendered = await renderFrameCanvas(ds, only, varId);
+    if (seq !== state.renderSeq) return;
+    state.previews = { before: null, after: { frame: only, url: rendered.url } };
+    cards.push({ tag: 'OBSERVACIÓN REAL', cls: 'ba-tag-after', date: frameShortTitle(only, 'Resultado'), url: rendered.url, phase: 'real', frame: only });
+  }
+
+  grid.innerHTML = cards
+    .map(
+      (c, i) => `<div class="ba-card">
+        <div class="ba-card-head"><span class="${c.cls}">${c.tag}</span></div>
+        <div class="ba-date" title="${esc(c.date)}">${esc(c.date)}</div>
+        <img class="ba-thumb" src="${c.url}" alt="${esc(c.tag)}" />
+        <button type="button" class="btn btn-sm" data-dl-idx="${i}">⬇ Descargar ${c.tag} (.png)</button>
+      </div>`,
+    )
+    .join('');
+
+  grid.querySelectorAll('button[data-dl-idx]').forEach((btn) => {
+    const item = cards[Number(btn.dataset.dlIdx)];
+    btn.addEventListener('click', () => downloadSingleRenderedPng(def.id, ds, item.frame, varId, item.phase));
+  });
 }
 
-function fillSwipeDataset() {
-  const d = active.datasets.find((x) => x.id === $('sw-ds').value);
-  $('sw-var').innerHTML = optionList([...d.variables.map((v) => [v.id, v.label || v.id]), ...d.composites.map((c) => [c.id, c.label || c.id])]);
-  const frames = d.frames.map((f) => [f.id, fmtTime(f.datetime)]);
-  $('sw-before').innerHTML = optionList(frames);
-  $('sw-after').innerHTML = optionList(frames);
-  $('sw-after').value = d.frames[d.frames.length - 1].id;
-}
+async function syncMapToLayer() {
+  if (!ctl || !state.active) return;
+  const ds = activeDataset();
+  if (!ds) return;
+  const { hasPair, before, after } = getBeforeAfterPair(ds);
 
-async function applySwipe() {
-  const on = $('swipe-on').checked;
-  $('swipe-ctl').hidden = !on;
-  if (!on) { $('swipe-labels').hidden = true; await controller.setSwipe(null); paintAllDatasets(); return; }
-  const d = active.datasets.find((x) => x.id === $('sw-ds').value);
-  const label = (fid) => fmtTime(d.frames.find((f) => f.id === fid).datetime);
-  try {
-    await controller.setSwipe({
-      datasetId: d.id, selection: $('sw-var').value, beforeId: $('sw-before').value, afterId: $('sw-after').value, split: Number($('sw-split').value) / 100,
+  if (state.mapMode === 'swipe' && hasPair && before && after) {
+    el('#swipe-slider-row').hidden = false;
+    await ctl.setSwipe({
+      datasetId: ds.id,
+      beforeId: before.id,
+      afterId: after.id,
+      selection: state.varId,
+      split: state.split,
     });
-    $('sl-before').textContent = `Antes · ${label($('sw-before').value)}`;
-    $('sl-after').textContent = `Después · ${label($('sw-after').value)}`;
-    $('swipe-labels').hidden = false;
-  } catch (err) {
-    setStatus('error', `Comparador: ${err.message}`);
-    $('swipe-on').checked = false;
-    $('swipe-ctl').hidden = true;
-    $('swipe-labels').hidden = true;
+  } else {
+    el('#swipe-slider-row').hidden = true;
+    await ctl.setSwipe(null);
+    const frame = state.mapMode === 'after' || !hasPair ? after || before : before;
+    if (frame) await ctl.setTime(frame.ms);
   }
-}
 
-// ── Tiempo ──
-function renderTimeline() {
-  const n = active.axis.length;
-  $('time-sec').hidden = n < 1;
-  $('slider').max = Math.max(0, n - 1);
-}
-
-async function goTo(i) {
-  if (!active || !active.axis.length) return;
-  idx = (i + active.axis.length) % active.axis.length;
-  $('slider').value = idx;
-  const tick = active.axis[idx];
-  $('tlabel').textContent = `Fecha elegida: ${fmtTime(tick.label)} (${idx + 1} de ${active.axis.length})`;
-  await controller.setTime(tick.ms);
-  paintAllDatasets();
-  paintVectorDates();
-  renderLegend();
-  refreshStatus();
-  controller.prefetch(active.axis[(idx + 1) % active.axis.length].ms);
-}
-
-const paintAllDatasets = () => active?.datasets.forEach((d) => paintDataset(d.id));
-
-function stopPlay() {
-  playing = false;
-  $('play').textContent = 'Reproducir';
-}
-
-async function play() {
-  if (playing) return stopPlay();
-  playing = true;
-  $('play').textContent = 'Pausar';
-  while (playing) {
-    await sleep(Number($('speed').value));
-    if (!playing) break;
-    await goTo(idx + 1);
+  for (const d of state.active.datasets) {
+    await ctl.setDatasetVisible(d.id, d.id === ds.id);
   }
+  await ctl.setDatasetSelection(ds.id, state.varId);
+  ctl.setDatasetOpacity(ds.id, Number(el('#opacity-range').value));
+
+  el('#btn-view-before').classList.toggle('active', state.mapMode === 'before');
+  el('#btn-view-after').classList.toggle('active', state.mapMode === 'after');
+  el('#btn-view-swipe').classList.toggle('active', state.mapMode === 'swipe');
 }
 
-// ── Zonas ──
-function showWorldUI() {
-  stopPlay();
-  active = null;
-  idx = 0;
-  ['info', 'time-sec', 'ds-sec', 'swipe-sec', 'vec-sec', 'recenter', 'swipe-labels'].forEach((id) => { $(id).hidden = true; });
-  $('case-select').value = '';
-  $('case-desc').textContent = 'Gira el globo y toca un punto, o elige una zona de la lista.';
-  $('legend').innerHTML = '<p class="muted">Sin capas activas.</p>';
-  setStatus('', '');
+async function refreshLayer() {
+  const def = state.active;
+  const ds = activeDataset();
+  if (!def || !ds) return;
+  renderLegend(ds, state.varId);
+  renderDownloads(def);
+  const { hasPair } = getBeforeAfterPair(ds);
+  if (!hasPair && state.mapMode === 'swipe') state.mapMode = 'after';
+  await Promise.all([renderBeforeAfterPreviews(def, ds, state.varId), syncMapToLayer()]);
 }
 
-async function selectCase(id) {
-  if (!id) { await controller.showWorld(); showWorldUI(); return; }
-  stopPlay();
-  const def = cases.find((c) => c.id === id);
+function selectDataset(datasetId) {
+  const ds = state.active?.datasets?.find((d) => d.id === datasetId);
+  if (!ds) return;
+  state.datasetId = ds.id;
+  state.varId = ds.variables[0].id;
+  if (getBeforeAfterPair(ds).hasPair && state.mapMode === 'before') state.mapMode = 'before';
+  renderDatasetControls(state.active);
+  refreshLayer();
+}
+
+async function selectCase(caseId) {
+  const def = state.cases.find((c) => c.id === caseId);
   if (!def) return;
-  active = def;
-  $('case-select').value = id;
-  $('info').hidden = true;
-  $('recenter').hidden = false;
-  $('case-desc').textContent = def.description || '';
-  $('demo-banner').hidden = def.status === 'real' && def.datasets.every((d) => d.status === 'real');
-  setStatus('loading', 'Acercando a la zona…');
-  try {
-    await controller.loadCase(def);
-  } catch (err) {
-    setStatus('error', `No se pudo cargar el caso: ${err.message}`);
+  state.active = def;
+  el('#case-select').value = def.id;
+  el('#case-desc').textContent = def.description || '';
+  el('#world-btn').hidden = !ctl;
+  el('#terrain-btn').hidden = !ctl;
+  el('#terrain-btn').textContent = '🏔 Relieve 3D: ON';
+  history.replaceState(null, '', `#${def.id}`);
+  renderCaseMetrics(def);
+
+  const preferred = def.datasets.find((d) => getBeforeAfterPair(d).hasPair) ?? def.datasets[0];
+  state.datasetId = preferred?.id ?? null;
+  state.varId = preferred?.variables?.[0]?.id ?? null;
+  state.mapMode = getBeforeAfterPair(preferred).hasPair ? 'before' : 'after';
+
+  renderDatasetControls(def);
+  renderVectors(def);
+  renderDownloads(def);
+
+  const previewsJob = preferred ? renderBeforeAfterPreviews(def, preferred, state.varId) : Promise.resolve();
+  const mapJob = ctl ? ctl.loadCase(def).then(() => syncMapToLayer()) : Promise.resolve();
+  await Promise.all([previewsJob, mapJob]);
+}
+
+function openComparisonModal() {
+  const def = state.active;
+  const ds = activeDataset();
+  if (!def || !ds) return;
+  const { hasPair, before, after } = getBeforeAfterPair(ds);
+  const v = ds.variables.find((x) => x.id === state.varId);
+  el('#modal-title').textContent = `${def.title} · ${ds.name}${v ? ` (${v.label})` : ''}`;
+
+  const modalGrid = el('#modal-grid');
+  const cards = [];
+  if (hasPair && state.previews.before && state.previews.after) {
+    modalGrid.className = 'modal-grid';
+    cards.push({ title: `ANTES · ${frameShortTitle(before, 'Pre')}`, url: state.previews.before.url });
+    cards.push({ title: `DESPUÉS · ${frameShortTitle(after, 'Post')}`, url: state.previews.after.url });
+    el('#modal-dl-before').hidden = false;
+    el('#modal-dl-comp').hidden = false;
+  } else if (state.previews.after) {
+    modalGrid.className = 'modal-grid single';
+    cards.push({ title: frameShortTitle(after, 'Observación real'), url: state.previews.after.url });
+    el('#modal-dl-before').hidden = true;
+    el('#modal-dl-comp').hidden = true;
+  }
+  modalGrid.innerHTML = cards
+    .map((c) => `<div class="modal-card"><div class="ba-card-head"><span>${esc(c.title)}</span></div><img src="${c.url}" alt="${esc(c.title)}" /></div>`)
+    .join('');
+
+  el('#compare-modal').showModal();
+}
+
+function bindEvents() {
+  el('#case-select').addEventListener('change', (e) => selectCase(e.target.value));
+  el('#world-btn').addEventListener('click', () => {
+    el('#world-btn').hidden = true;
+    el('#terrain-btn').hidden = true;
+    ctl?.showWorld();
+  });
+  el('#terrain-btn').addEventListener('click', () => {
+    if (!ctl) return;
+    const next = ctl.mode === 'terrain' ? 'flat' : 'terrain';
+    ctl.setMode(next);
+    ctl.setHillshade(next === 'terrain');
+    el('#terrain-btn').textContent = next === 'terrain' ? '🏔 Relieve 3D: ON' : '🏔 Relieve 3D: OFF';
+  });
+
+  el('#opacity-range').addEventListener('input', (e) => {
+    const val = Number(e.target.value);
+    el('#opacity-out').textContent = `${Math.round(val * 100)}%`;
+    if (state.datasetId) ctl?.setDatasetOpacity(state.datasetId, val);
+  });
+
+  el('#btn-view-before').addEventListener('click', () => { state.mapMode = 'before'; syncMapToLayer(); });
+  el('#btn-view-after').addEventListener('click', () => { state.mapMode = 'after'; syncMapToLayer(); });
+  el('#btn-view-swipe').addEventListener('click', () => { state.mapMode = 'swipe'; syncMapToLayer(); });
+
+  el('#swipe-split').addEventListener('input', (e) => {
+    state.split = Number(e.target.value);
+    el('#swipe-out').textContent = `${Math.round(state.split * 100)}%`;
+    ctl?.setSwipeSplit(state.split);
+  });
+
+  el('#btn-dl-comp').addEventListener('click', () => {
+    const ds = activeDataset();
+    if (state.active && ds) downloadSideBySidePng(state.active, ds, state.varId);
+  });
+  el('#btn-open-modal').addEventListener('click', openComparisonModal);
+  el('#modal-close').addEventListener('click', () => el('#compare-modal').close());
+  el('#compare-modal').addEventListener('click', (e) => {
+    if (e.target === el('#compare-modal')) el('#compare-modal').close();
+  });
+
+  el('#modal-dl-before').addEventListener('click', () => {
+    const ds = activeDataset();
+    const { before } = getBeforeAfterPair(ds);
+    if (state.active && ds && before) downloadSingleRenderedPng(state.active.id, ds, before, state.varId, 'antes');
+  });
+  el('#modal-dl-after').addEventListener('click', () => {
+    const ds = activeDataset();
+    const { after, before } = getBeforeAfterPair(ds);
+    const frame = after || before;
+    if (state.active && ds && frame) downloadSingleRenderedPng(state.active.id, ds, frame, state.varId, 'despues');
+  });
+  el('#modal-dl-comp').addEventListener('click', () => {
+    const ds = activeDataset();
+    if (state.active && ds) downloadSideBySidePng(state.active, ds, state.varId);
+  });
+
+  if (ctl) {
+    ctl.onCasePick = (id) => selectCase(id);
+    let hoverTick = 0;
+    ctl.map.on('mousemove', (e) => {
+      const now = performance.now();
+      if (now - hoverTick < 70 || !state.active) return;
+      hoverTick = now;
+      ctl.sampleAt(e.lngLat).then((hits) => {
+        const pill = el('#inspect-pill');
+        if (!hits.length) { pill.hidden = true; return; }
+        const h = hits[0];
+        const lines = h.values
+          ? h.values.map((v) => `${esc(v.label)}: <strong>${v.value == null ? 'sin dato' : `${v.value.toFixed(2)} ${esc(v.unit || '')}`}</strong>`)
+          : [`${esc(h.name)}`];
+        pill.hidden = false;
+        pill.innerHTML = `<div class="muted">${e.lngLat.lng.toFixed(4)}, ${e.lngLat.lat.toFixed(4)}</div>${lines.join('<br>')}`;
+      });
+    });
+    ctl.map.on('mouseout', () => { el('#inspect-pill').hidden = true; });
+  }
+}
+
+async function boot() {
+  bindEvents();
+  const { cases, problems } = await loadCatalog('data/catalog.json');
+  state.cases = cases;
+  if (problems.length) setStatus(`Aviso: ${problems[0]}`);
+  if (!cases.length) {
+    el('#case-desc').textContent = 'No hay casos con datos reales disponibles en data/catalog.json.';
     return;
   }
-  setStatus('', '');
-  renderTimeline();
-  renderDatasets();
-  renderVectors();
-  setupSwipe();
-  await goTo(0);
+
+  const incendios = cases.filter((c) => c.category === 'incendio' || c.id.startsWith('wildfire-') || Boolean(c.wildfire));
+  const deshielo = cases.filter((c) => !incendios.includes(c));
+  const groups = [
+    ['Incendios forestales reales', incendios],
+    ['Deshielo glaciar real', deshielo],
+  ].filter(([, list]) => list.length);
+
+  el('#case-select').innerHTML = groups
+    .map(
+      ([label, list]) =>
+        `<optgroup label="${esc(label)}">${list.map((c) => `<option value="${esc(c.id)}">${esc(c.title)}</option>`).join('')}</optgroup>`,
+    )
+    .join('');
+
+  ctl?.setCases(cases);
+  const hashId = location.hash.slice(1);
+  const initial = cases.find((c) => c.id === hashId) ?? cases[0];
+  await selectCase(initial.id);
 }
 
-// ── Eventos ──
-$('case-select').onchange = (e) => selectCase(e.target.value);
-$('home').onclick = () => selectCase('');
-$('recenter').onclick = () => controller.flyToCase();
-$('play').onclick = play;
-$('prev').onclick = () => { stopPlay(); goTo(idx - 1); };
-$('next').onclick = () => { stopPlay(); goTo(idx + 1); };
-$('slider').oninput = (e) => { stopPlay(); goTo(Number(e.target.value)); };
-$('status-x').onclick = () => setStatus('', '');
-$('status-act').onclick = (e) => { if (e.target.dataset.action === 'retry-base') { controller.retryBase(); setStatus('', ''); } };
-
-$('datasets').addEventListener('change', async (e) => {
-  const id = e.target.closest('[data-ds]')?.dataset.ds;
-  if (!id) return;
-  if (e.target.dataset.act === 'vis') await controller.setDatasetVisible(id, e.target.checked);
-  if (e.target.dataset.act === 'sel') await controller.setDatasetSelection(id, e.target.value);
-  paintDataset(id);
-  renderLegend();
-  refreshStatus();
-});
-$('datasets').addEventListener('input', (e) => {
-  if (e.target.dataset.act !== 'op') return;
-  const id = e.target.closest('[data-ds]').dataset.ds;
-  e.target.parentElement.querySelector('output').textContent = `${e.target.value}%`;
-  controller.setDatasetOpacity(id, Number(e.target.value) / 100);
-});
-$('datasets').addEventListener('click', async (e) => {
-  if (e.target.dataset.act !== 'retry') return;
-  const id = e.target.closest('[data-ds]').dataset.ds;
-  await controller.retryDataset(id);
-  paintDataset(id);
-  refreshStatus();
-});
-$('vectors').addEventListener('change', (e) => {
-  if (!e.target.dataset.vec) return;
-  controller.setVectorVisible(e.target.dataset.vec, e.target.checked);
-  renderLegend();
-});
-
-$('swipe-on').onchange = applySwipe;
-$('sw-ds').onchange = () => { fillSwipeDataset(); applySwipe(); };
-['sw-var', 'sw-before', 'sw-after'].forEach((id) => { $(id).onchange = applySwipe; });
-$('sw-split').oninput = (e) => controller.setSwipeSplit(Number(e.target.value) / 100);
-
-$('mode').onchange = (e) => controller.setMode(e.target.value);
-$('basemap').onchange = (e) => controller.setBasemap(e.target.value);
-$('hillshade').onchange = (e) => controller.setHillshade(e.target.checked);
-$('exag').oninput = (e) => { $('exag-out').textContent = `${String(e.target.value).replace('.', ',')}×`; controller.setExaggeration(Number(e.target.value)); };
-$('sun').oninput = (e) => { $('sun-out').textContent = `${e.target.value}°`; controller.setSunAzimuth(Number(e.target.value)); };
-
-controller.onFeature = showInfo;
-controller.onCasePick = (id) => selectCase(id);
-controller.onDatasetState = (id) => { paintDataset(id); refreshStatus(); };
-
-// ── Arranque: globo con las zonas del catálogo ──
-(async function init() {
-  setStatus('loading', 'Cargando catálogo…');
-  try {
-    const result = await loadCatalog();
-    cases = result.cases;
-    result.warnings.forEach((w) => console.warn('[catálogo]', w));
-    result.problems.forEach((p) => console.warn('[catálogo]', p));
-    if (!cases.length) throw new Error(result.problems.join(' | ') || 'No hay casos registrados');
-    $('case-select').innerHTML = `<option value="">Mundo (globo 3D)</option>${cases.map((c) => `<option value="${esc(c.id)}">${esc(c.title)}</option>`).join('')}`;
-    await controller.ready;
-    controller.setCases(cases);
-    setStatus('', '');
-    if (result.problems.length) setStatus('error', `Casos omitidos por error: ${result.problems.length}. Revisa la consola (o ejecuta npm run validate).`);
-  } catch (err) {
-    setStatus('error', `No se pudo cargar el catálogo: ${err.message}`);
-  }
-})();
+boot();

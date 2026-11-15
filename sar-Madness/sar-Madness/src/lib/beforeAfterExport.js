@@ -1,0 +1,149 @@
+// Generación y descarga de imágenes PNG (Antes, Después y Comparación lado a lado) desde datos reales.
+import { buildLut, renderFrameCanvas } from './rasterCanvas.js';
+
+export function getBeforeAfterPair(dataset) {
+  const frames = dataset?.frames ?? [];
+  if (frames.length >= 2) {
+    const explicitBefore = frames.find((f) => f.phase === 'before') ?? frames[0];
+    const explicitAfter = [...frames].reverse().find((f) => f.phase === 'after') ?? frames[frames.length - 1];
+    return { hasPair: explicitBefore.id !== explicitAfter.id, before: explicitBefore, after: explicitAfter };
+  }
+  return { hasPair: false, before: null, after: frames[0] ?? null };
+}
+
+export function frameShortTitle(frame, fallback) {
+  if (!frame) return fallback;
+  return frame.label || String(frame.datetime || fallback).slice(0, 10);
+}
+
+export async function triggerCanvasPngDownload(canvas, filename) {
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+/** Compone una lámina PNG descargable con Antes (izquierda) y Después (derecha), fechas y leyenda real. */
+export function buildComparisonCanvas({ caseDef, dataset, variable, beforeFrame, afterFrame, beforeCanvas, afterCanvas }) {
+  const panelW = Math.max(460, Math.min(680, Math.max(beforeCanvas.width, afterCanvas.width) * 2));
+  const aspect = beforeCanvas.height / Math.max(1, beforeCanvas.width);
+  const panelH = Math.max(220, Math.min(540, Math.round(panelW * aspect)));
+
+  const pad = 28;
+  const gap = 24;
+  const headerH = 74;
+  const subH = 34;
+  const footerH = variable?.legend ? 56 : 38;
+  const width = pad * 2 + panelW * 2 + gap;
+  const height = headerH + subH + panelH + footerH + pad;
+
+  const out = document.createElement('canvas');
+  out.width = width;
+  out.height = height;
+  const ctx = out.getContext('2d');
+
+  // Fondo limpio oscuro de análisis geoespacial
+  ctx.fillStyle = '#0d111a';
+  ctx.fillRect(0, 0, width, height);
+
+  // Cabecera con metadatos reales
+  ctx.fillStyle = '#eef2ff';
+  ctx.font = 'bold 20px system-ui, -apple-system, Segoe UI, sans-serif';
+  ctx.fillText(caseDef.title || caseDef.id, pad, 34);
+
+  ctx.fillStyle = '#93c5fd';
+  ctx.font = '14px system-ui, -apple-system, Segoe UI, sans-serif';
+  const varLabel = variable ? `${dataset.name} · ${variable.label}` : dataset.name;
+  ctx.fillText(varLabel, pad, 58);
+
+  const badge = 'DATOS SATELITALES REALES';
+  ctx.font = 'bold 11px system-ui, -apple-system, Segoe UI, sans-serif';
+  const bw = ctx.measureText(badge).width + 18;
+  ctx.fillStyle = '#134e4a';
+  ctx.fillRect(width - pad - bw, 18, bw, 24);
+  ctx.fillStyle = '#5eead4';
+  ctx.fillText(badge, width - pad - bw + 9, 34);
+
+  const drawPanel = (canvas, x, tag, subtitle, accent) => {
+    const yImg = headerH + subH;
+    ctx.fillStyle = '#161d2c';
+    ctx.fillRect(x, headerH, panelW, subH + panelH);
+    ctx.fillStyle = accent;
+    ctx.font = 'bold 13px system-ui, -apple-system, Segoe UI, sans-serif';
+    ctx.fillText(tag, x + 10, headerH + 22);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '13px system-ui, -apple-system, Segoe UI, sans-serif';
+    ctx.fillText(subtitle, x + 88, headerH + 22);
+
+    ctx.imageSmoothingEnabled = canvas.width < 260 ? false : true;
+    ctx.drawImage(canvas, x, yImg, panelW, panelH);
+
+    ctx.strokeStyle = '#2d3748';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x, headerH, panelW, subH + panelH);
+  };
+
+  drawPanel(beforeCanvas, pad, 'ANTES', frameShortTitle(beforeFrame, 'Pre'), '#38bdf8');
+  drawPanel(afterCanvas, pad + panelW + gap, 'DESPUÉS', frameShortTitle(afterFrame, 'Post'), '#fb923c');
+
+  const fy = headerH + subH + panelH + 16;
+  if (variable?.legend?.colors?.length >= 2) {
+    const barW = 280;
+    const barH = 12;
+    const lut = buildLut(variable.legend.colors);
+    for (let px = 0; px < barW; px++) {
+      const idx = Math.round((px / (barW - 1)) * 255);
+      ctx.fillStyle = `rgb(${lut[idx * 3]},${lut[idx * 3 + 1]},${lut[idx * 3 + 2]})`;
+      ctx.fillRect(pad + px, fy, 1, barH);
+    }
+    ctx.strokeStyle = '#334155';
+    ctx.strokeRect(pad, fy, barW, barH);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '12px system-ui, -apple-system, Segoe UI, sans-serif';
+    const unit = variable.unit ? ` ${variable.unit}` : '';
+    ctx.fillText(`${variable.legend.min}${unit}`, pad, fy + 28);
+    ctx.fillText(`${variable.legend.max}${unit}`, pad + barW - ctx.measureText(`${variable.legend.max}${unit}`).width, fy + 28);
+  } else {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '12px system-ui, -apple-system, Segoe UI, sans-serif';
+    ctx.fillText(`Producto: ${dataset.product || dataset.sensor || 'Observación satelital'} · ${dataset.provider || ''}`, pad, fy + 16);
+  }
+
+  return out;
+}
+
+export async function downloadSingleRenderedPng(caseId, dataset, frame, selectionId, tag) {
+  const { canvas } = await renderFrameCanvas(dataset, frame, selectionId);
+  await triggerCanvasPngDownload(canvas, `${caseId}_${dataset.id}_${selectionId}_${tag}.png`);
+}
+
+export async function downloadSideBySidePng(caseDef, dataset, selectionId) {
+  const { hasPair, before, after } = getBeforeAfterPair(dataset);
+  if (!hasPair || !before || !after) {
+    const only = after || before;
+    if (!only) return;
+    await downloadSingleRenderedPng(caseDef.id, dataset, only, selectionId, 'real');
+    return;
+  }
+  const [rb, ra] = await Promise.all([
+    renderFrameCanvas(dataset, before, selectionId),
+    renderFrameCanvas(dataset, after, selectionId),
+  ]);
+  const variable = (dataset.variables ?? []).find((v) => v.id === selectionId) ?? null;
+  const comp = buildComparisonCanvas({
+    caseDef,
+    dataset,
+    variable,
+    beforeFrame: before,
+    afterFrame: after,
+    beforeCanvas: rb.canvas,
+    afterCanvas: ra.canvas,
+  });
+  await triggerCanvasPngDownload(comp, `${caseDef.id}_${dataset.id}_${selectionId}_antes_despues.png`);
+}

@@ -1,0 +1,39 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "glacier-khumbu",
+        "name": "Glaciar de Khumbu · Deshielo alpino"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              86.78,
+              27.9
+            ],
+            [
+              86.88,
+              27.9
+            ],
+            [
+              86.88,
+              28.01
+            ],
+            [
+              86.78,
+              28.01
+            ],
+            [
+              86.78,
+              27.9
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

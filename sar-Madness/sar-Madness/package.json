@@ -7,7 +7,6 @@
     "dev": "vite",
     "build": "node scripts/validate-catalog.mjs && vite build",
     "preview": "vite preview",
-    "demo-data": "python3 scripts/make_demo_data.py",
     "validate": "node scripts/validate-catalog.mjs"
   },
   "dependencies": {

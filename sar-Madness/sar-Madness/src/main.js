@@ -76,6 +76,11 @@ app.innerHTML = `
         <button id="monitoring-mode-toggle" class="monitoring-mode-toggle" type="button" aria-pressed="false" aria-label="Switch to 3D view" hidden>2D</button>
         <aside id="monitoring-info-card" class="monitoring-info-card" aria-labelledby="monitoring-info-title" aria-live="polite" hidden></aside>
         <aside id="monitoring-controls" class="monitoring-controls" aria-label="Image controls and downloads" hidden></aside>
+        <div id="mobile-monitoring-bar" class="mobile-monitoring-bar" role="tablist" aria-label="Monitoring views" hidden>
+          <button type="button" class="mobile-monitoring-tab is-active" data-mobile-pane="info" role="tab" aria-selected="true">Data &amp; Metrics</button>
+          <button type="button" class="mobile-monitoring-tab" data-mobile-pane="controls" role="tab" aria-selected="false">Controls</button>
+          <button type="button" class="mobile-monitoring-tab" data-mobile-pane="map" role="tab" aria-selected="false">Map</button>
+        </div>
         <div class="hero-group">
           <div class="text-content">
             <p class="eyebrow">Satellite monitoring</p>
@@ -631,6 +636,16 @@ function syncMonitoringModeToggle() {
   toggle.setAttribute('aria-label', `Switch to ${is3d ? '2D' : '3D'} view`);
 }
 
+function setMobileMonitoringPane(pane = 'info') {
+  const validPane = pane === 'controls' || pane === 'map' ? pane : 'info';
+  el('.view').dataset.mobilePane = validPane;
+  el('#mobile-monitoring-bar')?.querySelectorAll('[data-mobile-pane]').forEach((tab) => {
+    const active = tab.dataset.mobilePane === validPane;
+    tab.classList.toggle('is-active', active);
+    tab.setAttribute('aria-selected', String(active));
+  });
+}
+
 function updateHomeCaseVisibility(ids) {
   visibleHomeCaseIds = new Set(ids);
   const shouldShow = homeCasesReady && state.currentPage === 'home';
@@ -721,9 +736,11 @@ function setPage(page, { caseId } = {}) {
   el('#inspect-pill').hidden = true;
   ctl?.cancelCaseFocus();
   el('.view').classList.remove('is-monitoring');
+  delete el('.view').dataset.mobilePane;
   el('#monitoring-mode-toggle').hidden = true;
   el('#monitoring-info-card').hidden = true;
   el('#monitoring-controls').hidden = true;
+  el('#mobile-monitoring-bar').hidden = true;
   ctl?.setOrbitEnabled(page === 'home');
   ctl?.setScrollZoomEnabled(page !== 'home');
   ctl?.setMapInteractionEnabled(false);
@@ -1055,9 +1072,11 @@ async function selectCase(caseId, { globeOverview = false } = {}) {
   if (globeOverview) {
     ctl?.cancelCaseFocus();
     el('.view').classList.remove('is-monitoring');
+    delete el('.view').dataset.mobilePane;
     el('#monitoring-mode-toggle').hidden = true;
     el('#monitoring-info-card').hidden = true;
     el('#monitoring-controls').hidden = true;
+    el('#mobile-monitoring-bar').hidden = true;
   }
   state.active = def;
   const preferred = def.datasets.find((d) => getBeforeAfterPair(d).hasPair) ?? def.datasets[0];
@@ -1161,8 +1180,16 @@ function bindEvents() {
       modeToggle.hidden = false;
       el('#monitoring-info-card').hidden = false;
       el('#monitoring-controls').hidden = false;
+      el('#mobile-monitoring-bar').hidden = false;
+      setMobileMonitoringPane('info');
       syncMonitoringModeToggle();
     });
+  });
+  el('#mobile-monitoring-bar').addEventListener('click', (event) => {
+    const tab = event.target.closest('button[data-mobile-pane]');
+    if (tab && el('.view').classList.contains('is-monitoring')) {
+      setMobileMonitoringPane(tab.dataset.mobilePane);
+    }
   });
   el('#monitoring-mode-toggle').addEventListener('click', () => {
     if (!ctl || !el('.view').classList.contains('is-monitoring')) return;
@@ -1251,23 +1278,33 @@ function bindEvents() {
   if (ctl) {
     ctl.onCasePick = openCase;
     ctl.onWorldClick = () => setPage('home');
-    let hoverTick = 0;
-    ctl.map.on('mousemove', (e) => {
-      const now = performance.now();
-      if (now - hoverTick < 70 || !state.active || !el('.view').classList.contains('is-monitoring')) return;
-      hoverTick = now;
+    const samplePoint = (lngLat, { hideOnMiss = true } = {}) => {
       const hSeq = ++state.hoverSeq;
-      ctl.sampleAt(e.lngLat).then((hits) => {
+      ctl.sampleAt(lngLat).then((hits) => {
         if (hSeq !== state.hoverSeq || !state.active || !el('.view').classList.contains('is-monitoring')) return;
         const pill = el('#inspect-pill');
-        if (!hits.length) { pill.hidden = true; return; }
+        if (!hits.length) {
+          if (hideOnMiss) pill.hidden = true;
+          return;
+        }
         const h = hits[0];
         const lines = h.values
           ? h.values.map((v) => `${esc(v.label)}: <strong>${v.value == null ? 'no data' : `${v.value.toFixed(2)} ${esc(v.unit || '')}`}</strong>`)
           : [`${esc(h.name)}`];
         pill.hidden = false;
-        pill.innerHTML = `<div class="muted">${e.lngLat.lng.toFixed(4)}, ${e.lngLat.lat.toFixed(4)}</div>${lines.join('<br>')}`;
+        pill.innerHTML = `<div class="muted">${lngLat.lng.toFixed(4)}, ${lngLat.lat.toFixed(4)}</div>${lines.join('<br>')}`;
       });
+    };
+    let hoverTick = 0;
+    ctl.map.on('mousemove', (e) => {
+      const now = performance.now();
+      if (now - hoverTick < 70 || !state.active || !el('.view').classList.contains('is-monitoring')) return;
+      hoverTick = now;
+      samplePoint(e.lngLat);
+    });
+    ctl.map.on('click', (e) => {
+      if (!state.active || !el('.view').classList.contains('is-monitoring')) return;
+      samplePoint(e.lngLat);
     });
     ctl.map.on('mouseout', () => {
       state.hoverSeq++;

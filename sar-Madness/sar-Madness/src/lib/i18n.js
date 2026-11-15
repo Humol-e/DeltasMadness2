@@ -1,0 +1,640 @@
+export const DEFAULT_LANG = 'en';
+
+export const UI_COPY = {
+  en: {
+    meta: {
+      htmlLang: 'en',
+      title: 'Delta · Earth Radar',
+      logoAria: 'Delta Anahuac website',
+      logoAlt: 'Delta logo',
+      navAria: 'Main navigation',
+      langSwitchAria: 'Language selector',
+      langSwitchToggle: 'Language: English active. Switch to Español',
+    },
+    nav: {
+      home: 'Home',
+      permafrost: 'Permafrost',
+      wildfires: 'Wildfires',
+      deforestation: 'Deforestation',
+    },
+    token: {
+      heading: 'Mapbox interactive map has no token configured',
+      bodyHtml:
+        'Set <code>VITE_MAPBOX_ACCESS_TOKEN</code> in <code>.env</code> and reload to navigate the 3D globe. Without this key, the satellite basemap cannot be loaded.',
+    },
+    hero: {
+      eyebrow: 'Satellite monitoring',
+      dataGuideBtn: 'How we could use this data',
+      homeCasesTitle: 'Observed events',
+      homeCasesAria: 'Observed events',
+      indicatorsAria: 'Events in the current category',
+      detailAria: 'Event details',
+    },
+    pages: {
+      home: {
+        title: 'Earth Radar',
+        description: 'When Earth changes irreversibly, every second of anticipation saves ecosystems.',
+      },
+      permafrost: {
+        title: 'Below Zero',
+        description: 'Permafrost and glacial thaw releases methane and accelerates climate change.',
+      },
+      wildfires: {
+        title: 'In Flames',
+        description: 'Wildfires transform ecosystems and leave scars visible from space.',
+      },
+      deforestation: {
+        title: 'Deforestation',
+        description: 'Monitoring forest cover changes and aboveground biomass loss.',
+      },
+    },
+    categories: {
+      wildfires: 'Wildfire',
+      permafrost: 'Glacier Melt',
+      deforestation: 'Forest Change',
+    },
+    cards: {
+      openEvent: (title) => `Open event: ${title}`,
+      imagePending: 'Image pending',
+      imageUnavailable: 'Image unavailable',
+      selectEvent: (title) => `Select ${title}`,
+      descriptionFallback: 'Event information unavailable.',
+      monitoringBtn: 'Satellite Monitoring',
+    },
+    mobileTabs: {
+      aria: 'Monitoring views',
+      info: 'Data & Metrics',
+      controls: 'Controls',
+      map: 'Map',
+    },
+    monitoring: {
+      mode3dAria: 'Switch to 3D view',
+      mode2dAria: 'Switch to 2D view',
+      keyMetrics: 'Key Metrics',
+      selectSatellite: 'Select Satellite',
+      sourcesAria: 'Satellite sources',
+      sourceHint: 'Choose a source to display its imagery on the map.',
+      controlsAria: 'Image controls and downloads',
+      visualization: 'Visualization',
+      imageControls: 'Image Controls',
+      opacity: 'Opacity',
+      compareTitle: 'Compare Before / After',
+      imageTime: 'Image Time',
+      before: 'Before',
+      after: 'After',
+      initial: 'Initial',
+      final: 'Final',
+      change: 'Change',
+      observation: 'Observation',
+      splitPhase: (pct) => `${pct}% Before · ${100 - pct}% After`,
+      slideToCompare: 'Slide to compare',
+      noImageSelected: 'No image selected',
+      dataType: 'Data type',
+      currentlyDisplaying: 'Currently Displaying',
+      source: 'Source',
+      sensor: 'Sensor',
+      platform: 'Platform',
+      provider: 'Provider',
+      data: 'Data',
+      comparison: 'Comparison',
+      date: 'Date',
+      phase: 'Phase',
+      unit: 'Unit',
+      selectSatelliteHint: 'Select a satellite to enable controls.',
+      downloadBtn: 'Download PNG + GeoTIFF',
+      downloadHintCount: (n) => `${n} GeoTIFF(s) available for this source; a comparison PNG will be added.`,
+      downloadHintNoSource: 'Select a source before downloading.',
+      noMetrics: 'No metrics available for this event.',
+      metricLabels: {
+        burnedArea: 'Burned area',
+        studyArea: 'Study area',
+        preWindow: 'Pre-window',
+        postWindow: 'Post-window',
+        snowCover: 'Snow cover',
+        surfaceTemp: 'Surface temp.',
+        meltArea: 'Melt area',
+        validForestArea: 'Valid forest area',
+        meanAgb: 'Mean AGB',
+        nisarSevereLoss: 'NISAR severe loss',
+        carbonLoss: 'Carbon loss',
+      },
+    },
+    inspect: {
+      noData: 'no data',
+    },
+    export: {
+      badge: 'REAL SATELLITE DATA',
+      beforeTag: 'BEFORE',
+      afterTag: 'AFTER',
+      preFallback: 'Pre',
+      postFallback: 'Post',
+      productPrefix: 'Product:',
+      satelliteObservation: 'Satellite observation',
+      failedPng: (msg) => `Failed to generate PNG: ${msg}`,
+      downloadWithTif: (n) => `Download started: comparison PNG and ${n} GeoTIFF(s).`,
+      downloadOnlyPng: 'Comparison PNG downloaded; no GeoTIFF available for this source.',
+    },
+    modal: {
+      close: 'Close',
+      dlBefore: '⬇ Before (.png)',
+      dlAfter: '⬇ After (.png)',
+      dlComp: '⬇ Before/After Comparison (.png)',
+      beforePrefix: 'BEFORE · ',
+      afterPrefix: 'AFTER · ',
+      realObs: 'Real observation',
+      noDataCases: 'No real-data cases available in data/catalog.json.',
+      warningPrefix: 'Warning: ',
+    },
+    side: {
+      title: 'Real Satellite Monitoring',
+      pillReal: '100% Real Data',
+      studySite: 'Study site',
+      layerAndVar: 'Layer and variable',
+      mapOpacity: 'Map opacity',
+      baTitle: 'Before / After View & PNG Downloads',
+      dlCompBtn: '⬇ Before/After Comparison (.png)',
+      expandBtn: '⛶ Expand',
+      viewBefore: 'View Before on map',
+      viewAfter: 'View After on map',
+      viewSwipe: 'Split map (Swipe)',
+      splitLabel: 'Split Before | After',
+      vectorsTitle: 'Real GeoJSON perimeters',
+      downloadsTitle: 'Raw Real GeoTIFF Data (.tif)',
+      worldBtn: 'View all sites',
+      terrainOn: '🏔 3D Terrain: ON',
+      terrainOff: '🏔 3D Terrain: OFF',
+      terrainInit: '3D Terrain: ON',
+      moreGeotiffs: (n) => `View other ${n} real GeoTIFFs for this event`,
+      realObsTag: 'REAL OBSERVATION',
+      resultFallback: 'Result',
+      downloadTagBtn: (tag) => `⬇ Download ${tag} (.png)`,
+      groups: {
+        wildfires: 'Real Wildfire Events',
+        permafrost: 'Real Glacier & Snowmelt',
+        deforestation: 'NISAR Forest Biomass (L-Band)',
+      },
+    },
+    dataGuide: {
+      eyebrow: 'Simple Guide',
+      title: 'How We Could Use This Data',
+      intro: 'Every map layer and metric in Delta comes from real satellite measurements. Here is what each number and image tells us and how people can use it.',
+      close: 'Close',
+      cards: [
+        {
+          category: 'wildfires',
+          tag: 'Wildfires',
+          heading: 'Fire Scars, Smoke Penetration & Damage',
+          items: [
+            ['Sentinel-2 RGB (True Color):', 'Shows the land before and after the fire just as our eyes would see it.'],
+            ['NBR / dNBR Burn Severity:', 'Uses infrared light to show which patches burned lightly vs. which lost almost all vegetation.'],
+            ['Sentinel-1 SAR & GeoPulse Fusion:', 'Radar sees right through dense smoke and clouds, day or night, to detect tree and terrain damage.'],
+            ['Burned Area & Study Area (km²):', 'Measures how much land actually burned inside the monitored region and during which dates.'],
+          ],
+          takeawayLabel: 'How we use it:',
+          takeawayBody: 'Guide firefighters past heavy smoke, focus tree-planting and erosion barriers on the worst-hit slopes, and speed up emergency aid or insurance claims.',
+        },
+        {
+          category: 'permafrost',
+          tag: 'Permafrost & Glaciers',
+          heading: 'Ice Retreat, Meltwater & Surface Heat',
+          items: [
+            ['Snow Cover (NDSI & MODIS Snow %):', 'Separates clean snow and ice from exposed rock or mud to measure how fast glaciers are shrinking.'],
+            ['Surface Temperature (°C):', 'Tracks warming trends on high peaks and tundra pushing frozen basins above the melting point.'],
+            ['Sentinel-1 Radar & Melt Area (km²):', 'Detects wet snow and liquid water forming on ice—even under thick clouds—and totals the thawing surface.'],
+          ],
+          takeawayLabel: 'How we use it:',
+          takeawayBody: 'Predict seasonal drinking and irrigation water for downstream towns, spot dangerous glacial lakes before floodwaters burst, and watch permafrost zones where thawing releases greenhouse gases.',
+        },
+        {
+          category: 'deforestation',
+          tag: 'Deforestation',
+          heading: 'Canopy Mass, Clearing & Stored Carbon',
+          items: [
+            ['NISAR Aboveground Biomass (AGB · Mg/ha):', 'Estimates how many metric tons of wood and living plant mass stand in each hectare of forest.'],
+            ['L-Band Radar (HH / HV) & ΔAGB Change:', 'Long radar waves pierce beneath the leafy canopy to measure trunk volume and pinpoint exact patches where trees were felled or damaged.'],
+            ['Carbon Loss (Gg C) & Severe Loss (km²):', 'Converts missing wood biomass into kilotons of carbon no longer stored by the forest.'],
+          ],
+          takeawayLabel: 'How we use it:',
+          takeawayBody: 'Catch illegal logging early, verify that carbon-credit and reforestation programs really protect trees, and plan sustainable forestry without clearing intact habitats.',
+        },
+        {
+          category: 'exports',
+          tag: 'Reports & GIS Exports',
+          heading: 'Turning Satellite Views into Action',
+          items: [
+            ['Before / After Slider & Pixel Probe:', 'Hover anywhere over a layer to read exact real values (like biomass in Mg/ha, dB backscatter, or burn class) at exact GPS coordinates.'],
+            ['Side-by-Side Comparison PNG:', 'Downloads a clean before-and-after picture with dates and legend ready for presentations, schools, or civic reports.'],
+            ['Raw GeoTIFF (.tif) Files:', 'Industry-standard georeferenced maps that engineers, NGOs, and disaster teams can load straight into QGIS, ArcGIS, or Python.'],
+          ],
+          takeawayLabel: 'How we use it:',
+          takeawayBody: 'Anyone—from local planners to researchers—can move smoothly from quick visual evidence to full geographic analysis in external mapping tools.',
+        },
+      ],
+    },
+    mapErrors: {
+      noDetails: 'no details',
+      rateLimited: 'HTTP 429: server rate-limited requests; wait a moment and retry',
+      failedToLoad: (detail) => `Failed to load: ${detail}`,
+      demUnavailable: (detail) => `Terrain (DEM) unavailable: ${detail}.`,
+      basemapError: (detail, sourceId) => `Basemap: ${detail}${sourceId ? ` (source ${sourceId})` : ''}.`,
+      missingVariable: (name) => `Variable ${name} is missing in this frame`,
+    },
+  },
+  es: {
+    meta: {
+      htmlLang: 'es',
+      title: 'Delta · Radar Terrestre',
+      logoAria: 'Sitio web de Delta Anahuac',
+      logoAlt: 'Logo de Delta',
+      navAria: 'Navegación principal',
+      langSwitchAria: 'Selector de idioma',
+      langSwitchToggle: 'Idioma: Español activo. Cambiar a English',
+    },
+    nav: {
+      home: 'Inicio',
+      permafrost: 'Permafrost',
+      wildfires: 'Incendios',
+      deforestation: 'Deforestación',
+    },
+    token: {
+      heading: 'El mapa interactivo de Mapbox no tiene token configurado',
+      bodyHtml:
+        'Configura <code>VITE_MAPBOX_ACCESS_TOKEN</code> en <code>.env</code> y recarga para navegar el globo 3D. Sin esta clave no se puede cargar el mapa base satelital.',
+    },
+    hero: {
+      eyebrow: 'Monitoreo satelital',
+      dataGuideBtn: 'Cómo podemos usar estos datos',
+      homeCasesTitle: 'Eventos observados',
+      homeCasesAria: 'Eventos observados',
+      indicatorsAria: 'Eventos en la categoría actual',
+      detailAria: 'Detalles del evento',
+    },
+    pages: {
+      home: {
+        title: 'Radar Terrestre',
+        description: 'Cuando la Tierra cambia de forma irreversible, cada segundo de anticipación salva ecosistemas.',
+      },
+      permafrost: {
+        title: 'Bajo Cero',
+        description: 'El deshielo del permafrost y de los glaciares libera metano y acelera el cambio climático.',
+      },
+      wildfires: {
+        title: 'En Llamas',
+        description: 'Los incendios forestales transforman ecosistemas y dejan cicatrices visibles desde el espacio.',
+      },
+      deforestation: {
+        title: 'Deforestación',
+        description: 'Monitoreo de cambios en la cobertura forestal y pérdida de biomasa aérea.',
+      },
+    },
+    categories: {
+      wildfires: 'Incendio forestal',
+      permafrost: 'Deshielo glaciar',
+      deforestation: 'Cambio forestal',
+    },
+    cards: {
+      openEvent: (title) => `Abrir evento: ${title}`,
+      imagePending: 'Imagen pendiente',
+      imageUnavailable: 'Imagen no disponible',
+      selectEvent: (title) => `Seleccionar ${title}`,
+      descriptionFallback: 'Información del evento no disponible.',
+      monitoringBtn: 'Monitoreo Satelital',
+    },
+    mobileTabs: {
+      aria: 'Vistas de monitoreo',
+      info: 'Datos y métricas',
+      controls: 'Controles',
+      map: 'Mapa',
+    },
+    monitoring: {
+      mode3dAria: 'Cambiar a vista 3D',
+      mode2dAria: 'Cambiar a vista 2D',
+      keyMetrics: 'Métricas clave',
+      selectSatellite: 'Seleccionar satélite',
+      sourcesAria: 'Fuentes satelitales',
+      sourceHint: 'Elige una fuente para mostrar sus imágenes en el mapa.',
+      controlsAria: 'Controles de imagen y descargas',
+      visualization: 'Visualización',
+      imageControls: 'Controles de imagen',
+      opacity: 'Opacidad',
+      compareTitle: 'Comparar Antes / Después',
+      imageTime: 'Fecha de imagen',
+      before: 'Antes',
+      after: 'Después',
+      initial: 'Inicial',
+      final: 'Final',
+      change: 'Cambio',
+      observation: 'Observación',
+      splitPhase: (pct) => `${pct}% Antes · ${100 - pct}% Después`,
+      slideToCompare: 'Desliza para comparar',
+      noImageSelected: 'Sin imagen seleccionada',
+      dataType: 'Tipo de dato',
+      currentlyDisplaying: 'Visualización actual',
+      source: 'Fuente',
+      sensor: 'Sensor',
+      platform: 'Plataforma',
+      provider: 'Proveedor',
+      data: 'Dato',
+      comparison: 'Comparación',
+      date: 'Fecha',
+      phase: 'Fase',
+      unit: 'Unidad',
+      selectSatelliteHint: 'Selecciona un satélite para habilitar los controles.',
+      downloadBtn: 'Descargar PNG + GeoTIFF',
+      downloadHintCount: (n) => `${n} GeoTIFF disponible(s) para esta fuente; se añadirá un PNG comparativo.`,
+      downloadHintNoSource: 'Selecciona una fuente antes de descargar.',
+      noMetrics: 'No hay métricas disponibles para este evento.',
+      metricLabels: {
+        burnedArea: 'Área quemada',
+        studyArea: 'Área de estudio',
+        preWindow: 'Ventana previa',
+        postWindow: 'Ventana posterior',
+        snowCover: 'Cobertura de nieve',
+        surfaceTemp: 'Temp. superficial',
+        meltArea: 'Área de deshielo',
+        validForestArea: 'Área forestal válida',
+        meanAgb: 'Biomasa (AGB) media',
+        nisarSevereLoss: 'Pérdida severa NISAR',
+        carbonLoss: 'Pérdida de carbono',
+      },
+    },
+    inspect: {
+      noData: 'sin datos',
+    },
+    export: {
+      badge: 'DATOS SATELITALES REALES',
+      beforeTag: 'ANTES',
+      afterTag: 'DESPUÉS',
+      preFallback: 'Antes',
+      postFallback: 'Después',
+      productPrefix: 'Producto:',
+      satelliteObservation: 'Observación satelital',
+      failedPng: (msg) => `No se pudo generar el PNG: ${msg}`,
+      downloadWithTif: (n) => `Descarga iniciada: PNG comparativo y ${n} GeoTIFF(s).`,
+      downloadOnlyPng: 'PNG comparativo descargado; no hay GeoTIFF disponible para esta fuente.',
+    },
+    modal: {
+      close: 'Cerrar',
+      dlBefore: '⬇ Antes (.png)',
+      dlAfter: '⬇ Después (.png)',
+      dlComp: '⬇ Comparación Antes/Después (.png)',
+      beforePrefix: 'ANTES · ',
+      afterPrefix: 'DESPUÉS · ',
+      realObs: 'Observación real',
+      noDataCases: 'No hay casos con datos reales disponibles en data/catalog.json.',
+      warningPrefix: 'Aviso: ',
+    },
+    side: {
+      title: 'Monitoreo Satelital Real',
+      pillReal: '100% Datos Reales',
+      studySite: 'Sitio de estudio',
+      layerAndVar: 'Capa y variable',
+      mapOpacity: 'Opacidad del mapa',
+      baTitle: 'Vista Antes / Después y descargas PNG',
+      dlCompBtn: '⬇ Comparación Antes/Después (.png)',
+      expandBtn: '⛶ Ampliar',
+      viewBefore: 'Ver Antes en el mapa',
+      viewAfter: 'Ver Después en el mapa',
+      viewSwipe: 'Dividir mapa (Deslizar)',
+      splitLabel: 'División Antes | Después',
+      vectorsTitle: 'Perímetros GeoJSON reales',
+      downloadsTitle: 'Datos GeoTIFF reales crudos (.tif)',
+      worldBtn: 'Ver todos los sitios',
+      terrainOn: '🏔 Terreno 3D: ON',
+      terrainOff: '🏔 Terreno 3D: OFF',
+      terrainInit: 'Terreno 3D: ON',
+      moreGeotiffs: (n) => `Ver otros ${n} GeoTIFF reales de este evento`,
+      realObsTag: 'OBSERVACIÓN REAL',
+      resultFallback: 'Resultado',
+      downloadTagBtn: (tag) => `⬇ Descargar ${tag} (.png)`,
+      groups: {
+        wildfires: 'Eventos reales de incendios',
+        permafrost: 'Glaciares y deshielo reales',
+        deforestation: 'Biomasa forestal NISAR (Banda L)',
+      },
+    },
+    dataGuide: {
+      eyebrow: 'Guía sencilla',
+      title: 'Cómo podemos usar estos datos',
+      intro: 'Cada capa del mapa y métrica en Delta proviene de mediciones satelitales reales. Esto es lo que nos dice cada cifra e imagen y cómo puede aprovecharse.',
+      close: 'Cerrar',
+      cards: [
+        {
+          category: 'wildfires',
+          tag: 'Incendios',
+          heading: 'Cicatrices de fuego, humo y daños',
+          items: [
+            ['Sentinel-2 RGB (Color real):', 'Muestra el terreno antes y después del incendio tal como lo verían nuestros ojos.'],
+            ['Severidad de quema NBR / dNBR:', 'Usa luz infrarroja para mostrar qué zonas se quemaron levemente y cuáles perdieron casi toda la vegetación.'],
+            ['Fusión Sentinel-1 SAR y GeoPulse:', 'El radar atraviesa humo denso y nubes, de día o de noche, para detectar daños en árboles y terreno.'],
+            ['Área quemada y área de estudio (km²):', 'Mide cuánta superficie se quemó realmente dentro de la región vigilada y entre qué fechas.'],
+          ],
+          takeawayLabel: 'Cómo se usa:',
+          takeawayBody: 'Guiar a bomberos a través de humo espeso, priorizar reforestación y barreras contra la erosión en las laderas más afectadas, y agilizar ayudas o seguros.',
+        },
+        {
+          category: 'permafrost',
+          tag: 'Permafrost y Glaciares',
+          heading: 'Retroceso del hielo, deshielo y calor',
+          items: [
+            ['Cobertura de nieve (NDSI y MODIS Nieve %):', 'Separa la nieve y el hielo limpios de roca o lodo expuesto para medir qué tan rápido se reducen los glaciares.'],
+            ['Temperatura superficial (°C):', 'Rastrea tendencias de calentamiento en altas cumbres y tundra que llevan las cuencas congeladas por encima del punto de fusión.'],
+            ['Radar Sentinel-1 y Área de deshielo (km²):', 'Detecta nieve húmeda y agua líquida sobre el hielo —incluso bajo nubes densas— y suma la superficie que se derrite.'],
+          ],
+          takeawayLabel: 'Cómo se usa:',
+          takeawayBody: 'Anticipar el agua estacional para consumo y riego río abajo, detectar lagos glaciares peligrosos antes de desbordes y vigilar zonas de permafrost donde el deshielo libera gases de efecto invernadero.',
+        },
+        {
+          category: 'deforestation',
+          tag: 'Deforestación',
+          heading: 'Masa forestal, tala y carbono almacenado',
+          items: [
+            ['Biomasa Aérea NISAR (AGB · Mg/ha):', 'Estima cuántas toneladas métricas de madera y materia vegetal viva hay en cada hectárea de bosque.'],
+            ['Radar banda L (HH / HV) y cambio ΔAGB:', 'Ondas largas de radar penetran bajo el follaje para medir el volumen de troncos e identificar exactamente dónde se talaron o dañaron árboles.'],
+            ['Pérdida de carbono (Gg C) y Pérdida severa (km²):', 'Convierte la madera faltante en kilotoneladas de carbono que el bosque dejó de almacenar.'],
+          ],
+          takeawayLabel: 'Cómo se usa:',
+          takeawayBody: 'Detectar tala ilegal a tiempo, verificar que programas de bonos de carbono y reforestación protejan árboles reales y planificar un manejo forestal sostenible.',
+        },
+        {
+          category: 'exports',
+          tag: 'Reportes y Exportación GIS',
+          heading: 'Convertir vistas satelitales en acción',
+          items: [
+            ['Deslizador Antes / Después e inspector de píxel:', 'Pasa el cursor sobre cualquier capa para leer valores reales exactos (biomasa en Mg/ha, retrodispersión en dB o clase de quema) en coordenadas GPS precisas.'],
+            ['PNG comparativo lado a lado:', 'Descarga una imagen limpia de antes y después con fechas y leyenda lista para presentaciones, escuelas o reportes ciudadanos.'],
+            ['Archivos GeoTIFF (.tif) crudos:', 'Mapas georreferenciados estándar que ingenieros, ONG y equipos de emergencia pueden abrir directamente en QGIS, ArcGIS o Python.'],
+          ],
+          takeawayLabel: 'Cómo se usa:',
+          takeawayBody: 'Cualquier persona —desde planificadores locales hasta investigadores— puede pasar sin fricción de la evidencia visual rápida al análisis geográfico completo.',
+        },
+      ],
+    },
+    mapErrors: {
+      noDetails: 'sin detalles',
+      rateLimited: 'HTTP 429: el servidor limitó las peticiones; espera un momento y reintenta',
+      failedToLoad: (detail) => `Error al cargar: ${detail}`,
+      demUnavailable: (detail) => `Terreno (DEM) no disponible: ${detail}.`,
+      basemapError: (detail, sourceId) => `Mapa base: ${detail}${sourceId ? ` (fuente ${sourceId})` : ''}.`,
+      missingVariable: (name) => `Falta la variable ${name} en este cuadro`,
+    },
+  },
+};
+
+const CASE_TEXT_ES = {
+  'wildfire-camp-paradise': {
+    title: 'Incendio Camp — Paradise, CA (2018)',
+    description:
+      'Catastrófico incendio Camp en Paradise y Butte Creek (noviembre de 2018). Analiza la severidad de quema Key & Benson (dNBR) y la pérdida estructural/forestal con Sentinel-1/2. [Área quemada estimada: 54.41 km² de 156.2 km² observados; zona de revisión por incertidumbre: 9.20 km²].',
+  },
+  'wildfire-martin-nv': {
+    title: 'Incendio Martin — Estepa de Artemisa, NV (2018)',
+    description:
+      'Gran incendio Martin en artemisa y estepa en Nevada (julio de 2018). Detecta la cicatriz de quema en vegetación semiárida mediante dNBR, NDVI previo al fuego y Sentinel-1 VH. [Área quemada estimada: 57.67 km² de 179.6 km² observados; zona de revisión por incertidumbre: 13.01 km²].',
+  },
+  'wildfire-palisades-la': {
+    title: 'Incendio Palisades — Los Ángeles, CA (2025)',
+    description:
+      'Incendio urbano-forestal en Pacific Palisades y las montañas de Santa Mónica (enero de 2025). Combina Sentinel-2 L2A (dNBR/NDVI), Sentinel-1 RTC (retrodispersión VH/VV) y DEM Copernicus de 30 m. [Área quemada estimada: 70.15 km² de 110.1 km² observados; zona de revisión por incertidumbre: 7.25 km²].',
+  },
+  'glacier-langtang': {
+    title: 'Valle de Langtang · Deshielo Glaciar',
+    description:
+      'Retroceso estacional de nieve y transición del manto seco invernal (ene-feb 2026) al deshielo estival por encima de 0 °C (may-ago 2026), observado con Sentinel-2, Sentinel-1 GRD y MODIS.',
+  },
+  'glacier-khumbu': {
+    title: 'Glaciar Khumbu · Deshielo Alpino',
+    description:
+      'Comparación real Antes/Después de cobertura de nieve NDSI, temperatura superficial del suelo MODIS y retrodispersión SAR de Sentinel-1 entre la acumulación invernal y la ablación de verano 2026.',
+  },
+  'biomass-leno-nisar': {
+    title: 'Biomasa Forestal NISAR L3 — Lenoir Landing (LENO · Butler, AL)',
+    description:
+      'Biomasa Aérea (AGB) en banda L (GCOV) y perturbación forestal 2021–2024 sobre la cuadrícula de validación de la NASA en Butler, AL (~33 km al N de Lenoir Landing Park). Inversión física L3 ATBD sobre GCOV en banda L (20 m → 100 m / 1 ha) con cobertura NLCD y validación óptica PlanetScope 2022–2023.',
+  },
+};
+
+const TERM_ES = {
+  // Dataset names
+  'GeoPulse · SAR + Optical Fusion': 'GeoPulse · Fusión SAR + Óptica',
+  'Sentinel-2 L2A · Optical RGB': 'Sentinel-2 L2A · Óptico RGB',
+  'Sentinel-2 · NBR Index (Vegetation/Burn)': 'Sentinel-2 · Índice NBR (Vegetación/Quema)',
+  'Sentinel-1 RTC · VH SAR Radar (All-Weather)': 'Sentinel-1 RTC · Radar SAR VH (Todo clima)',
+  'Sentinel-2 RGB · True Color': 'Sentinel-2 RGB · Color real',
+  'Snow Index NDSI · Sentinel-2': 'Índice de nieve NDSI · Sentinel-2',
+  'SAR Radar · Sentinel-1 GRD': 'Radar SAR · Sentinel-1 GRD',
+  'MODIS Snow Cover & Surface Temp (LST)': 'MODIS Cobertura de nieve y Temp. superficial (LST)',
+  'Net Snow Loss (ΔNDSI)': 'Pérdida neta de nieve (ΔNDSI)',
+  'NISAR L3 Aboveground Biomass (AGB)': 'NISAR L3 Biomasa Aérea (AGB)',
+  'SAR L-band HV · Canopy Volume': 'Radar SAR banda L HV · Volumen de dosel',
+  'SAR L-band HH · Trunk–Ground': 'Radar SAR banda L HH · Tronco–Suelo',
+  'Net Biomass Change (ΔAGB)': 'Cambio neto de biomasa (ΔAGB)',
+  'NLCD Land Cover & Planet Reference': 'Cobertura NLCD y Referencia Planet',
+  // Platforms & products
+  'NISAR (Simulated UAVSAR/ALOS-2)': 'NISAR (Simulado UAVSAR/ALOS-2)',
+  'NISAR (Simulated)': 'NISAR (Simulado)',
+  'True Color B04/B03/B02 (gamma 1.4)': 'Color real B04/B03/B02 (gamma 1.4)',
+  'Cloud-free composite B4/B3/B2': 'Compuesto sin nubes B4/B3/B2',
+  'Normalized Burn Ratio': 'Índice Normalizado de Área Quemada',
+  'Normalized Difference Snow Index': 'Índice de Nieve de Diferencia Normalizada',
+  'Backscatter σ⁰ winter vs melt': 'Retrodispersión σ⁰ invierno vs deshielo',
+  'Real Pre - Post NDSI difference': 'Diferencia real NDSI Pre - Post',
+  'L3 Aboveground Biomass (100 m / 1 ha)': 'Biomasa Aérea L3 (100 m / 1 ha)',
+  'LENO LULC + Disturbance Validation': 'Validación NLCD LENO y Perturbación',
+  // Variable labels & units
+  'Burn Probability': 'Probabilidad de quema',
+  'dNBR Severity (Key & Benson)': 'Severidad dNBR (Key & Benson)',
+  'S1/S2 Multimodal Change': 'Cambio multimodal S1/S2',
+  'Shannon Uncertainty H(p)': 'Incertidumbre de Shannon H(p)',
+  'True Color (B04/B03/B02)': 'Color real (B04/B03/B02)',
+  'True Color (B4/B3/B2)': 'Color real (B4/B3/B2)',
+  'NBR Index': 'Índice NBR',
+  'VH Backscatter': 'Retrodispersión VH',
+  'Snow Index (NDSI)': 'Índice de nieve (NDSI)',
+  'VH Polarization': 'Polarización VH',
+  'VV Polarization': 'Polarización VV',
+  'Snow cover': 'Cobertura de nieve',
+  'Daytime surface temperature': 'Temperatura superficial diurna',
+  'Snow loss (ΔNDSI × 100)': 'Pérdida de nieve (ΔNDSI × 100)',
+  'Aboveground Biomass (AGB)': 'Biomasa aérea (AGB)',
+  'ΔAGB (After − Before)': 'ΔAGB (Después − Antes)',
+  'NLCD Land Cover / Planet Disturbance': 'Cobertura NLCD / Perturbación Planet',
+  'class 0–4': 'clase 0–4',
+  index: 'índice',
+  class: 'clase',
+  // Vector names
+  'Study Area (AOI)': 'Área de estudio (AOI)',
+  'Burn perimeter (casing)': 'Perímetro de quema (borde)',
+  'Burn perimeter (GeoPulse)': 'Perímetro de quema (GeoPulse)',
+  'Detected Melt Zone': 'Zona de deshielo detectada',
+  'LENO Study Area (405.30 km²)': 'Área de estudio LENO (405.30 km²)',
+  'NISAR Severe Loss (ΔAGB ≤ −40 Mg/ha)': 'Pérdida severa NISAR (ΔAGB ≤ −40 Mg/ha)',
+  'Planet Optical Validation (2022–2023)': 'Validación óptica Planet (2022–2023)',
+  // Downloads
+  'Sentinel-2 NBR Before (.tif)': 'Sentinel-2 NBR Antes (.tif)',
+  'Sentinel-2 NBR After (.tif)': 'Sentinel-2 NBR Después (.tif)',
+  'Sentinel-1 VH Before (.tif)': 'Sentinel-1 VH Antes (.tif)',
+  'Sentinel-1 VH After (.tif)': 'Sentinel-1 VH Después (.tif)',
+  'dNBR Severity (.tif)': 'Severidad dNBR (.tif)',
+  'Burn Probability (.tif)': 'Probabilidad de quema (.tif)',
+  'Change Probability (.tif)': 'Probabilidad de cambio (.tif)',
+  'Uncertainty (.tif)': 'Incertidumbre (.tif)',
+  'Copernicus DEM (.tif)': 'Copernicus DEM (.tif)',
+  'Sentinel-2 RGB Before (.tif)': 'Sentinel-2 RGB Antes (.tif)',
+  'Sentinel-2 RGB After (.tif)': 'Sentinel-2 RGB Después (.tif)',
+  'Sentinel-2 NDSI Before (.tif)': 'Sentinel-2 NDSI Antes (.tif)',
+  'Sentinel-2 NDSI After (.tif)': 'Sentinel-2 NDSI Después (.tif)',
+  'Sentinel-1 VV/VH Before (.tif)': 'Sentinel-1 VV/VH Antes (.tif)',
+  'Sentinel-1 VV/VH After (.tif)': 'Sentinel-1 VV/VH Después (.tif)',
+  'MODIS Snow Before (.tif)': 'MODIS Nieve Antes (.tif)',
+  'MODIS Snow After (.tif)': 'MODIS Nieve Después (.tif)',
+  'MODIS Temp °C Before (.tif)': 'MODIS Temp °C Antes (.tif)',
+  'MODIS Temp °C After (.tif)': 'MODIS Temp °C Después (.tif)',
+  'Net Snow Loss (.tif)': 'Pérdida neta de nieve (.tif)',
+  'NISAR Aboveground Biomass Pre (Mg/ha) — EPSG:4326': 'Biomasa Aérea NISAR Pre (Mg/ha) — EPSG:4326',
+  'NISAR Aboveground Biomass Post (Mg/ha) — EPSG:4326': 'Biomasa Aérea NISAR Post (Mg/ha) — EPSG:4326',
+  'Biomass Change ΔAGB (Mg/ha) — EPSG:4326': 'Cambio de biomasa ΔAGB (Mg/ha) — EPSG:4326',
+  'SAR L-band HV Pre (dB) — EPSG:4326': 'SAR Banda L HV Pre (dB) — EPSG:4326',
+  'SAR L-band HV Post (dB) — EPSG:4326': 'SAR Banda L HV Post (dB) — EPSG:4326',
+  'SAR L-band HH Pre (dB) — EPSG:4326': 'SAR Banda L HH Pre (dB) — EPSG:4326',
+  'SAR L-band HH Post (dB) — EPSG:4326': 'SAR Banda L HH Post (dB) — EPSG:4326',
+  'LENO NLCD Land Cover (uint8 classes) — EPSG:4326': 'Cobertura NLCD LENO (clases uint8) — EPSG:4326',
+  // Specific non-formulaic frame labels
+  'Before · LENO NLCD Land Cover': 'Antes · Cobertura NLCD LENO',
+  'After · Planet Reference Disturbance': 'Después · Perturbación de referencia Planet',
+};
+
+export function getUiCopy(lang = DEFAULT_LANG) {
+  return UI_COPY[lang] ?? UI_COPY[DEFAULT_LANG];
+}
+
+export function translateTerm(value, lang = DEFAULT_LANG) {
+  if (!value || lang !== 'es') return value;
+  return TERM_ES[value] ?? value;
+}
+
+export function getLocalizedCaseTitle(def, lang = DEFAULT_LANG) {
+  if (!def) return '';
+  if (lang === 'es' && CASE_TEXT_ES[def.id]?.title) return CASE_TEXT_ES[def.id].title;
+  return def.title ?? '';
+}
+
+export function getLocalizedCaseDescription(def, lang = DEFAULT_LANG) {
+  if (!def) return '';
+  if (lang === 'es' && CASE_TEXT_ES[def.id]?.description) return CASE_TEXT_ES[def.id].description;
+  return def.description ?? '';
+}
+
+export function localizeFrameLabel(label, lang = DEFAULT_LANG) {
+  if (!label || lang !== 'es') return label;
+  if (TERM_ES[label]) return TERM_ES[label];
+  return String(label)
+    .replace(/^Before · /, 'Antes · ')
+    .replace(/^After · /, 'Después · ')
+    .replace(/^HV Before · /, 'HV Antes · ')
+    .replace(/^HV After · /, 'HV Después · ')
+    .replace(/^HH Before · /, 'HH Antes · ')
+    .replace(/^HH After · /, 'HH Después · ')
+    .replace(/^Change /, 'Cambio ')
+    .replace(/(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})/g, '$1 a $2');
+}

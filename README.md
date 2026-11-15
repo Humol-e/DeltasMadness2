@@ -8,8 +8,8 @@
 [![Frontend](https://img.shields.io/badge/Viewer-Mapbox_GL_JS_v3.9_%2B_Vite_5-1E293B)](#4-3d-web-viewer-sar-madnesssar-madness)
 [![Catalog Schema v2](https://img.shields.io/badge/Catalog-6%2F6_Cases_Validated-15803D)](#validated-study-cases)
 
-> **Official NASA Space Apps Challenge Documentation (English PDF):** [Delta_Madness_Documentation_English_Version.pdf](./Delta_Madness_Documentation_English_Version.pdf)  
-> **Technical Article & NISAR Traceability (English PDF):** [Technical_Article_Geospatial_Ingestion_and_NISAR_Cookbook.pdf](./Technical_Article_Geospatial_Ingestion_and_NISAR_Cookbook.pdf)
+> **Official NASA Space Apps Challenge Documentation (English PDF):** [Delta Madness Documentation](./Delta_Madness_Documentation_English_Version.pdf)<br>
+> **Technical Article & NISAR Traceability (English PDF):** [Technical Article: Geospatial Ingestion and NISAR Cookbook](./Technical_Article_Geospatial_Ingestion_and_NISAR_Cookbook.pdf)
 
 ---
 
@@ -204,7 +204,7 @@ $$\gamma^0_p(W) = \underbrace{A_p W^{\alpha_p}\bigl(1 - e^{-B_p W}\bigr)}_{\text
 
 * **Empirical initialization and weighted inversion in decibels** ($w_{\text{HV}} = 4.0$, $w_{\text{HH}} = 1.0$, $\gamma^0_{\text{dB}} = 10\log_{10}(\gamma^0)$), solved vectorized over a $65$-point grid search plus $24$ golden-section refinement steps ($\phi = \frac{\sqrt{5}-1}{2}$):
 
-$$W_0 = \operatorname{clip}\!\bigl((100 \cdot \gamma^0_{\text{HV}})^2,\; 0,\; 300\bigr)$$
+$$W_0 = \mathrm{clip}\!\bigl((100 \cdot \gamma^0_{\text{HV}})^2,\; 0,\; 300\bigr)$$
 
 $$\min_{W \in [W_{\min}, W_{\max}]} \sum_{k=1}^{S} \left[ \bigl(w_{\text{HV}}(\hat{\gamma}^0_{\text{HV,dB}}(W) - \gamma^0_{\text{HV,dB},k})\bigr)^2 + \bigl(w_{\text{HH}}(\hat{\gamma}^0_{\text{HH,dB}}(W) - \gamma^0_{\text{HH,dB},k})\bigr)^2 \right]$$
 
@@ -224,7 +224,7 @@ $$\text{NDSI} = \frac{B_3 - B_{11}}{B_3 + B_{11}}, \qquad \text{LST}\ [^\circ\te
 $$\text{MeltLoss (\%)} = \max\bigl(0,\; 100 \cdot (\text{NDSI}_{\text{pre}} - \text{NDSI}_{\text{post}})\bigr), \qquad \text{Melt} \iff (\text{NDSI}_{\text{pre}} \ge 0.28) \land (\text{NDSI}_{\text{pre}} - \text{NDSI}_{\text{post}} \ge 0.16)$$
 
 ### 3. Wildfires: Optical + SAR Fallback & Uncertainty (`incendios`)
-* **Normalized spectral indices (`Sentinel-2 L2A`) and bounded sigmoid** ($\sigma(x) = (1 + e^{-\operatorname{clip}(x, -30, 30)})^{-1}$):
+* **Normalized spectral indices (`Sentinel-2 L2A`) and bounded sigmoid** ($\sigma(x) = (1 + e^{-\mathrm{clip}(x, -30, 30)})^{-1}$):
 
 $$\text{NBR} = \frac{\text{NIR} - \text{SWIR}_2}{\text{NIR} + \text{SWIR}_2 + \epsilon}, \quad \Delta\text{NBR} = \text{NBR}_{\text{pre}} - \text{NBR}_{\text{post}}, \quad \text{NDVI} = \frac{\text{NIR} - \text{Red}}{\text{NIR} + \text{Red} + \epsilon}, \quad \text{MNDWI} = \frac{\text{Green} - \text{SWIR}_1}{\text{Green} + \text{SWIR}_1 + \epsilon}$$
 
@@ -236,9 +236,9 @@ $$P_{\text{burn, S2}} = \sigma\!\left(\frac{\Delta\text{NBR} - 0.10}{0.025}\righ
 
 $$w_{\text{S1}} = \sigma\!\left(\frac{-18.0\text{ dB} - \text{VV}_{\text{pre}}}{1.5}\right), \qquad w_{\text{S2}} = \sigma\!\left(\frac{\text{MNDWI}_{\text{pre}}}{0.05}\right)$$
 
-$$C_{\text{S1}} = \sigma\!\left(\frac{\max(|\Delta\text{VV}|, |\Delta\text{VH}|) - 3.0\text{ dB}}{0.5}\right), \quad C_{\text{S2}} = \sigma\!\left(\frac{\max(|\Delta\text{MNDWI}|, |\Delta\text{NDVI}|, |\Delta\text{NBR}|) - 0.20}{0.05}\right), \quad C_{\text{total}} = \operatorname{mean}(C_{\text{S1}}, C_{\text{S2}})$$
+$$C_{\text{S1}} = \sigma\!\left(\frac{\max(|\Delta\text{VV}|, |\Delta\text{VH}|) - 3.0\text{ dB}}{0.5}\right), \quad C_{\text{S2}} = \sigma\!\left(\frac{\max(|\Delta\text{MNDWI}|, |\Delta\text{NDVI}|, |\Delta\text{NBR}|) - 0.20}{0.05}\right), \quad C_{\text{total}} = \mathrm{mean}(C_{\text{S1}}, C_{\text{S2}})$$
 
-* **Key & Benson (2006) severity classes (within $P_{\text{burn}} \ge 0.50$) and Shannon binary-entropy uncertainty** ($q = \operatorname{clip}(P, 10^{-6}, 1-10^{-6})$, floor $0.5$ in SAR-only zones and review $> 0.8$):
+* **Key & Benson (2006) severity classes (within $P_{\text{burn}} \ge 0.50$) and Shannon binary-entropy uncertainty** ($q = \mathrm{clip}(P, 10^{-6}, 1-10^{-6})$, floor $0.5$ in SAR-only zones and review $> 0.8$):
 
 $$H(P) = -\bigl(q\log_2(q) + (1 - q)\log_2(1 - q)\bigr)\ \text{bits}, \qquad \Delta\text{NBR} \in \{[0.10, 0.27),\ [0.27, 0.44),\ [0.44, 0.66),\ \ge 0.66\}$$
 

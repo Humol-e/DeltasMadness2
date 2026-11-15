@@ -599,7 +599,15 @@ def export_biomass_case_to_madness(
                             "min": -120.0,
                             "max": 60.0,
                             "colors": ["#991b1b", "#ef4444", "#f97316", "#64748b", "#22c55e", "#15803d"],
-                            "nodata_label": "Red = severe loss · Green = gain",
+                            "stops": [
+                                [-120.0, "#991b1b"],
+                                [-60.0, "#ef4444"],
+                                [-20.0, "#f97316"],
+                                [0.0, "#64748b"],
+                                [25.0, "#22c55e"],
+                                [60.0, "#15803d"],
+                            ],
+                            "nodata_label": "Red = loss · Gray = 0 · Green = gain",
                         },
                     }
                 ],

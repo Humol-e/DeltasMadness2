@@ -1,7 +1,7 @@
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './style.css';
 import { loadCatalog, resolveUrl } from './lib/registry.js';
-import { renderFrameCanvas } from './lib/rasterCanvas.js';
+import { getDiscreteSwatches, legendCssBackground, renderFrameCanvas } from './lib/rasterCanvas.js';
 import {
   downloadSideBySidePng,
   downloadSingleRenderedPng,
@@ -15,6 +15,12 @@ import {
   getUiCopy,
   translateTerm,
 } from './lib/i18n.js';
+import {
+  findNearestCase,
+  geocodePlaces,
+  parseCoordinates,
+  searchLocalMatches,
+} from './lib/placeSearch.js';
 import { MapController } from './lib/mapController.js';
 
 const esc = (s) =>
@@ -66,7 +72,6 @@ app.innerHTML = `
         aria-label="Delta Anahuac website"
       >
         <img src="/images/delta-logo.png" alt="Delta logo" class="logo-mark" />
-        <span>DELTA</span>
       </a>
       <div class="header-right">
         <nav aria-label="Main navigation">
@@ -117,7 +122,13 @@ app.innerHTML = `
           <section id="case-detail-panel" class="case-detail-panel" aria-label="Event details" hidden></section>
         </div>
         <section id="home-cases" class="home-cases" aria-label="Observed events">
-          <h2>Observed events</h2>
+          <div class="home-cases-head">
+            <h2>Observed events</h2>
+          </div>
+          <div class="home-search-wrap">
+            <input id="home-search-input" class="home-search-input" type="search" placeholder="Search event or lat, lon…" aria-label="Search events or coordinates" autocomplete="off" />
+            <div id="home-search-results" class="home-search-results" hidden></div>
+          </div>
           <div id="home-case-grid" class="home-case-grid"></div>
         </section>
       </section>
@@ -272,20 +283,23 @@ const state = {
 const copy = () => getUiCopy(state.lang);
 
 const token = (import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '').trim();
-const ctl = token
-  ? new MapController({
-      container: el('#map'),
-      token,
-      lang: state.lang,
-      onStatus: (level, msg) => setStatus(msg, { level }),
-    })
-  : null;
+let ctl = null;
+try {
+  ctl = new MapController({
+    container: el('#map'),
+    token,
+    lang: state.lang,
+    onStatus: (level, msg) => setStatus(msg, { level }),
+  });
+} catch (err) {
+  console.error('Map initialization failed:', err);
+  ctl = null;
+}
 
 if (!ctl) {
   el('#token-notice').hidden = false;
   homeCasesReady = true;
-}
-if (ctl) {
+} else {
   ctl.onVisibleCasesChange = updateHomeCaseVisibility;
   ctl.onWorldTransitionEnd = () => {
     if (state.currentPage !== 'home') return;
@@ -424,6 +438,11 @@ function applyStaticTranslations() {
   if (homeCasesSec) homeCasesSec.setAttribute('aria-label', c.hero.homeCasesAria);
   const homeCasesHeading = el('#home-cases h2');
   if (homeCasesHeading) homeCasesHeading.textContent = c.hero.homeCasesTitle;
+  const homeSearchInput = el('#home-search-input');
+  if (homeSearchInput) {
+    homeSearchInput.placeholder = c.hero.searchPlaceholder;
+    homeSearchInput.setAttribute('aria-label', c.hero.searchAria);
+  }
 
   const indicators = el('#case-indicators');
   if (indicators) indicators.setAttribute('aria-label', c.hero.indicatorsAria);
@@ -680,6 +699,31 @@ function renderMonitoringInfo(def) {
   card.querySelector('#monitoring-data-guide-btn')?.addEventListener('click', openDataGuideModal);
 }
 
+function renderLegendMarkup(variable) {
+  const legend = variable?.legend;
+  if (!legend) return '';
+  const localizedUnit = variable.unit ? tTerm(variable.unit) : '';
+  const localizedNote = legend.nodata_label ? tTerm(legend.nodata_label) : '';
+  const noteMarkup = localizedNote ? `<div class="monitoring-legend-note">${esc(localizedNote)}</div>` : '';
+  if (legend.discrete) {
+    const swatches = getDiscreteSwatches({ ...legend, nodata_label: localizedNote });
+    if (!swatches?.length) return '';
+    return `<div class="monitoring-display-legend">
+      <div class="monitoring-discrete-swatches">
+        ${swatches.map((s) => `<span class="monitoring-discrete-chip"><i style="background:${esc(s.cssColor)}"></i>${esc(tTerm(s.label))}</span>`).join('')}
+      </div>
+      ${noteMarkup}
+    </div>`;
+  }
+  const bg = legendCssBackground(legend);
+  if (bg === 'none') return '';
+  return `<div class="monitoring-display-legend">
+    <div class="monitoring-display-legend-ramp" style="background:${bg}"></div>
+    <div><span>${esc(legend.min)}${localizedUnit ? ` ${esc(localizedUnit)}` : ''}</span><span>${esc(legend.max)}${localizedUnit ? ` ${esc(localizedUnit)}` : ''}</span></div>
+    ${noteMarkup}
+  </div>`;
+}
+
 function renderMonitoringControls(def) {
   const mCopy = copy().monitoring;
   const panel = el('#monitoring-controls');
@@ -687,18 +731,28 @@ function renderMonitoringControls(def) {
   const frames = ds?.frames ?? [];
   const pair = getBeforeAfterPair(ds);
   const canSwipe = supportsBeforeAfterSwipe(ds);
-  const frame = frames.find((item) => item.id === state.frameId) ?? pair.before ?? pair.after;
+  const frame = canSwipe
+    ? (state.mapMode === 'before' ? pair.before : pair.after) ?? pair.before ?? pair.after
+    : frames.find((item) => item.id === state.frameId) ?? pair.before ?? pair.after;
   const frameIndex = frame ? Math.max(0, frames.findIndex((item) => item.id === frame.id)) : 0;
   const splitPercent = Math.round(state.split * 100);
   const variable = ds?.variables.find((item) => item.id === state.varId);
   const opacity = ds ? ctl?.dataset(ds.id)?.opacity ?? ds.render.opacity : 0.85;
-  const framePhase = canSwipe ? mCopy.splitPhase(splitPercent)
+  const framePhase = canSwipe
+    ? (state.mapMode === 'swipe'
+        ? mCopy.splitPhase(splitPercent)
+        : state.mapMode === 'before' ? mCopy.before : mCopy.after)
     : frame?.phase === 'before' ? mCopy.before
     : frame?.phase === 'after' ? mCopy.after
       : frame?.phase === 'change' ? mCopy.change : mCopy.observation;
   const frameDescription = canSwipe
-    ? `${tFrame(pair.before, mCopy.before)} → ${tFrame(pair.after, mCopy.after)}`
+    ? (state.mapMode === 'swipe'
+        ? `${tFrame(pair.before, mCopy.before)} → ${tFrame(pair.after, mCopy.after)}`
+        : tFrame(frame, frame?.datetime))
     : frame ? tFrame(frame, frame.datetime) : null;
+  const timeCaptionLabel = canSwipe
+    ? (state.mapMode === 'swipe' ? mCopy.slideToCompare : tFrame(frame, frame?.datetime || mCopy.noImageSelected))
+    : (frame ? tFrame(frame, frame.datetime) : mCopy.noImageSelected);
   const variableMarkup = ds && ds.variables.length > 1
     ? `<div class="monitoring-control-group">
         <label for="monitoring-variable-select">${esc(mCopy.dataType)}</label>
@@ -707,13 +761,20 @@ function renderMonitoringControls(def) {
         </select>
       </div>`
     : '';
+  const compareModeMarkup = canSwipe
+    ? `<div class="monitoring-compare-modes" role="group" aria-label="${esc(mCopy.compareTitle)}">
+        <button type="button" class="chip monitoring-compare-btn${state.mapMode === 'before' ? ' active' : ''}" data-compare-mode="before">${esc(mCopy.before)}</button>
+        <button type="button" class="chip monitoring-compare-btn${state.mapMode === 'swipe' ? ' active' : ''}" data-compare-mode="swipe">${esc(mCopy.swipe)}</button>
+        <button type="button" class="chip monitoring-compare-btn${state.mapMode === 'after' ? ' active' : ''}" data-compare-mode="after">${esc(mCopy.after)}</button>
+      </div>`
+    : '';
   const localizedUnit = variable?.unit ? tTerm(variable.unit) : '';
   const details = ds ? [
     [mCopy.source, tTerm(ds.name)],
     [ds.sensor ? mCopy.sensor : mCopy.platform, ds.sensor || tTerm(ds.platform)],
     [mCopy.provider, ds.provider],
     [mCopy.data, tTerm(variable?.label)],
-    [canSwipe ? mCopy.comparison : mCopy.date, frameDescription],
+    [canSwipe && state.mapMode === 'swipe' ? mCopy.comparison : mCopy.date, frameDescription],
     [mCopy.phase, frame ? framePhase : null],
     [mCopy.unit, localizedUnit],
   ].filter(([, value]) => value) : [];
@@ -722,13 +783,32 @@ function renderMonitoringControls(def) {
         ${details.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}
       </dl>`
     : `<p class="monitoring-control-hint">${esc(mCopy.selectSatelliteHint)}</p>`;
-  const legendMarkup = variable?.legend?.colors?.length
-    ? `<div class="monitoring-display-legend">
-        <div class="monitoring-display-legend-ramp" style="background:linear-gradient(90deg, ${variable.legend.colors.join(', ')})"></div>
-        <div><span>${esc(variable.legend.min)}${localizedUnit ? ` ${esc(localizedUnit)}` : ''}</span><span>${esc(variable.legend.max)}${localizedUnit ? ` ${esc(localizedUnit)}` : ''}</span></div>
+  const legendMarkup = renderLegendMarkup(variable);
+  const userVectors = (def.vectors ?? []).filter((v) => v.id !== 'burn-extent-casing');
+  const vectorsMarkup = userVectors.length
+    ? `<div class="monitoring-control-group">
+        <span class="monitoring-group-label">${esc(mCopy.vectorsTitle)}</span>
+        <div class="monitoring-vector-options">
+          ${userVectors.map((v) => {
+            const checked = ctl?.current?.id === def.id ? ctl.isVectorVisible(v.id) : v.defaultVisible !== false;
+            return `<label class="monitoring-vector-option">
+              <input type="checkbox" data-monitoring-vec="${esc(v.id)}" ${checked ? 'checked' : ''} />
+              <span>${esc(tTerm(v.name) || v.id)}</span>
+            </label>`;
+          }).join('')}
+        </div>
       </div>`
     : '';
-  const geotiffCount = (def.downloads ?? []).filter((item) => item.datasetId === ds?.id && item.format === 'geotiff').length;
+  const geotiffs = (def.downloads ?? []).filter((item) => item.datasetId === ds?.id && item.format === 'geotiff');
+  const geotiffCount = geotiffs.length;
+  const geotiffsMarkup = geotiffCount
+    ? `<details class="monitoring-geotiffs">
+        <summary>${esc(mCopy.geotiffsBtn(geotiffCount))}</summary>
+        <div class="monitoring-geotiff-list">
+          ${geotiffs.map((item) => `<a class="monitoring-geotiff-link" href="${esc(resolveUrl(item.url))}" download><span>⬇ ${esc(tTerm(item.label))}</span>${fmtBytes(item.bytes) ? `<span class="muted">${esc(fmtBytes(item.bytes))}</span>` : ''}</a>`).join('')}
+        </div>
+      </details>`
+    : '';
 
   panel.innerHTML = `
     <header class="monitoring-controls-header">
@@ -741,23 +821,31 @@ function renderMonitoringControls(def) {
     </div>
     <div class="monitoring-control-group">
       <label for="monitoring-time-range">${esc(canSwipe ? mCopy.compareTitle : mCopy.imageTime)}</label>
+      ${compareModeMarkup}
       <input id="monitoring-time-range" type="range" min="0" max="${canSwipe ? 100 : Math.max(0, frames.length - 1)}" step="1" value="${canSwipe ? splitPercent : frameIndex}" ${canSwipe || (ds && frames.length > 1) ? '' : 'disabled'} />
       <div class="monitoring-time-ends"><span>${esc(canSwipe ? mCopy.before : mCopy.initial)}</span><span>${esc(canSwipe ? mCopy.after : mCopy.final)}</span></div>
       <div class="monitoring-time-caption">
         <span id="monitoring-time-phase">${esc(framePhase)}</span>
-        <strong id="monitoring-time-label">${esc(canSwipe ? mCopy.slideToCompare : frame ? tFrame(frame, frame.datetime) : mCopy.noImageSelected)}</strong>
+        <strong id="monitoring-time-label">${esc(timeCaptionLabel)}</strong>
       </div>
     </div>
     ${variableMarkup}
+    ${vectorsMarkup}
     <section class="monitoring-display-info" aria-labelledby="monitoring-display-heading">
       <h3 id="monitoring-display-heading">${esc(mCopy.currentlyDisplaying)}</h3>
       ${detailsMarkup}
       ${legendMarkup}
     </section>
-    <button id="monitoring-download-button" class="monitoring-download-button" type="button" ${ds ? '' : 'disabled'}>
-      ${esc(mCopy.downloadBtn)}
-    </button>
-    <p class="monitoring-download-hint">${esc(ds ? mCopy.downloadHintCount(geotiffCount) : mCopy.downloadHintNoSource)}</p>`;
+    <div class="monitoring-action-buttons">
+      <button id="monitoring-download-button" class="monitoring-download-button" type="button" ${ds ? '' : 'disabled'}>
+        ${esc(canSwipe ? mCopy.downloadPngBtn : mCopy.downloadSinglePngBtn)}
+      </button>
+      <button id="monitoring-expand-button" class="monitoring-secondary-button" type="button" ${ds ? '' : 'disabled'}>
+        ${esc(mCopy.expandPreviewBtn)}
+      </button>
+    </div>
+    ${geotiffsMarkup}
+    <p class="monitoring-download-hint">${esc(ds ? (geotiffCount ? mCopy.downloadHintCount(geotiffCount) : '') : mCopy.downloadHintNoSource)}</p>`;
 
   const opacityRange = el('#monitoring-opacity-range');
   opacityRange.addEventListener('input', (event) => {
@@ -768,16 +856,32 @@ function renderMonitoringControls(def) {
     if (ds) ctl?.setDatasetOpacity(ds.id, value);
   });
 
+  panel.querySelectorAll('button[data-compare-mode]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.compareMode;
+      state.mapMode = mode;
+      if (mode === 'before') state.frameId = pair.before?.id ?? null;
+      else if (mode === 'after') state.frameId = pair.after?.id ?? null;
+      syncMapToLayer();
+      renderMonitoringControls(def);
+    });
+  });
+
   const timeRange = el('#monitoring-time-range');
   timeRange.addEventListener('input', () => {
     const currentCopy = copy().monitoring;
     if (canSwipe) {
+      const wasNotSwipe = state.mapMode !== 'swipe';
       state.split = Number(timeRange.value) / 100;
       state.mapMode = 'swipe';
       const percent = Math.round(state.split * 100);
       el('#monitoring-time-phase').textContent = currentCopy.splitPhase(percent);
       el('#monitoring-time-label').textContent = currentCopy.slideToCompare;
-      ctl?.setSwipeSplit(state.split);
+      panel.querySelectorAll('button[data-compare-mode]').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.compareMode === 'swipe');
+      });
+      if (wasNotSwipe) syncMapToLayer();
+      else ctl?.setSwipeSplit(state.split);
       return;
     }
     const selectedFrame = frames[Number(timeRange.value)];
@@ -794,6 +898,16 @@ function renderMonitoringControls(def) {
     renderMonitoringControls(def);
   });
 
+  panel.querySelectorAll('input[data-monitoring-vec]').forEach((inp) => {
+    inp.addEventListener('change', () => {
+      const vecId = inp.dataset.monitoringVec;
+      ctl?.setVectorVisible(vecId, inp.checked);
+      if (vecId === 'burn-extent-outline') ctl?.setVectorVisible('burn-extent-casing', inp.checked);
+      const legacy = el(`#vectors-list input[data-vec="${CSS.escape(vecId)}"]`);
+      if (legacy) legacy.checked = inp.checked;
+    });
+  });
+
   el('#monitoring-variable-select')?.addEventListener('change', (event) => {
     state.varId = event.target.value;
     renderDatasetControls(def);
@@ -801,6 +915,7 @@ function renderMonitoringControls(def) {
     refreshLayer();
   });
   el('#monitoring-download-button').addEventListener('click', downloadMonitoringData);
+  el('#monitoring-expand-button').addEventListener('click', openComparisonModal);
 }
 
 function schedulePageTransition(id, delay, callback) {
@@ -944,6 +1059,8 @@ function setPage(page, { caseId } = {}) {
   state.hoverSeq++;
   setStatus('');
   el('#inspect-pill').hidden = true;
+  if (el('#home-search-results')) el('#home-search-results').hidden = true;
+  ctl?.closePopup();
   ctl?.cancelCaseFocus();
   el('.view').classList.remove('is-monitoring');
   delete el('.view').dataset.mobilePane;
@@ -1042,9 +1159,10 @@ function renderCaseMetrics(def) {
 function renderLegend(ds, varId) {
   const wrap = el('#legend-wrap');
   const v = (ds?.variables ?? []).find((x) => x.id === varId);
-  if (!v?.legend?.colors?.length) { wrap.hidden = true; return; }
+  const bg = legendCssBackground(v?.legend);
+  if (bg === 'none') { wrap.hidden = true; return; }
   wrap.hidden = false;
-  el('#legend-ramp').style.background = `linear-gradient(90deg, ${v.legend.colors.join(', ')})`;
+  el('#legend-ramp').style.background = bg;
   const unit = v.unit ? ` ${tTerm(v.unit)}` : '';
   el('#legend-min').textContent = `${v.legend.min}${unit}`;
   el('#legend-max').textContent = `${v.legend.max}${unit}`;
@@ -1184,30 +1302,23 @@ async function downloadMonitoringData() {
   const variableId = state.varId ?? ds?.variables[0]?.id;
   if (!def || !ds || !variableId) return;
   const exportCopy = copy().export;
-
-  const geotiffs = (def.downloads ?? []).filter((item) => item.datasetId === ds.id && item.format === 'geotiff');
-  geotiffs.forEach((item) => {
-    const link = document.createElement('a');
-    link.href = resolveUrl(item.url);
-    link.download = item.url.slice(item.url.lastIndexOf('/') + 1);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  });
+  const { hasPair, before, after } = getBeforeAfterPair(ds);
+  const singleFrame = ds.frames?.find((f) => f.id === state.frameId) ?? ds.frames?.[0];
 
   try {
-    await downloadSideBySidePng(def, ds, variableId, state.lang);
+    if (hasPair && before && after) {
+      await downloadSideBySidePng(def, ds, variableId, state.lang);
+    } else if (singleFrame) {
+      await downloadSingleRenderedPng(def.id, ds, singleFrame, variableId, singleFrame.phase ?? 'frame');
+    } else {
+      throw new Error('No raster frame available');
+    }
   } catch (error) {
     setStatus(exportCopy.failedPng(error.message));
     return;
   }
 
-  setStatus(
-    geotiffs.length
-      ? exportCopy.downloadWithTif(geotiffs.length)
-      : exportCopy.downloadOnlyPng,
-    { autoHideMs: 4500 },
-  );
+  setStatus(exportCopy.downloadOnlyPng, { autoHideMs: 4500 });
 }
 
 async function syncMapToLayer() {
@@ -1283,6 +1394,7 @@ async function selectCase(caseId, { globeOverview = false } = {}) {
   const cSeq = ++state.caseSeq;
   state.hoverSeq++;
   el('#inspect-pill').hidden = true;
+  ctl?.closePopup();
   if (globeOverview) {
     ctl?.cancelCaseFocus();
     el('.view').classList.remove('is-monitoring');
@@ -1319,7 +1431,10 @@ async function selectCase(caseId, { globeOverview = false } = {}) {
 
   const previewsJob = preferred ? renderBeforeAfterPreviews(def, preferred, preferred.variables[0]?.id) : Promise.resolve();
   const mapJob = ctl ? ctl.loadCase(def, { globeOverview, hideDatasets: true }).then(() => {
-    if (cSeq === state.caseSeq) return syncMapToLayer();
+    if (cSeq === state.caseSeq) {
+      renderMonitoringControls(def);
+      return syncMapToLayer();
+    }
   }) : Promise.resolve();
   await Promise.all([previewsJob, mapJob]);
 }
@@ -1435,6 +1550,102 @@ function bindEvents() {
     const card = event.target.closest('button[data-case-id]');
     if (card) openCase(card.dataset.caseId);
   });
+
+  const searchInput = el('#home-search-input');
+  const searchResults = el('#home-search-results');
+  let searchAbort = null;
+  let searchTimer = 0;
+
+  const renderSearchResults = (items, query) => {
+    if (!searchResults) return;
+    const heroCopy = copy().hero;
+    if (!query.trim()) {
+      searchResults.hidden = true;
+      searchResults.innerHTML = '';
+      return;
+    }
+    searchResults.hidden = false;
+    if (!items.length) {
+      searchResults.innerHTML = `<div class="home-search-empty">${esc(heroCopy.searchNoResults)}</div>`;
+      return;
+    }
+    searchResults.innerHTML = items.slice(0, 6).map((item, idx) => `
+      <button type="button" class="home-search-item" data-search-idx="${idx}">
+        <strong>${esc(item.title)}</strong>
+        <span>${esc(item.subtitle || '')}</span>
+      </button>
+    `).join('');
+    searchResults.querySelectorAll('button[data-search-idx]').forEach((btn) => {
+      const hit = items[Number(btn.dataset.searchIdx)];
+      btn.addEventListener('click', () => {
+        searchResults.hidden = true;
+        if (!hit) return;
+        if (hit.kind === 'case') {
+          openCase(hit.id);
+          return;
+        }
+        if (hit.center && ctl?.map) {
+          ctl.map.flyTo({ center: hit.center, zoom: hit.bbox ? 8 : 9, duration: 1300, essential: true });
+        }
+        const nearest = hit.center ? findNearestCase(hit.center, state.cases) : null;
+        if (nearest) {
+          setStatus(
+            `${heroCopy.searchNearest(tCaseTitle(nearest.item), Math.round(nearest.distanceKm))}${hit.kind === 'preset' ? ` · ${heroCopy.searchPresetNote}` : ''}`,
+            { autoHideMs: 6500 },
+          );
+        } else if (hit.kind === 'preset') {
+          setStatus(heroCopy.searchPresetNote, { autoHideMs: 5500 });
+        }
+      });
+    });
+  };
+
+  searchInput?.addEventListener('input', () => {
+    const q = searchInput.value;
+    if (searchTimer) window.clearTimeout(searchTimer);
+    if (searchAbort) { searchAbort.abort(); searchAbort = null; }
+    if (!q.trim()) { renderSearchResults([], ''); return; }
+
+    const coordHit = parseCoordinates(q);
+    const localizedCases = state.cases.map((c) => ({
+      ...c,
+      title: tCaseTitle(c) || c.title,
+      subtitle: `${c.title ?? ''} ${c.subtitle ?? ''}`.trim(),
+    }));
+    const localHits = searchLocalMatches(q, localizedCases);
+    const immediate = coordHit ? [coordHit, ...localHits] : localHits;
+    if (immediate.length) {
+      renderSearchResults(immediate, q);
+      return;
+    }
+    renderSearchResults([], q);
+    if (q.trim().length >= 3) {
+      searchTimer = window.setTimeout(async () => {
+        searchAbort = new AbortController();
+        try {
+          const remoteHits = await geocodePlaces(q, { token, signal: searchAbort.signal });
+          if (searchInput.value === q) renderSearchResults(remoteHits, q);
+        } catch (err) {
+          if (err?.name !== 'AbortError') console.warn('Geocoding failed:', err);
+        }
+      }, 280);
+    }
+  });
+  searchInput?.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      searchResults.hidden = true;
+      searchInput.blur();
+    } else if (event.key === 'Enter') {
+      const firstBtn = searchResults?.querySelector('button[data-search-idx]');
+      if (firstBtn) {
+        event.preventDefault();
+        firstBtn.click();
+      }
+    }
+  });
+  document.addEventListener('click', (event) => {
+    if (searchResults && !event.target.closest('.home-search-wrap')) searchResults.hidden = true;
+  });
   el('#case-indicators').addEventListener('click', (event) => {
     const indicator = event.target.closest('button[data-case-id]');
     if (indicator) selectCase(indicator.dataset.caseId, { globeOverview: true });
@@ -1549,6 +1760,40 @@ function bindEvents() {
   if (ctl) {
     ctl.onCasePick = openCase;
     ctl.onWorldClick = () => setPage('home');
+    ctl.onFeature = (layer, feature, lngLat) => {
+      if (!layer || !feature) {
+        ctl.closePopup();
+        return;
+      }
+      const props = feature.properties ?? {};
+      const formatVal = (val, unit) => {
+        if (val == null || val === '') return null;
+        const num = typeof val === 'number'
+          ? val
+          : Number.isFinite(Number(val)) && String(val).trim() !== '' ? Number(val) : null;
+        const formatted = num != null
+          ? num.toLocaleString(state.lang === 'es' ? 'es-MX' : 'en-US', { maximumFractionDigits: 3 })
+          : String(val);
+        const u = unit ? tTerm(unit) : '';
+        return u ? `${formatted} ${u}` : formatted;
+      };
+      const fields = Array.isArray(layer.popupFields) && layer.popupFields.length
+        ? layer.popupFields
+        : [['name', 'Area']];
+      const rows = fields
+        .map((entry) => {
+          const [key, label, unit] = Array.isArray(entry) ? entry : [entry, entry];
+          const formatted = formatVal(props[key], unit);
+          return formatted ? `<div><dt>${esc(tTerm(label || key))}</dt><dd>${esc(formatted)}</dd></div>` : '';
+        })
+        .filter(Boolean)
+        .join('');
+      const html = `<div class="delta-popup-card">
+        <strong class="delta-popup-title">${esc(tTerm(layer.name || layer.id))}</strong>
+        ${rows ? `<dl class="delta-popup-rows">${rows}</dl>` : ''}
+      </div>`;
+      ctl.showPopup(lngLat, html);
+    };
     const samplePoint = (lngLat, { hideOnMiss = true } = {}) => {
       state.lastInspectLngLat = lngLat;
       const hSeq = ++state.hoverSeq;
@@ -1560,12 +1805,39 @@ function bindEvents() {
           return;
         }
         const h = hits[0];
+        const mCopy = copy().monitoring;
+        const ds = activeDataset();
         const noDataText = copy().inspect.noData;
+        const phaseName = h.phase === 'before' ? mCopy.before
+          : h.phase === 'after' ? mCopy.after
+          : h.phase === 'change' ? mCopy.change : '';
+        const phaseDate = h.frame ? tFrame(h.frame, h.frame.datetime || '') : '';
+        const headerText = phaseName
+          ? `${phaseName}${phaseDate ? ` · ${phaseDate}` : ''} · ${lngLat.lng.toFixed(4)}, ${lngLat.lat.toFixed(4)}`
+          : `${lngLat.lng.toFixed(4)}, ${lngLat.lat.toFixed(4)}`;
         const lines = h.values
-          ? h.values.map((v) => `${esc(tTerm(v.label))}: <strong>${v.value == null ? esc(noDataText) : `${v.value.toFixed(2)} ${esc(tTerm(v.unit) || '')}`}</strong>`)
+          ? h.values.map((v) => {
+              const variableDef = ds?.variables?.find((x) => x.label === v.label);
+              const isDiscrete = Boolean(variableDef?.legend?.discrete);
+              let valueHtml;
+              if (v.value == null) {
+                valueHtml = esc(noDataText);
+              } else if (isDiscrete) {
+                const intVal = Math.round(v.value);
+                const localizedNote = variableDef.legend.nodata_label ? tTerm(variableDef.legend.nodata_label) : '';
+                const match = getDiscreteSwatches({ ...variableDef.legend, nodata_label: localizedNote })
+                  ?.find((s) => Number(s.key) === intVal);
+                valueHtml = match
+                  ? `${esc(tTerm(match.label))}`
+                  : `${intVal}${v.unit ? ` ${esc(tTerm(v.unit))}` : ''}`;
+              } else {
+                valueHtml = `${v.value.toFixed(2)}${v.unit ? ` ${esc(tTerm(v.unit))}` : ''}`;
+              }
+              return `${esc(tTerm(v.label))}: <strong>${valueHtml}</strong>`;
+            })
           : [`${esc(tTerm(h.name))}`];
         pill.hidden = false;
-        pill.innerHTML = `<div class="muted">${lngLat.lng.toFixed(4)}, ${lngLat.lat.toFixed(4)}</div>${lines.join('<br>')}`;
+        pill.innerHTML = `<div class="muted">${esc(headerText)}</div>${lines.join('<br>')}`;
       });
     };
     refreshInspectPoint = (lngLat) => samplePoint(lngLat, { hideOnMiss: false });

@@ -357,9 +357,9 @@ Developed collaboratively by **Delta Madness**:
 
 * **Raúl Isaac Santos Ruiz** — [@Peanut-Butter-Arc](https://github.com/Peanut-Butter-Arc)
 * **Karla Yelitza Figueroa Garcia** — [@karlayelitza020705-ui](https://github.com/karlayelitza020705-ui)
-* **Aaron Fernandez Lizarraga** — `[PENDING — INSERT GITHUB PROFILE LINK]`
+* **Aaron Fernandez Lizarraga**
 * **Luis Emiliano Castro Reza** — [@Humol-e](https://github.com/Humol-e)
-* **Liv Nicole Gay De la O** — `[PENDING — INSERT GITHUB PROFILE LINK]`
+* **Liv Nicole Gay De la O**
 
 ---
 

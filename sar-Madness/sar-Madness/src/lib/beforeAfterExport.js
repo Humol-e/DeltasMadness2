@@ -1,5 +1,5 @@
 // PNG export and download utilities (Before, After, and side-by-side Comparison) from real satellite data.
-import { buildLut, renderFrameCanvas } from './rasterCanvas.js';
+import { buildLegendLut, getDiscreteSwatches, renderFrameCanvas } from './rasterCanvas.js';
 import { DEFAULT_LANG, getLocalizedCaseTitle, getUiCopy, localizeFrameLabel, translateTerm } from './i18n.js';
 
 export function getBeforeAfterPair(dataset) {
@@ -107,13 +107,31 @@ export function buildComparisonCanvas({
   drawPanel(afterCanvas, pad + panelW + gap, copy.afterTag, frameShortTitle(afterFrame, copy.postFallback, lang), '#fb923c');
 
   const fy = headerH + subH + panelH + 16;
-  if (variable?.legend?.colors?.length >= 2) {
+  const swatches = variable?.legend ? getDiscreteSwatches(variable.legend) : null;
+  if (swatches?.length) {
+    let sx = pad;
+    ctx.font = '12px system-ui, -apple-system, Segoe UI, sans-serif';
+    for (const sw of swatches) {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(sx, fy, 12, 12);
+      ctx.fillStyle = sw.cssColor;
+      ctx.fillRect(sx, fy, 12, 12);
+      ctx.strokeStyle = '#334155';
+      ctx.strokeRect(sx, fy, 12, 12);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillText(sw.label, sx + 17, fy + 10);
+      sx += ctx.measureText(sw.label).width + 32;
+    }
+  } else if (variable?.legend && (variable.legend.colors?.length || variable.legend.stops?.length)) {
     const barW = 280;
     const barH = 12;
-    const lut = buildLut(variable.legend.colors);
+    const lut = buildLegendLut(variable.legend, null);
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(pad, fy, barW, barH);
     for (let px = 0; px < barW; px++) {
       const idx = Math.round((px / (barW - 1)) * 255);
-      ctx.fillStyle = `rgb(${lut[idx * 3]},${lut[idx * 3 + 1]},${lut[idx * 3 + 2]})`;
+      const o = idx * 4;
+      ctx.fillStyle = `rgba(${lut[o]},${lut[o + 1]},${lut[o + 2]},${(lut[o + 3] / 255).toFixed(3)})`;
       ctx.fillRect(pad + px, fy, 1, barH);
     }
     ctx.strokeStyle = '#334155';

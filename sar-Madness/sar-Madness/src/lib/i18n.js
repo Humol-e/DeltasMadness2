@@ -27,6 +27,11 @@ export const UI_COPY = {
       dataGuideBtn: 'How we could use this data',
       homeCasesTitle: 'Observed events',
       homeCasesAria: 'Observed events',
+      searchPlaceholder: 'Search case or lat, lon…',
+      searchAria: 'Search cases or coordinates',
+      searchNearest: (title, km) => `Nearest case: ${title} (~${km} km)`,
+      searchPresetNote: 'CLI preset — run stage1 locally to publish rasters',
+      searchNoResults: 'No matching cases or presets.',
       indicatorsAria: 'Events in the current category',
       detailAria: 'Event details',
     },
@@ -82,6 +87,7 @@ export const UI_COPY = {
       imageTime: 'Image Time',
       before: 'Before',
       after: 'After',
+      swipe: 'Swipe',
       initial: 'Initial',
       final: 'Final',
       change: 'Change',
@@ -102,7 +108,12 @@ export const UI_COPY = {
       unit: 'Unit',
       selectSatelliteHint: 'Select a satellite to enable controls.',
       downloadBtn: 'Download PNG + GeoTIFF',
-      downloadHintCount: (n) => `${n} GeoTIFF(s) available for this source; a comparison PNG will be added.`,
+      downloadPngBtn: 'Download Comparison (.png)',
+      downloadSinglePngBtn: 'Download Layer (.png)',
+      expandPreviewBtn: 'Expand Preview',
+      vectorsTitle: 'Vector Perimeters',
+      geotiffsBtn: (n) => `Raw GeoTIFF (.tif) · ${n}`,
+      downloadHintCount: (n) => `${n} raw GeoTIFF file(s) available individually below.`,
       downloadHintNoSource: 'Select a source before downloading.',
       noMetrics: 'No metrics available for this event.',
       metricLabels: {
@@ -121,6 +132,7 @@ export const UI_COPY = {
     },
     inspect: {
       noData: 'no data',
+      notAvailable: 'Not available',
     },
     export: {
       badge: 'REAL SATELLITE DATA',
@@ -132,7 +144,7 @@ export const UI_COPY = {
       satelliteObservation: 'Satellite observation',
       failedPng: (msg) => `Failed to generate PNG: ${msg}`,
       downloadWithTif: (n) => `Download started: comparison PNG and ${n} GeoTIFF(s).`,
-      downloadOnlyPng: 'Comparison PNG downloaded; no GeoTIFF available for this source.',
+      downloadOnlyPng: 'Rendered PNG download started.',
     },
     modal: {
       close: 'Close',
@@ -266,6 +278,11 @@ export const UI_COPY = {
       dataGuideBtn: 'Cómo podemos usar estos datos',
       homeCasesTitle: 'Eventos observados',
       homeCasesAria: 'Eventos observados',
+      searchPlaceholder: 'Buscar evento o lat, lon…',
+      searchAria: 'Buscar eventos o coordenadas',
+      searchNearest: (title, km) => `Caso más cercano: ${title} (~${km} km)`,
+      searchPresetNote: 'Preset CLI — ejecuta stage1 localmente para publicar rásteres',
+      searchNoResults: 'Sin casos ni presets coincidentes.',
       indicatorsAria: 'Eventos en la categoría actual',
       detailAria: 'Detalles del evento',
     },
@@ -321,6 +338,7 @@ export const UI_COPY = {
       imageTime: 'Fecha de imagen',
       before: 'Antes',
       after: 'Después',
+      swipe: 'Dividir',
       initial: 'Inicial',
       final: 'Final',
       change: 'Cambio',
@@ -341,7 +359,12 @@ export const UI_COPY = {
       unit: 'Unidad',
       selectSatelliteHint: 'Selecciona un satélite para habilitar los controles.',
       downloadBtn: 'Descargar PNG + GeoTIFF',
-      downloadHintCount: (n) => `${n} GeoTIFF disponible(s) para esta fuente; se añadirá un PNG comparativo.`,
+      downloadPngBtn: 'Descargar comparativa (.png)',
+      downloadSinglePngBtn: 'Descargar capa (.png)',
+      expandPreviewBtn: 'Ampliar vista',
+      vectorsTitle: 'Perímetros vectoriales',
+      geotiffsBtn: (n) => `GeoTIFF crudos (.tif) · ${n}`,
+      downloadHintCount: (n) => `${n} archivo(s) GeoTIFF crudo(s) disponible(s) abajo.`,
       downloadHintNoSource: 'Selecciona una fuente antes de descargar.',
       noMetrics: 'No hay métricas disponibles para este evento.',
       metricLabels: {
@@ -360,6 +383,7 @@ export const UI_COPY = {
     },
     inspect: {
       noData: 'sin datos',
+      notAvailable: 'No disponible',
     },
     export: {
       badge: 'DATOS SATELITALES REALES',
@@ -371,7 +395,7 @@ export const UI_COPY = {
       satelliteObservation: 'Observación satelital',
       failedPng: (msg) => `No se pudo generar el PNG: ${msg}`,
       downloadWithTif: (n) => `Descarga iniciada: PNG comparativo y ${n} GeoTIFF(s).`,
-      downloadOnlyPng: 'PNG comparativo descargado; no hay GeoTIFF disponible para esta fuente.',
+      downloadOnlyPng: 'Descarga de PNG iniciada.',
     },
     modal: {
       close: 'Cerrar',
@@ -602,6 +626,20 @@ const TERM_ES = {
   // Specific non-formulaic frame labels
   'Before · LENO NLCD Land Cover': 'Antes · Cobertura NLCD LENO',
   'After · Planet Reference Disturbance': 'Después · Perturbación de referencia Planet',
+  // Legend notes & popup keys
+  'Transparent = unburned (< 0.2)': 'Transparente = sin quema (< 0.2)',
+  '1 Low · 2 Mod-low · 3 Mod-high · 4 High': '1 Baja · 2 Mod-baja · 3 Mod-alta · 4 Alta',
+  'Transparent = no change (< 0.2)': 'Transparente = sin cambio (< 0.2)',
+  '≥ 0.80 bits = review · ≥ 0.50 = SAR-only': '≥ 0.80 bits = revisar · ≥ 0.50 = solo SAR',
+  'Red = loss · Gray = 0 · Green = gain': 'Rojo = pérdida · Gris = 0 · Verde = ganancia',
+  'Transparent = 0% loss': 'Transparente = 0% pérdida',
+  'Area': 'Área',
+  'Polygon area': 'Área del polígono',
+  'P(burn) threshold': 'Umbral P(quema)',
+  'Melt area': 'Área de deshielo',
+  'Loss area': 'Área de pérdida',
+  'Disturbed area': 'Área perturbada',
+  'Surface': 'Superficie',
 };
 
 export function getUiCopy(lang = DEFAULT_LANG) {

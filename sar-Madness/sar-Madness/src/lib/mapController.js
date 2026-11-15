@@ -11,6 +11,38 @@ export const BASEMAPS = {
 };
 export const VIEW_MODES = { globe: '3D Globe', flat: 'Flat Map', terrain: '3D Terrain' };
 
+const FALLBACK_RASTER_SOURCES = {
+  satellite: {
+    tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+    attribution: '© Esri, Maxar, Earthstar Geographics',
+  },
+  light: {
+    tiles: ['https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'],
+    attribution: '© OpenStreetMap · © CARTO',
+  },
+  streets: {
+    tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+    attribution: '© OpenStreetMap contributors',
+  },
+};
+
+function buildFallbackStyle(key) {
+  const src = FALLBACK_RASTER_SOURCES[key] || FALLBACK_RASTER_SOURCES.satellite;
+  return {
+    version: 8,
+    sources: {
+      'esri-fallback': {
+        type: 'raster',
+        tiles: src.tiles,
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: src.attribution,
+      },
+    },
+    layers: [{ id: 'esri-fallback', type: 'raster', source: 'esri-fallback' }],
+  };
+}
+
 const DEM_SOURCE = 'base-dem';
 const HILLSHADE_LAYER = 'base-hillshade';
 const SKY_LAYER = 'base-sky';
@@ -69,8 +101,9 @@ function getMonitoringZoom(def) {
 }
 
 export class MapController {
-  constructor({ container, token, onStatus, lang = DEFAULT_LANG }) {
-    mapboxgl.accessToken = token;
+  constructor({ container, token = '', onStatus, lang = DEFAULT_LANG }) {
+    this.hasToken = Boolean(token && String(token).trim());
+    if (this.hasToken) mapboxgl.accessToken = token;
     this.lang = lang;
     this.onStatus = onStatus || (() => {});
     this.onFeature = () => {};
@@ -90,6 +123,7 @@ export class MapController {
     this.swipe = null;
     this._swipeCanvas = null;
     this._raf = 0;
+    this.popup = null;
     this.errSeen = new Map();
 
     this.basemap = 'satellite';
@@ -107,11 +141,11 @@ export class MapController {
     this.lastVisibleCaseCheck = 0;
     this.homeTransitionId = 0;
     this.caseFocusTransitionId = 0;
-    this.homeLeftPadding = Math.max(0, Math.min(Math.round(container.clientWidth * 1), 500) - 500);
+    this.homeLeftPadding = container.clientWidth >= 1024 ? Math.round(Math.min(320, container.clientWidth * 0.22)) : 0;
 
     this.map = new mapboxgl.Map({
       container,
-      style: BASEMAPS[this.basemap].style,
+      style: this.#resolveStyle(this.basemap),
       center: WORLD_VIEW.center,
       zoom: WORLD_VIEW.zoom,
       pitch: WORLD_VIEW.pitch,
@@ -185,14 +219,16 @@ export class MapController {
     this.map.on('error', (e) => this.#onError(e));
     this.map.on('click', (e) => this.#click(e));
     this.map.on('mousemove', (e) => {
+      const ids = this.mapInteractionEnabled ? [...this.#vectorIds(), ...this.#worldIds()] : this.monitoringMode ? this.#vectorIds() : [];
+      const hit = ids.length && this.map.queryRenderedFeatures(e.point, { layers: ids }).length;
       if (!this.mapInteractionEnabled) {
-        this.map.getCanvas().style.cursor = this.monitoringMode
-          ? this.mode === 'terrain' ? 'grab' : ''
-          : this.orbitEnabled ? '' : 'pointer';
+        this.map.getCanvas().style.cursor = hit
+          ? 'pointer'
+          : this.monitoringMode
+            ? this.mode === 'terrain' ? 'grab' : ''
+            : this.orbitEnabled ? '' : 'pointer';
         return;
       }
-      const ids = [...this.#vectorIds(), ...this.#worldIds()];
-      const hit = ids.length && this.map.queryRenderedFeatures(e.point, { layers: ids }).length;
       this.map.getCanvas().style.cursor = hit ? 'pointer' : '';
     });
     this.map.on('render', () => {
@@ -342,16 +378,22 @@ export class MapController {
     }
   }
 
+  #resolveStyle(key) {
+    return this.hasToken ? BASEMAPS[key].style : buildFallbackStyle(key);
+  }
+
   #addWorldMarkers() {
     const m = this.map;
     if (m.getSource(WORLD_SOURCE)) return;
     m.addSource(WORLD_SOURCE, { type: 'geojson', data: this.#worldData() });
     m.addLayer({ id: WORLD_DOT, type: 'circle', source: WORLD_SOURCE, paint: { 'circle-radius': 7, 'circle-color': '#FFFFFF', 'circle-stroke-color': '#E4572E', 'circle-stroke-width': 3 } });
-    m.addLayer({
-      id: WORLD_LABEL, type: 'symbol', source: WORLD_SOURCE,
-      layout: { 'text-field': ['get', 'title'], 'text-size': 12, 'text-offset': [0, 1.4], 'text-anchor': 'top', 'text-max-width': 12 },
-      paint: { 'text-color': '#1B2430', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.6 },
-    });
+    if (this.hasToken) {
+      m.addLayer({
+        id: WORLD_LABEL, type: 'symbol', source: WORLD_SOURCE,
+        layout: { 'text-field': ['get', 'title'], 'text-size': 12, 'text-offset': [0, 1.4], 'text-anchor': 'top', 'text-max-width': 12 },
+        paint: { 'text-color': '#1B2430', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.6 },
+      });
+    }
   }
 
   #worldData() {
@@ -399,6 +441,7 @@ export class MapController {
   // ───────────── Cases & camera transitions ─────────────
   clear() {
     const m = this.map;
+    this.closePopup();
     if (this._raf) { cancelAnimationFrame(this._raf); this._raf = 0; }
     this.swipeSeq += 1;
     if (this.swipe) { this.swipe = null; this.#removeSwipeLayers(); }
@@ -478,11 +521,13 @@ export class MapController {
   }
 
   flyToWorld(center = WORLD_VIEW.center, { zoom = WORLD_VIEW.zoom, leftPadding = this.homeLeftPadding } = {}) {
+    const width = this.map.getContainer().clientWidth || window.innerWidth;
+    const safePadding = width > 0 ? Math.max(0, Math.min(leftPadding, Math.round(width * 0.55))) : Math.max(0, leftPadding);
     this.map.flyTo({
       ...WORLD_VIEW,
       center,
       zoom,
-      padding: { left: leftPadding, top: 0, right: 0, bottom: 0 },
+      padding: { left: safePadding, top: 0, right: 0, bottom: 0 },
       duration: 2000,
       easing: smoothStep,
       essential: true,
@@ -778,7 +823,14 @@ export class MapController {
     ]);
     if (sSeq !== this.swipeSeq || this.datasets.get(opts.datasetId) !== st) return;
     if (!rb.canvas || !ra.canvas) throw new Error('Swipe requires a local raster (image + gray8/rgba)');
-    this.swipe = { st, cb: rb.canvas, ca: ra.canvas, split: opts.split ?? 0.5 };
+    this.swipe = {
+      st,
+      cb: rb.canvas,
+      ca: ra.canvas,
+      beforeFrame: fb,
+      afterFrame: fa,
+      split: opts.split ?? 0.5,
+    };
     this.#hideDataset(st);
     this.#renderSwipe();
   }
@@ -841,20 +893,31 @@ export class MapController {
       if (!st.visible || !st.frame || !d.extent) continue;
       const [w, s, e, n] = d.extent;
       if (lng < w || lng > e || lat < s || lat > n) continue;
-      const base = { name: d.name, frame: st.frame, status: d.status };
+
+      let activeFrame = st.frame;
+      let phase = null;
+      if (this.swipe?.st === st && this.swipe.beforeFrame && this.swipe.afterFrame) {
+        const widthPx = this.swipe.cb?.width || 1;
+        const frac = Math.round((this.swipe.split ?? 0.5) * widthPx) / widthPx;
+        const isBefore = lng < w + frac * (e - w);
+        activeFrame = isBefore ? this.swipe.beforeFrame : this.swipe.afterFrame;
+        phase = isBefore ? 'before' : 'after';
+      }
+
+      const base = { name: d.name, frame: activeFrame, phase, status: d.status };
       if (d.source.type !== 'image' || d.source.encoding !== 'gray8') { out.push({ ...base, values: null }); continue; }
       const comp = d.composites.find((c) => c.id === st.selection);
       const ids = comp ? [...new Set(Object.values(comp.channels).filter(Boolean))] : [st.selection];
       const values = [];
       for (const id of ids) {
         const v = d.variables.find((x) => x.id === id);
-        const file = st.frame.files[id];
+        const file = activeFrame.files[id];
         let value = null;
         if (file) {
           try {
             const g = await loadGray(resolveUrl(file));
-            const px = Math.min(g.w - 1, Math.floor(((lng - w) / (e - w)) * g.w));
-            const py = Math.min(g.h - 1, Math.floor(((n - lat) / (n - s)) * g.h));
+            const px = Math.max(0, Math.min(g.w - 1, Math.floor(((lng - w) / (e - w)) * g.w)));
+            const py = Math.max(0, Math.min(g.h - 1, Math.floor(((n - lat) / (n - s)) * g.h)));
             value = grayToValue(g.g[py * g.w + px], v.legend, d.source.nodata === undefined ? 0 : d.source.nodata);
           } catch { value = null; }
         }
@@ -869,7 +932,7 @@ export class MapController {
   setBasemap(key) {
     if (!BASEMAPS[key] || key === this.basemap) return;
     this.basemap = key;
-    this.map.setStyle(BASEMAPS[key].style); // 'style.load' reapplies terrain, sky, vectors, and rasters
+    this.map.setStyle(this.#resolveStyle(key)); // 'style.load' reapplies terrain, sky, vectors, and rasters
   }
 
   setMode(mode) {
@@ -924,19 +987,38 @@ export class MapController {
 
   // ───────────── Interaction ─────────────
   #click(e) {
-    if (!this.mapInteractionEnabled) {
-      if (!this.orbitEnabled && !this.monitoringMode) this.onWorldClick(e);
+    if (!this.mapInteractionEnabled && !this.monitoringMode) {
+      if (!this.orbitEnabled) this.onWorldClick(e);
       return;
     }
     const m = this.map;
-    const world = this.#worldIds();
-    if (world.length) {
-      const z = m.queryRenderedFeatures(e.point, { layers: world })[0];
-      if (z) return this.onCasePick(z.properties.id);
+    if (this.mapInteractionEnabled) {
+      const world = this.#worldIds();
+      if (world.length) {
+        const z = m.queryRenderedFeatures(e.point, { layers: world })[0];
+        if (z) return this.onCasePick(z.properties.id);
+      }
     }
     const ids = this.#vectorIds();
     const f = ids.length ? m.queryRenderedFeatures(e.point, { layers: ids })[0] : null;
     const layer = f && this.current ? this.current.vectors.find((v) => vid(v) === f.layer.id) : null;
     this.onFeature(layer, f, e.lngLat);
+  }
+
+  /** Display or replace a single Mapbox GL popup anchored at `lngLat`. */
+  showPopup(lngLat, html) {
+    this.closePopup();
+    this.popup = new mapboxgl.Popup({ className: 'delta-popup', maxWidth: '300px' })
+      .setLngLat(lngLat)
+      .setHTML(html)
+      .addTo(this.map);
+  }
+
+  /** Close any active Mapbox GL feature popup. */
+  closePopup() {
+    if (this.popup) {
+      this.popup.remove();
+      this.popup = null;
+    }
   }
 }

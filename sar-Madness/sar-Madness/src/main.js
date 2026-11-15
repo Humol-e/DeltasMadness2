@@ -22,24 +22,90 @@ const fmtBytes = (b) => {
   return b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.round(b / 1024)} KB`;
 };
 
+let visibleHomeCaseIds = null;
+let homeCasePriority = [];
+let homeCaseDisplayOrder = [];
+const homeCaseHideTimers = new WeakMap();
+let homeCasesReady = false;
+let pageTransitionId = 0;
+let pageTransitionTimers = [];
+
 const app = document.querySelector('#app');
 app.innerHTML = `
   <div class="app">
-    <aside class="side">
-      <div class="hdr">
-        <h1>Monitoreo Satelital Real</h1>
-        <span class="pill-real">100% Datos Reales</span>
+    <main class="stage">
+      <div id="map"></div>
+      <div class="map-overlay-top">
+        <span id="status-pill" class="pill-real" hidden></span>
       </div>
+      <div id="inspect-pill" class="inspect-pill" hidden></div>
+      <div id="token-notice" class="token-notice" hidden>
+        <div class="token-card">
+          <strong>Mapbox interactive map has no token configured</strong>
+          <p class="muted" style="margin-top:6px">
+            Set <code>VITE_MAPBOX_ACCESS_TOKEN</code> in <code>.env</code> and reload to navigate the 3D globe.
+            Without this key, the satellite basemap cannot be loaded.
+          </p>
+        </div>
+      </div>
+    </main>
 
+    <header class="site-header">
+      <a
+        href="https://www.deltaanahuac.engineer/"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="logo"
+        aria-label="Delta Anahuac website"
+      >
+        <img src="/images/delta-logo.png" alt="Delta logo" class="logo-mark" />
+        <span>DELTA</span>
+      </a>
+      <nav aria-label="Main navigation">
+        <ul>
+          <li><button type="button" class="nav-link active" data-page="home">Home</button></li>
+          <li><button type="button" class="nav-link" data-page="permafrost">Permafrost</button></li>
+          <li><button type="button" class="nav-link" data-page="wildfires">Wildfires</button></li>
+          <li><button type="button" class="nav-link" data-page="deforestation">Deforestation</button></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main class="view-container">
+      <section class="view active" aria-live="polite">
+        <button id="monitoring-mode-toggle" class="monitoring-mode-toggle" type="button" aria-pressed="false" aria-label="Switch to 3D view" hidden>2D</button>
+        <aside id="monitoring-info-card" class="monitoring-info-card" aria-labelledby="monitoring-info-title" aria-live="polite" hidden></aside>
+        <aside id="monitoring-controls" class="monitoring-controls" aria-label="Image controls and downloads" hidden></aside>
+        <div class="hero-group">
+          <div class="text-content">
+            <p class="eyebrow">Satellite monitoring</p>
+            <h1 id="hero-title">Earth Radar</h1>
+            <p id="hero-description">When Earth changes irreversibly, every second of anticipation saves ecosystems.</p>
+            <button id="hero-data-guide-btn" type="button" class="data-guide-button">How we could use this data</button>
+          </div>
+          <ol id="case-indicators" class="case-indicators" aria-label="Events in the current category" hidden></ol>
+          <section id="case-detail-panel" class="case-detail-panel" aria-label="Event details" hidden></section>
+        </div>
+        <section id="home-cases" class="home-cases" aria-label="Observed events">
+          <h2>Observed events</h2>
+          <div id="home-case-grid" class="home-case-grid"></div>
+        </section>
+      </section>
+    </main>
+
+    <aside class="side" hidden aria-hidden="true">
+      <div class="hdr">
+        <h1>Real Satellite Monitoring</h1>
+        <span class="pill-real">100% Real Data</span>
+      </div>
       <section class="sec">
-        <label class="sec-title" for="case-select">Zona de estudio</label>
+        <label class="sec-title" for="case-select">Study site</label>
         <select id="case-select"></select>
         <p id="case-desc" class="muted"></p>
         <div id="case-metrics" class="metrics-grid"></div>
       </section>
-
       <section class="sec" id="layer-sec">
-        <h2 class="sec-title">Capa y variable</h2>
+        <h2 class="sec-title">Layer and variable</h2>
         <div id="dataset-chips" class="chips"></div>
         <div id="var-chips" class="chips" hidden></div>
         <div id="legend-wrap" class="legend-bar" hidden>
@@ -47,74 +113,111 @@ app.innerHTML = `
           <div class="legend-labels"><span id="legend-min"></span><span id="legend-max"></span></div>
         </div>
         <div class="range-row">
-          <span>Opacidad en mapa</span>
+          <span>Map opacity</span>
           <input id="opacity-range" type="range" min="0.15" max="1" step="0.05" value="0.9" />
           <strong id="opacity-out">90%</strong>
         </div>
       </section>
-
       <section class="sec" id="ba-sec">
-        <h2 class="sec-title">Visualización Antes / Después y Descargas PNG</h2>
+        <h2 class="sec-title">Before / After View & PNG Downloads</h2>
         <div id="ba-grid" class="ba-grid"></div>
         <div id="ba-actions" class="actions-row">
-          <button type="button" id="btn-dl-comp" class="btn btn-primary">⬇ Comparación Antes/Después (.png)</button>
-          <button type="button" id="btn-open-modal" class="btn">⛶ Ampliar</button>
+          <button type="button" id="btn-dl-comp" class="btn btn-primary">⬇ Before/After Comparison (.png)</button>
+          <button type="button" id="btn-open-modal" class="btn">⛶ Expand</button>
         </div>
         <div id="map-compare-bar" hidden>
           <div class="chips" style="margin-bottom:6px">
-            <button type="button" class="chip" id="btn-view-before">Ver Antes en mapa</button>
-            <button type="button" class="chip" id="btn-view-after">Ver Después en mapa</button>
-            <button type="button" class="chip" id="btn-view-swipe">Dividir mapa (Swipe)</button>
+            <button type="button" class="chip" id="btn-view-before">View Before on map</button>
+            <button type="button" class="chip" id="btn-view-after">View After on map</button>
+            <button type="button" class="chip" id="btn-view-swipe">Split map (Swipe)</button>
           </div>
           <div id="swipe-slider-row" class="range-row" hidden>
-            <span>División Antes | Después</span>
+            <span>Split Before | After</span>
             <input id="swipe-split" type="range" min="0" max="1" step="0.01" value="0.5" />
             <strong id="swipe-out">50%</strong>
           </div>
         </div>
       </section>
-
       <section class="sec" id="vectors-sec" hidden>
-        <h2 class="sec-title">Perímetros GeoJSON reales</h2>
+        <h2 class="sec-title">Real GeoJSON perimeters</h2>
         <div id="vectors-list" class="vec-list"></div>
       </section>
-
       <section class="sec" id="downloads-sec" hidden>
-        <h2 class="sec-title">Datos crudos GeoTIFF reales (.tif)</h2>
+        <h2 class="sec-title">Raw Real GeoTIFF Data (.tif)</h2>
         <div id="downloads-list" class="dl-list"></div>
       </section>
+      <button type="button" id="world-btn" hidden>View all sites</button>
+      <button type="button" id="terrain-btn" hidden>3D Terrain: ON</button>
     </aside>
-
-    <main class="stage">
-      <div id="map"></div>
-      <div class="map-overlay-top">
-        <button type="button" id="world-btn" class="btn" hidden>🌐 Ver todas las zonas</button>
-        <button type="button" id="terrain-btn" class="btn" hidden>🏔 Relieve 3D: ON</button>
-        <span id="status-pill" class="pill-real" hidden></span>
-      </div>
-      <div id="inspect-pill" class="inspect-pill" hidden></div>
-      <div id="token-notice" class="token-notice" hidden>
-        <div class="token-card">
-          <strong>Mapa interactivo Mapbox sin token configurado</strong>
-          <p class="muted" style="margin-top:6px">
-            Configura <code>VITE_MAPBOX_ACCESS_TOKEN</code> en <code>.env</code> y recarga para navegar sobre el globo 3D.
-            Mientras tanto, todas las imágenes reales Antes/Después y GeoTIFFs descargables están activos en el panel izquierdo.
-          </p>
-        </div>
-      </div>
-    </main>
   </div>
 
   <dialog id="compare-modal">
     <div class="modal-head">
       <strong id="modal-title"></strong>
-      <button type="button" id="modal-close" class="btn">Cerrar</button>
+      <button type="button" id="modal-close" class="btn">Close</button>
     </div>
     <div id="modal-grid" class="modal-grid"></div>
     <div class="modal-foot">
-      <button type="button" id="modal-dl-before" class="btn">⬇ Antes (.png)</button>
-      <button type="button" id="modal-dl-after" class="btn">⬇ Después (.png)</button>
-      <button type="button" id="modal-dl-comp" class="btn btn-primary">⬇ Comparación Antes/Después (.png)</button>
+      <button type="button" id="modal-dl-before" class="btn">⬇ Before (.png)</button>
+      <button type="button" id="modal-dl-after" class="btn">⬇ After (.png)</button>
+      <button type="button" id="modal-dl-comp" class="btn btn-primary">⬇ Before/After Comparison (.png)</button>
+    </div>
+  </dialog>
+
+  <dialog id="data-guide-modal" aria-labelledby="data-guide-title">
+    <div class="data-guide-head">
+      <div>
+        <span class="data-guide-eyebrow">Simple Guide</span>
+        <h2 id="data-guide-title">How We Could Use This Data</h2>
+        <p>Every map layer and metric in Delta comes from real satellite measurements. Here is what each number and image tells us and how people can use it.</p>
+      </div>
+      <button type="button" id="data-guide-close" class="data-guide-close">Close</button>
+    </div>
+    <div class="data-guide-body">
+      <article class="data-guide-card" data-guide-category="wildfires">
+        <span class="data-guide-card-tag">Wildfires</span>
+        <h3>Fire Scars, Smoke Penetration &amp; Damage</h3>
+        <ul class="data-guide-list">
+          <li><strong>Sentinel-2 RGB (True Color):</strong> Shows the land before and after the fire just as our eyes would see it.</li>
+          <li><strong>NBR / dNBR Burn Severity:</strong> Uses infrared light to show which patches burned lightly vs. which lost almost all vegetation.</li>
+          <li><strong>Sentinel-1 SAR &amp; GeoPulse Fusion:</strong> Radar sees right through dense smoke and clouds, day or night, to detect tree and terrain damage.</li>
+          <li><strong>Burned Area &amp; Study Area (km²):</strong> Measures how much land actually burned inside the monitored region and during which dates.</li>
+        </ul>
+        <p class="data-guide-takeaway"><strong>How we use it:</strong> Guide firefighters past heavy smoke, focus tree-planting and erosion barriers on the worst-hit slopes, and speed up emergency aid or insurance claims.</p>
+      </article>
+
+      <article class="data-guide-card" data-guide-category="permafrost">
+        <span class="data-guide-card-tag">Permafrost &amp; Glaciers</span>
+        <h3>Ice Retreat, Meltwater &amp; Surface Heat</h3>
+        <ul class="data-guide-list">
+          <li><strong>Snow Cover (NDSI &amp; MODIS Snow %):</strong> Separates clean snow and ice from exposed rock or mud to measure how fast glaciers are shrinking.</li>
+          <li><strong>Surface Temperature (°C):</strong> Tracks warming trends on high peaks and tundra pushing frozen basins above the melting point.</li>
+          <li><strong>Sentinel-1 Radar &amp; Melt Area (km²):</strong> Detects wet snow and liquid water forming on ice—even under thick clouds—and totals the thawing surface.</li>
+        </ul>
+        <p class="data-guide-takeaway"><strong>How we use it:</strong> Predict seasonal drinking and irrigation water for downstream towns, spot dangerous glacial lakes before floodwaters burst, and watch permafrost zones where thawing releases greenhouse gases.</p>
+      </article>
+
+      <article class="data-guide-card" data-guide-category="deforestation">
+        <span class="data-guide-card-tag">Deforestation</span>
+        <h3>Canopy Mass, Clearing &amp; Stored Carbon</h3>
+        <ul class="data-guide-list">
+          <li><strong>NISAR Aboveground Biomass (AGB · Mg/ha):</strong> Estimates how many metric tons of wood and living plant mass stand in each hectare of forest.</li>
+          <li><strong>L-Band Radar (HH / HV) &amp; ΔAGB Change:</strong> Long radar waves pierce beneath the leafy canopy to measure trunk volume and pinpoint exact patches where trees were felled or damaged.</li>
+          <li><strong>Carbon Loss (Gg C) &amp; Severe Loss (km²):</strong> Converts missing wood biomass into kilotons of carbon no longer stored by the forest.</li>
+        </ul>
+        <p class="data-guide-takeaway"><strong>How we use it:</strong> Catch illegal logging early, verify that carbon-credit and reforestation programs really protect trees, and plan sustainable forestry without clearing intact habitats.</p>
+      </article>
+
+      <article class="data-guide-card" data-guide-category="exports">
+        <span class="data-guide-card-tag">Reports &amp; GIS Exports</span>
+        <h3>Turning Satellite Views into Action</h3>
+        <ul class="data-guide-list">
+          <li><strong>Before / After Slider &amp; Pixel Probe:</strong> Hover anywhere over a layer to read exact real values (like biomass in Mg/ha, dB backscatter, or burn class) at exact GPS coordinates.</li>
+          <li><strong>Side-by-Side Comparison PNG:</strong> Downloads a clean before-and-after picture with dates and legend ready for presentations, schools, or civic reports.</li>
+          <li><strong>Raw GeoTIFF (.tif) Files:</strong> Industry-standard georeferenced maps that engineers, NGOs, and disaster teams can load straight into QGIS, ArcGIS, or Python.</li>
+        </ul>
+        <p class="data-guide-takeaway"><strong>How we use it:</strong> Anyone—from local planners to researchers—can move smoothly from quick visual evidence to full geographic analysis in external mapping tools.</p>
+      </article>
     </div>
   </dialog>
 `;
@@ -123,11 +226,15 @@ const el = (id) => document.querySelector(id);
 const state = {
   cases: [],
   active: null,
+  currentPage: 'home',
   datasetId: null,
   varId: null,
+  frameId: null,
   mapMode: 'before', // 'before' | 'after' | 'swipe'
   split: 0.5,
   renderSeq: 0,
+  caseSeq: 0,
+  hoverSeq: 0,
   previews: { before: null, after: null },
 };
 
@@ -136,23 +243,550 @@ const ctl = token
   ? new MapController({
       container: el('#map'),
       token,
-      onStatus: (level, msg) => {
-        const pill = el('#status-pill');
-        pill.hidden = !msg;
-        pill.textContent = msg || '';
-        if (level === 'error') pill.style.color = '#fca5a5';
-      },
+      onStatus: (level, msg) => setStatus(msg, { level }),
     })
   : null;
 
-if (!ctl) el('#token-notice').hidden = false;
+if (!ctl) {
+  el('#token-notice').hidden = false;
+  homeCasesReady = true;
+}
+if (ctl) {
+  ctl.onVisibleCasesChange = updateHomeCaseVisibility;
+  ctl.onWorldTransitionEnd = () => {
+    if (state.currentPage !== 'home') return;
+    homeCasesReady = true;
+    updateHomeCaseVisibility(visibleHomeCaseIds ? [...visibleHomeCaseIds] : []);
+  };
+}
 
 const activeDataset = () => state.active?.datasets?.find((d) => d.id === state.datasetId) ?? null;
+const supportsBeforeAfterSwipe = (dataset) => {
+  const pair = getBeforeAfterPair(dataset);
+  return Boolean(dataset?.source?.type === 'image' && pair.hasPair && pair.before && pair.after);
+};
 
-function setStatus(msg) {
+const categoryForCase = (def) => {
+  if (def.category === 'wildfire' || def.category === 'incendio' || def.id.startsWith('wildfire-') || Boolean(def.wildfire)) {
+    return 'wildfires';
+  }
+  if (def.category === 'biomass' || def.category === 'biomasa' || def.id.startsWith('biomass-')) {
+    return 'deforestation';
+  }
+  return 'permafrost';
+};
+
+const pageContent = {
+  home: {
+    title: 'Earth Radar',
+    description: 'When Earth changes irreversibly, every second of anticipation saves ecosystems.',
+  },
+  permafrost: {
+    title: 'Below Zero',
+    description: 'Permafrost and glacial thaw releases methane and accelerates climate change.',
+  },
+  wildfires: {
+    title: 'In Flames',
+    description: 'Wildfires transform ecosystems and leave scars visible from space.',
+  },
+  deforestation: {
+    title: 'Deforestation',
+    description: 'Monitoring forest cover changes and aboveground biomass loss.',
+  },
+};
+
+const caseImageFiles = {
+  'wildfire-camp-paradise': 'paradise-california.jpg',
+  'wildfire-martin-nv': 'martin-nevada.jpg',
+  'wildfire-palisades-la': 'palisades-los-angeles.jpg',
+  'glacier-langtang': 'langtang-valley-nepal.jpg',
+  'glacier-khumbu': 'khumbu-glacier-nepal.jpg',
+  'biomass-leno-nisar': 'lenoir-landing-alabama.jpg',
+};
+
+const categoryLabels = {
+  wildfires: 'Wildfire',
+  permafrost: 'Glacier Melt',
+  deforestation: 'Forest Change',
+};
+
+function getCaseCardImageUrl(def) {
+  if (caseImageFiles[def.id]) return `/images/cases/${caseImageFiles[def.id]}`;
+  const rgbaDs = (def.datasets ?? []).find((d) => d.source?.encoding === 'rgba' && d.frames?.length);
+  const frame = rgbaDs?.frames.find((f) => f.phase === 'after') ?? rgbaDs?.frames[rgbaDs.frames.length - 1];
+  const file = frame ? Object.values(frame.files ?? {})[0] : null;
+  return file ? resolveUrl(file) : null;
+}
+
+function renderHomeCases(cases) {
+  const grid = el('#home-case-grid');
+  const orderedCases = cases
+    .map((def, index) => ({
+      def,
+      index,
+      latest: Number(def.axis?.[def.axis.length - 1]?.ms) || 0,
+    }))
+    .sort((a, b) => b.latest - a.latest || a.index - b.index);
+  homeCasePriority = orderedCases.map(({ def }) => def.id);
+
+  grid.innerHTML = orderedCases
+    .map(({ def }) => {
+      const image = getCaseCardImageUrl(def);
+      const title = esc(def.title);
+      return `<button type="button" class="home-case-card" data-case-id="${esc(def.id)}" aria-label="Open event: ${title}" hidden>
+        <div class="home-case-image${image ? '' : ' is-missing'}">
+          ${image ? `<img src="${esc(image)}" alt="${title}" loading="lazy" />` : ''}
+          <span class="home-case-placeholder" aria-hidden="true">Image pending</span>
+        </div>
+        <div class="home-case-copy">
+          <span class="home-case-type">${esc(categoryLabels[categoryForCase(def)])}</span>
+          <strong>${title}</strong>
+        </div>
+      </button>`;
+    })
+    .join('');
+
+  grid.querySelectorAll('.home-case-image img').forEach((image) => {
+    image.addEventListener('error', () => {
+      image.hidden = true;
+      image.closest('.home-case-image').classList.add('is-missing');
+    });
+  });
+  if (visibleHomeCaseIds) updateHomeCaseVisibility([...visibleHomeCaseIds]);
+  else if (!ctl) updateHomeCaseVisibility(cases.map((def) => def.id));
+}
+
+function renderCaseIndicators(cases, selectedCaseId) {
+  const indicators = el('#case-indicators');
+  indicators.innerHTML = cases
+    .map((def) => {
+      const selected = def.id === selectedCaseId;
+      return `<li>
+        <button type="button" class="case-indicator${selected ? ' is-selected' : ''}" data-case-id="${esc(def.id)}" aria-label="Select ${esc(def.title)}" aria-pressed="${selected}">
+          <span class="case-indicator-arrow" aria-hidden="true"></span>
+        </button>
+      </li>`;
+    })
+    .join('');
+  indicators.hidden = cases.length === 0;
+}
+
+function renderCaseDetail(def) {
+  const panel = el('#case-detail-panel');
+  const imageUrl = getCaseCardImageUrl(def);
+  const title = esc(def.title);
+  panel.innerHTML = `
+    <div class="case-detail-image${imageUrl ? '' : ' is-missing'}">
+      ${imageUrl ? `<img src="${esc(imageUrl)}" alt="${title}" loading="lazy" />` : ''}
+      <span class="case-detail-placeholder">Image unavailable</span>
+    </div>
+    <div class="case-detail-copy">
+      <span class="case-detail-type">${esc(categoryLabels[categoryForCase(def)])}</span>
+      <h2>${title}</h2>
+      <p>${esc(def.description || 'Event information unavailable.')}</p>
+      <button type="button" class="case-monitoring-button">Satellite Monitoring</button>
+    </div>`;
+  const image = panel.querySelector('img');
+  image?.addEventListener('error', () => {
+    image.hidden = true;
+    image.closest('.case-detail-image').classList.add('is-missing');
+  });
+}
+
+function renderMonitoringInfo(def) {
+  const card = el('#monitoring-info-card');
+  const metrics = def.metrics ?? {};
+  const formatNumber = (value) => Number(value).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  const area = (value) => value == null ? null : `${formatNumber(value)} km²`;
+  const pair = (before, after, unit = '') => before == null || after == null
+    ? null
+    : `${formatNumber(before)}${unit} → ${formatNumber(after)}${unit}`;
+  let facts;
+
+  switch (categoryForCase(def)) {
+    case 'wildfires':
+      facts = [
+        ['Burned area', area(metrics.affectedKm2)],
+        ['Study area', area(metrics.observedKm2)],
+        ['Pre-window', metrics.preWindow],
+        ['Post-window', metrics.postWindow],
+      ];
+      break;
+    case 'permafrost':
+      facts = [
+        ['Snow cover', pair(metrics.snowPrePct, metrics.snowPostPct, '%')],
+        ['Surface temp.', pair(metrics.lstPreC, metrics.lstPostC, ' °C')],
+        ['Melt area', area(metrics.meltAreaKm2)],
+      ];
+      break;
+    case 'deforestation':
+      facts = [
+        ['Valid forest area', area(metrics.forestAreaKm2)],
+        ['Mean AGB', pair(metrics.agbPreMean, metrics.agbPostMean, ' Mg/ha')],
+        ['NISAR severe loss', area(metrics.biomassLossKm2)],
+        ['Carbon loss', metrics.carbonLossGg == null ? null : `${formatNumber(metrics.carbonLossGg)} Gg C`],
+      ];
+      break;
+    default:
+      facts = [];
+  }
+
+  const visibleFacts = facts.filter(([, value]) => value != null && value !== '');
+  const factsMarkup = visibleFacts.length
+    ? `<dl class="monitoring-info-metrics">
+        ${visibleFacts.map(([label, value]) => `
+          <div class="monitoring-info-metric">
+            <dt>${esc(label)}</dt>
+            <dd>${esc(value)}</dd>
+          </div>`).join('')}
+      </dl>`
+    : '<p class="monitoring-info-empty">No metrics available for this event.</p>';
+  const datasetChoices = (def.datasets ?? []).map((dataset) => `
+    <button
+      type="button"
+      class="chip monitoring-satellite-option${dataset.id === state.datasetId ? ' active' : ''}"
+      data-monitor-ds="${esc(dataset.id)}"
+      aria-pressed="${dataset.id === state.datasetId}"
+    >${esc(dataset.name)}</button>`).join('');
+  card.innerHTML = `
+    <span class="monitoring-info-type">${esc(categoryLabels[categoryForCase(def)])}</span>
+    <h2 id="monitoring-info-title">${esc(def.title)}</h2>
+    <section class="monitoring-info-section" aria-labelledby="monitoring-facts-heading">
+      <h3 id="monitoring-facts-heading">Key Metrics</h3>
+      ${factsMarkup}
+    </section>
+    <section class="monitoring-info-section monitoring-satellite-picker" aria-labelledby="monitoring-satellite-heading">
+      <h3 id="monitoring-satellite-heading">Select Satellite</h3>
+      <div class="monitoring-satellite-options" role="group" aria-label="Satellite sources">
+        ${datasetChoices}
+      </div>
+      ${state.datasetId ? '' : '<p class="monitoring-satellite-hint">Choose a source to display its imagery on the map.</p>'}
+    </section>
+    <button id="monitoring-data-guide-btn" type="button" class="data-guide-button data-guide-button--monitoring">How we could use this data</button>`;
+  card.querySelectorAll('button[data-monitor-ds]').forEach((button) => {
+    button.addEventListener('click', () => selectDataset(button.dataset.monitorDs));
+  });
+  card.querySelector('#monitoring-data-guide-btn')?.addEventListener('click', openDataGuideModal);
+}
+
+function renderMonitoringControls(def) {
+  const panel = el('#monitoring-controls');
+  const ds = activeDataset();
+  const frames = ds?.frames ?? [];
+  const pair = getBeforeAfterPair(ds);
+  const canSwipe = supportsBeforeAfterSwipe(ds);
+  const frame = frames.find((item) => item.id === state.frameId) ?? pair.before ?? pair.after;
+  const frameIndex = frame ? Math.max(0, frames.findIndex((item) => item.id === frame.id)) : 0;
+  const splitPercent = Math.round(state.split * 100);
+  const variable = ds?.variables.find((item) => item.id === state.varId);
+  const opacity = ds ? ctl?.dataset(ds.id)?.opacity ?? ds.render.opacity : 0.85;
+  const framePhase = canSwipe ? `${splitPercent}% Before · ${100 - splitPercent}% After`
+    : frame?.phase === 'before' ? 'Before'
+    : frame?.phase === 'after' ? 'After'
+      : frame?.phase === 'change' ? 'Change' : 'Observation';
+  const frameDescription = canSwipe
+    ? `${frameShortTitle(pair.before, 'Before')} → ${frameShortTitle(pair.after, 'After')}`
+    : frame ? frameShortTitle(frame, frame.datetime) : null;
+  const variableMarkup = ds && ds.variables.length > 1
+    ? `<div class="monitoring-control-group">
+        <label for="monitoring-variable-select">Data type</label>
+        <select id="monitoring-variable-select">
+          ${ds.variables.map((item) => `<option value="${esc(item.id)}" ${item.id === state.varId ? 'selected' : ''}>${esc(item.label)}</option>`).join('')}
+        </select>
+      </div>`
+    : '';
+  const details = ds ? [
+    ['Source', ds.name],
+    [ds.sensor ? 'Sensor' : 'Platform', ds.sensor || ds.platform],
+    ['Provider', ds.provider],
+    ['Data', variable?.label],
+    [canSwipe ? 'Comparison' : 'Date', frameDescription],
+    ['Phase', frame ? framePhase : null],
+    ['Unit', variable?.unit],
+  ].filter(([, value]) => value) : [];
+  const detailsMarkup = details.length
+    ? `<dl class="monitoring-display-details">
+        ${details.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}
+      </dl>`
+    : '<p class="monitoring-control-hint">Select a satellite to enable controls.</p>';
+  const legendMarkup = variable?.legend?.colors?.length
+    ? `<div class="monitoring-display-legend">
+        <div class="monitoring-display-legend-ramp" style="background:linear-gradient(90deg, ${variable.legend.colors.join(', ')})"></div>
+        <div><span>${esc(variable.legend.min)}${variable.unit ? ` ${esc(variable.unit)}` : ''}</span><span>${esc(variable.legend.max)}${variable.unit ? ` ${esc(variable.unit)}` : ''}</span></div>
+      </div>`
+    : '';
+  const geotiffCount = (def.downloads ?? []).filter((item) => item.datasetId === ds?.id && item.format === 'geotiff').length;
+
+  panel.innerHTML = `
+    <header class="monitoring-controls-header">
+      <span>Visualization</span>
+      <h2>Image Controls</h2>
+    </header>
+    <div class="monitoring-control-group">
+      <label for="monitoring-opacity-range">Opacity <output id="monitoring-opacity-output">${Math.round(opacity * 100)}%</output></label>
+      <input id="monitoring-opacity-range" type="range" min="0" max="1" step="0.05" value="${opacity}" ${ds ? '' : 'disabled'} />
+    </div>
+    <div class="monitoring-control-group">
+      <label for="monitoring-time-range">${canSwipe ? 'Compare Before / After' : 'Image Time'}</label>
+      <input id="monitoring-time-range" type="range" min="0" max="${canSwipe ? 100 : Math.max(0, frames.length - 1)}" step="1" value="${canSwipe ? splitPercent : frameIndex}" ${canSwipe || (ds && frames.length > 1) ? '' : 'disabled'} />
+      <div class="monitoring-time-ends"><span>${canSwipe ? 'Before' : 'Initial'}</span><span>${canSwipe ? 'After' : 'Final'}</span></div>
+      <div class="monitoring-time-caption">
+        <span id="monitoring-time-phase">${esc(framePhase)}</span>
+        <strong id="monitoring-time-label">${esc(canSwipe ? 'Slide to compare' : frame ? frameShortTitle(frame, frame.datetime) : 'No image selected')}</strong>
+      </div>
+    </div>
+    ${variableMarkup}
+    <section class="monitoring-display-info" aria-labelledby="monitoring-display-heading">
+      <h3 id="monitoring-display-heading">Currently Displaying</h3>
+      ${detailsMarkup}
+      ${legendMarkup}
+    </section>
+    <button id="monitoring-download-button" class="monitoring-download-button" type="button" ${ds ? '' : 'disabled'}>
+      Download PNG + GeoTIFF
+    </button>
+    <p class="monitoring-download-hint">${ds ? `${geotiffCount} GeoTIFF(s) available for this source; a comparison PNG will be added.` : 'Select a source before downloading.'}</p>`;
+
+  const opacityRange = el('#monitoring-opacity-range');
+  opacityRange.addEventListener('input', (event) => {
+    const value = Number(event.target.value);
+    el('#monitoring-opacity-output').textContent = `${Math.round(value * 100)}%`;
+    el('#opacity-range').value = String(value);
+    el('#opacity-out').textContent = `${Math.round(value * 100)}%`;
+    if (ds) ctl?.setDatasetOpacity(ds.id, value);
+  });
+
+  const timeRange = el('#monitoring-time-range');
+  timeRange.addEventListener('input', () => {
+    if (canSwipe) {
+      state.split = Number(timeRange.value) / 100;
+      state.mapMode = 'swipe';
+      const percent = Math.round(state.split * 100);
+      el('#monitoring-time-phase').textContent = `${percent}% Before · ${100 - percent}% After`;
+      el('#monitoring-time-label').textContent = 'Slide to compare';
+      ctl?.setSwipeSplit(state.split);
+      return;
+    }
+    const selectedFrame = frames[Number(timeRange.value)];
+    if (!selectedFrame) return;
+    state.frameId = selectedFrame.id;
+    el('#monitoring-time-label').textContent = frameShortTitle(selectedFrame, selectedFrame.datetime);
+  });
+  timeRange.addEventListener('change', () => {
+    if (canSwipe) {
+      ctl?.setSwipeSplit(state.split);
+      return;
+    }
+    syncMapToLayer();
+    renderMonitoringControls(def);
+  });
+
+  el('#monitoring-variable-select')?.addEventListener('change', (event) => {
+    state.varId = event.target.value;
+    renderDatasetControls(def);
+    renderMonitoringControls(def);
+    refreshLayer();
+  });
+  el('#monitoring-download-button').addEventListener('click', downloadMonitoringData);
+}
+
+function schedulePageTransition(id, delay, callback) {
+  const timer = window.setTimeout(() => {
+    if (id === pageTransitionId) callback();
+  }, delay);
+  pageTransitionTimers.push(timer);
+}
+
+function beginPageTransition(content) {
+  pageTransitionTimers.forEach((timer) => window.clearTimeout(timer));
+  pageTransitionTimers = [];
+  const id = ++pageTransitionId;
+  const text = el('.text-content');
+  text.classList.remove('is-entering', 'is-leaving');
+  text.classList.add('is-leaving');
+  schedulePageTransition(id, 180, () => {
+    el('#hero-title').textContent = content.title;
+    el('#hero-description').textContent = content.description;
+    text.classList.remove('is-leaving');
+    text.classList.add('is-entering');
+    requestAnimationFrame(() => {
+      if (id === pageTransitionId) text.classList.remove('is-entering');
+    });
+  });
+  return id;
+}
+
+function selectCaseIndicator(caseId) {
+  el('#case-indicators').querySelectorAll('.case-indicator').forEach((indicator) => {
+    const selected = indicator.dataset.caseId === caseId;
+    indicator.classList.toggle('is-selected', selected);
+    indicator.setAttribute('aria-pressed', String(selected));
+  });
+}
+
+function syncMonitoringModeToggle() {
+  const toggle = el('#monitoring-mode-toggle');
+  const is3d = ctl?.mode === 'terrain';
+  toggle.textContent = is3d ? '3D' : '2D';
+  toggle.setAttribute('aria-pressed', String(is3d));
+  toggle.setAttribute('aria-label', `Switch to ${is3d ? '2D' : '3D'} view`);
+}
+
+function updateHomeCaseVisibility(ids) {
+  visibleHomeCaseIds = new Set(ids);
+  const shouldShow = homeCasesReady && state.currentPage === 'home';
+  const prioritizedVisibleIds = new Set(
+    shouldShow ? homeCasePriority.filter((id) => visibleHomeCaseIds.has(id)).slice(0, 4) : [],
+  );
+  homeCaseDisplayOrder = homeCaseDisplayOrder.filter((id) => prioritizedVisibleIds.has(id));
+  homeCasePriority.forEach((id) => {
+    if (prioritizedVisibleIds.has(id) && !homeCaseDisplayOrder.includes(id)) {
+      homeCaseDisplayOrder.push(id);
+    }
+  });
+
+  const grid = el('#home-case-grid');
+  const cards = new Map(
+    [...grid.querySelectorAll('.home-case-card')].map((card) => [card.dataset.caseId, card]),
+  );
+  homeCaseDisplayOrder.forEach((id) => {
+    const card = cards.get(id);
+    if (card) grid.appendChild(card);
+  });
+  cards.forEach((card) => {
+    setHomeCaseCardVisible(card, prioritizedVisibleIds.has(card.dataset.caseId));
+  });
+  el('#home-cases').hidden = !shouldShow;
+}
+
+function setHomeCaseCardVisible(card, visible) {
+  const grid = card.parentElement;
+  if (visible) {
+    const timer = homeCaseHideTimers.get(card);
+    if (timer) {
+      clearTimeout(timer);
+      homeCaseHideTimers.delete(card);
+    }
+    const wasHidden = card.hidden;
+    const wasHiding = card.classList.contains('is-hiding');
+    card.hidden = false;
+    if (wasHiding) resetHomeCaseCardPosition(card);
+    card.classList.remove('is-hiding');
+    if (wasHidden) {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (!card.hidden && !card.classList.contains('is-hiding')) card.classList.add('is-visible');
+      }));
+    } else {
+      card.classList.add('is-visible');
+    }
+    return;
+  }
+
+  if (card.hidden || card.classList.contains('is-hiding')) return;
+  const cardRect = card.getBoundingClientRect();
+  const gridRect = grid.getBoundingClientRect();
+  card.style.position = 'absolute';
+  card.style.top = `${cardRect.top - gridRect.top}px`;
+  card.style.left = `${cardRect.left - gridRect.left}px`;
+  card.style.width = `${cardRect.width}px`;
+  card.style.height = `${cardRect.height}px`;
+  card.style.zIndex = '1';
+  card.classList.remove('is-visible');
+  card.classList.add('is-hiding');
+  homeCaseHideTimers.set(card, window.setTimeout(() => {
+    if (!card.classList.contains('is-visible')) {
+      card.hidden = true;
+      card.classList.remove('is-hiding');
+      resetHomeCaseCardPosition(card);
+    }
+    homeCaseHideTimers.delete(card);
+  }, 350));
+}
+
+function resetHomeCaseCardPosition(card) {
+  card.style.removeProperty('position');
+  card.style.removeProperty('top');
+  card.style.removeProperty('left');
+  card.style.removeProperty('width');
+  card.style.removeProperty('height');
+  card.style.removeProperty('z-index');
+}
+
+function setPage(page, { caseId } = {}) {
+  const content = pageContent[page];
+  if (!content) return;
+  const transitionId = beginPageTransition(content);
+  state.currentPage = page;
+  state.hoverSeq++;
+  setStatus('');
+  el('#inspect-pill').hidden = true;
+  ctl?.cancelCaseFocus();
+  el('.view').classList.remove('is-monitoring');
+  el('#monitoring-mode-toggle').hidden = true;
+  el('#monitoring-info-card').hidden = true;
+  el('#monitoring-controls').hidden = true;
+  ctl?.setOrbitEnabled(page === 'home');
+  ctl?.setScrollZoomEnabled(page !== 'home');
+  ctl?.setMapInteractionEnabled(false);
+  el('.view').classList.toggle('has-case-indicators', page !== 'home');
+  el('#case-indicators').hidden = page === 'home';
+  el('#case-detail-panel').hidden = page === 'home';
+  el('#case-detail-panel').classList.remove('is-revealed');
+  if (page !== 'home') el('#home-cases').hidden = true;
+  document.querySelectorAll('.nav-link, .logo[data-page]').forEach((link) => {
+    link.classList.toggle('active', link.dataset.page === page);
+  });
+
+  if (page === 'home') {
+    state.caseSeq++;
+    state.active = null;
+    homeCasesReady = !ctl;
+    const homeCaseIds = ctl ? [] : state.cases.map((def) => def.id);
+    updateHomeCaseVisibility(homeCaseIds);
+    ctl?.setCases(state.cases);
+    ctl?.showWorld();
+    return;
+  }
+  const categoryCases = state.cases.filter((def) => categoryForCase(def) === page);
+  const matchingCase = categoryCases.find((def) => def.id === caseId) ?? categoryCases[0];
+  renderCaseIndicators(categoryCases, matchingCase?.id);
+  if (matchingCase) selectCase(matchingCase.id, { globeOverview: true });
+  else ctl?.setCases([]);
+  schedulePageTransition(transitionId, 430, () => {
+    el('#case-indicators .is-selected')?.classList.add('is-revealed');
+  });
+  schedulePageTransition(transitionId, 770, () => {
+    el('#case-detail-panel').classList.add('is-revealed');
+  });
+  schedulePageTransition(transitionId, 1110, () => {
+    el('#case-indicators').querySelectorAll('.case-indicator:not(.is-selected)').forEach((indicator) => {
+      indicator.classList.add('is-revealed');
+    });
+  });
+}
+
+function openCase(caseId) {
+  const def = state.cases.find((item) => item.id === caseId);
+  if (!def) return;
+  setPage(categoryForCase(def), { caseId: def.id });
+}
+
+let statusTimer = 0;
+
+function setStatus(msg, { level = 'info', autoHideMs = 0 } = {}) {
+  if (statusTimer) {
+    window.clearTimeout(statusTimer);
+    statusTimer = 0;
+  }
   const pill = el('#status-pill');
   pill.hidden = !msg;
   pill.textContent = msg || '';
+  pill.style.color = level === 'error' ? '#fca5a5' : '';
+  if (msg && autoHideMs > 0) {
+    statusTimer = window.setTimeout(() => {
+      statusTimer = 0;
+      setStatus('');
+    }, autoHideMs);
+  }
 }
 
 function renderCaseMetrics(def) {
@@ -160,20 +794,20 @@ function renderCaseMetrics(def) {
   const box = el('#case-metrics');
   if (!m) { box.innerHTML = ''; return; }
   const items = [];
-  if (m.preWindow) items.push(['Ventana Antes', m.preWindow]);
-  if (m.postWindow) items.push(['Ventana Después', m.postWindow]);
-  if (m.affectedKm2 != null) items.push(['Área quemada detectada', `${m.affectedKm2} km²`]);
-  if (m.observedKm2 != null) items.push(['Área observada', `${m.observedKm2} km²`]);
-  if (m.snowPrePct != null && m.snowPostPct != null) items.push(['Nieve MODIS (Antes → Después)', `${m.snowPrePct}% → ${m.snowPostPct}%`]);
-  if (m.lstPreC != null && m.lstPostC != null) items.push(['Temp. superficie', `${m.lstPreC}°C → ${m.lstPostC}°C`]);
-  if (m.meltAreaKm2 != null) items.push(['Retroceso nival (ΔNDSI)', `${m.meltAreaKm2} km²`]);
-  if (m.forestAreaKm2 != null) items.push(['Área forestal válida', `${m.forestAreaKm2} km²`]);
-  if (m.agbPreMean != null && m.agbPostMean != null) items.push(['AGB media (Antes → Después)', `${m.agbPreMean} → ${m.agbPostMean} Mg/ha`]);
-  if (m.agbDisturbedPre != null && m.agbDisturbedPost != null) items.push(['AGB zonas perturbadas', `${m.agbDisturbedPre} → ${m.agbDisturbedPost} Mg/ha`]);
-  if (m.biomassLossKm2 != null) items.push(['Pérdida severa NISAR (≤−40)', `${m.biomassLossKm2} km²`]);
-  if (m.planetDistKm2 != null) items.push(['Ref. perturbación Planet', `${m.planetDistKm2} km²`]);
-  if (m.carbonLossGg != null) items.push(['Pérdida de carbono (0.47·ΔAGB)', `${m.carbonLossGg} Gg C`]);
-  if (m.hvPreDb != null && m.hvPostDb != null) items.push(['Banda L HV (Antes → Después)', `${m.hvPreDb} → ${m.hvPostDb} dB`]);
+  if (m.preWindow) items.push(['Pre Window', m.preWindow]);
+  if (m.postWindow) items.push(['Post Window', m.postWindow]);
+  if (m.affectedKm2 != null) items.push(['Detected Burned Area', `${m.affectedKm2} km²`]);
+  if (m.observedKm2 != null) items.push(['Observed Area', `${m.observedKm2} km²`]);
+  if (m.snowPrePct != null && m.snowPostPct != null) items.push(['MODIS Snow (Before → After)', `${m.snowPrePct}% → ${m.snowPostPct}%`]);
+  if (m.lstPreC != null && m.lstPostC != null) items.push(['Surface Temp.', `${m.lstPreC}°C → ${m.lstPostC}°C`]);
+  if (m.meltAreaKm2 != null) items.push(['Snow Retreat (ΔNDSI)', `${m.meltAreaKm2} km²`]);
+  if (m.forestAreaKm2 != null) items.push(['Valid Forest Area', `${m.forestAreaKm2} km²`]);
+  if (m.agbPreMean != null && m.agbPostMean != null) items.push(['Mean AGB (Before → After)', `${m.agbPreMean} → ${m.agbPostMean} Mg/ha`]);
+  if (m.agbDisturbedPre != null && m.agbDisturbedPost != null) items.push(['Disturbed AGB', `${m.agbDisturbedPre} → ${m.agbDisturbedPost} Mg/ha`]);
+  if (m.biomassLossKm2 != null) items.push(['NISAR Severe Loss (≤−40)', `${m.biomassLossKm2} km²`]);
+  if (m.planetDistKm2 != null) items.push(['Planet Disturbance Ref.', `${m.planetDistKm2} km²`]);
+  if (m.carbonLossGg != null) items.push(['Carbon Loss (0.47·ΔAGB)', `${m.carbonLossGg} Gg C`]);
+  if (m.hvPreDb != null && m.hvPostDb != null) items.push(['L-Band HV (Before → After)', `${m.hvPreDb} → ${m.hvPostDb} dB`]);
   box.innerHTML = items.map(([k, v]) => `<div class="metric"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('');
 }
 
@@ -208,6 +842,7 @@ function renderDatasetControls(def) {
       btn.addEventListener('click', () => {
         state.varId = btn.dataset.v;
         renderDatasetControls(def);
+        renderMonitoringControls(def);
         refreshLayer();
       });
     });
@@ -259,7 +894,7 @@ function renderDownloads(def) {
 
   let html = shown.map(linkHtml).join('');
   if (primary.length && others.length) {
-    html += `<details class="dl-more"><summary>Ver otros ${others.length} GeoTIFFs reales de este caso</summary><div class="dl-list">${others.map(linkHtml).join('')}</div></details>`;
+    html += `<details class="dl-more"><summary>View other ${others.length} real GeoTIFFs for this event</summary><div class="dl-list">${others.map(linkHtml).join('')}</div></details>`;
   }
   box.innerHTML = html;
 }
@@ -279,21 +914,21 @@ async function renderBeforeAfterPreviews(def, ds, varId) {
       renderFrameCanvas(ds, before, varId),
       renderFrameCanvas(ds, after, varId),
     ]);
-    if (seq !== state.renderSeq) return;
+    if (seq !== state.renderSeq || !state.active) return;
     state.previews = {
       before: { frame: before, url: rb.url },
       after: { frame: after, url: ra.url },
     };
-    cards.push({ tag: 'ANTES', cls: 'ba-tag-before', date: frameShortTitle(before, 'Antes'), url: rb.url, phase: 'antes', frame: before });
-    cards.push({ tag: 'DESPUÉS', cls: 'ba-tag-after', date: frameShortTitle(after, 'Después'), url: ra.url, phase: 'despues', frame: after });
+    cards.push({ tag: 'BEFORE', cls: 'ba-tag-before', date: frameShortTitle(before, 'Before'), url: rb.url, phase: 'before', frame: before });
+    cards.push({ tag: 'AFTER', cls: 'ba-tag-after', date: frameShortTitle(after, 'After'), url: ra.url, phase: 'after', frame: after });
   } else {
     grid.className = 'ba-grid single';
     const only = after || before;
     if (!only) { grid.innerHTML = ''; return; }
     const rendered = await renderFrameCanvas(ds, only, varId);
-    if (seq !== state.renderSeq) return;
+    if (seq !== state.renderSeq || !state.active) return;
     state.previews = { before: null, after: { frame: only, url: rendered.url } };
-    cards.push({ tag: 'OBSERVACIÓN REAL', cls: 'ba-tag-after', date: frameShortTitle(only, 'Resultado'), url: rendered.url, phase: 'real', frame: only });
+    cards.push({ tag: 'REAL OBSERVATION', cls: 'ba-tag-after', date: frameShortTitle(only, 'Result'), url: rendered.url, phase: 'real', frame: only });
   }
 
   grid.innerHTML = cards
@@ -302,7 +937,7 @@ async function renderBeforeAfterPreviews(def, ds, varId) {
         <div class="ba-card-head"><span class="${c.cls}">${c.tag}</span></div>
         <div class="ba-date" title="${esc(c.date)}">${esc(c.date)}</div>
         <img class="ba-thumb" src="${c.url}" alt="${esc(c.tag)}" />
-        <button type="button" class="btn btn-sm" data-dl-idx="${i}">⬇ Descargar ${c.tag} (.png)</button>
+        <button type="button" class="btn btn-sm" data-dl-idx="${i}">⬇ Download ${c.tag} (.png)</button>
       </div>`,
     )
     .join('');
@@ -313,37 +948,77 @@ async function renderBeforeAfterPreviews(def, ds, varId) {
   });
 }
 
+async function downloadMonitoringData() {
+  const def = state.active;
+  const ds = activeDataset();
+  const variableId = state.varId ?? ds?.variables[0]?.id;
+  if (!def || !ds || !variableId) return;
+
+  const geotiffs = (def.downloads ?? []).filter((item) => item.datasetId === ds.id && item.format === 'geotiff');
+  geotiffs.forEach((item) => {
+    const link = document.createElement('a');
+    link.href = resolveUrl(item.url);
+    link.download = item.url.slice(item.url.lastIndexOf('/') + 1);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  });
+
+  try {
+    await downloadSideBySidePng(def, ds, variableId);
+  } catch (error) {
+    setStatus(`Failed to generate PNG: ${error.message}`);
+    return;
+  }
+
+  setStatus(
+    geotiffs.length
+      ? `Download started: comparison PNG and ${geotiffs.length} GeoTIFF(s).`
+      : 'Comparison PNG downloaded; no GeoTIFF available for this source.',
+    { autoHideMs: 4500 },
+  );
+}
+
 async function syncMapToLayer() {
   if (!ctl || !state.active) return;
   const ds = activeDataset();
   if (!ds) return;
   const { hasPair, before, after } = getBeforeAfterPair(ds);
+  const monitoringOpacity = el('#monitoring-opacity-range');
+  const opacity = monitoringOpacity && !monitoringOpacity.disabled
+    ? Number(monitoringOpacity.value)
+    : Number(el('#opacity-range').value);
+  const isSwipe = state.mapMode === 'swipe' && hasPair && before && after;
 
-  if (state.mapMode === 'swipe' && hasPair && before && after) {
-    el('#swipe-slider-row').hidden = false;
-    await ctl.setSwipe({
-      datasetId: ds.id,
-      beforeId: before.id,
-      afterId: after.id,
-      selection: state.varId,
-      split: state.split,
-    });
-  } else {
-    el('#swipe-slider-row').hidden = true;
-    await ctl.setSwipe(null);
-    const frame = state.mapMode === 'after' || !hasPair ? after || before : before;
-    if (frame) await ctl.setTime(frame.ms);
-  }
-
-  for (const d of state.active.datasets) {
-    await ctl.setDatasetVisible(d.id, d.id === ds.id);
-  }
-  await ctl.setDatasetSelection(ds.id, state.varId);
-  ctl.setDatasetOpacity(ds.id, Number(el('#opacity-range').value));
-
+  el('#swipe-slider-row').hidden = !isSwipe;
   el('#btn-view-before').classList.toggle('active', state.mapMode === 'before');
   el('#btn-view-after').classList.toggle('active', state.mapMode === 'after');
   el('#btn-view-swipe').classList.toggle('active', state.mapMode === 'swipe');
+
+  const targetFrame = isSwipe
+    ? after
+    : ds.frames.find((item) => item.id === state.frameId)
+      || (state.mapMode === 'after' || !hasPair ? after || before : before);
+
+  const split = state.split;
+  await ctl.applyLayerState({
+    datasetId: ds.id,
+    selection: state.varId,
+    opacity,
+    timeMs: targetFrame?.ms,
+    swipe: isSwipe
+      ? {
+          datasetId: ds.id,
+          beforeId: before.id,
+          afterId: after.id,
+          selection: state.varId,
+          split,
+        }
+      : null,
+  });
+  if (isSwipe && state.split !== split && activeDataset()?.id === ds.id && state.mapMode === 'swipe') {
+    ctl.setSwipeSplit(state.split);
+  }
 }
 
 async function refreshLayer() {
@@ -362,34 +1037,57 @@ function selectDataset(datasetId) {
   if (!ds) return;
   state.datasetId = ds.id;
   state.varId = ds.variables[0].id;
-  if (getBeforeAfterPair(ds).hasPair && state.mapMode === 'before') state.mapMode = 'before';
+  const pair = getBeforeAfterPair(ds);
+  state.frameId = (pair.before ?? pair.after)?.id ?? null;
+  state.mapMode = supportsBeforeAfterSwipe(ds) ? 'swipe' : 'before';
   renderDatasetControls(state.active);
+  renderMonitoringInfo(state.active);
+  renderMonitoringControls(state.active);
   refreshLayer();
 }
 
-async function selectCase(caseId) {
+async function selectCase(caseId, { globeOverview = false } = {}) {
   const def = state.cases.find((c) => c.id === caseId);
   if (!def) return;
+  const cSeq = ++state.caseSeq;
+  state.hoverSeq++;
+  el('#inspect-pill').hidden = true;
+  if (globeOverview) {
+    ctl?.cancelCaseFocus();
+    el('.view').classList.remove('is-monitoring');
+    el('#monitoring-mode-toggle').hidden = true;
+    el('#monitoring-info-card').hidden = true;
+    el('#monitoring-controls').hidden = true;
+  }
   state.active = def;
+  const preferred = def.datasets.find((d) => getBeforeAfterPair(d).hasPair) ?? def.datasets[0];
+  state.datasetId = null;
+  state.varId = null;
+  state.frameId = null;
+  state.mapMode = 'before';
+  if (state.currentPage !== 'home') renderCaseDetail(def);
+  renderMonitoringInfo(def);
+  renderMonitoringControls(def);
+  if (state.currentPage !== 'home') {
+    selectCaseIndicator(def.id);
+    ctl?.setCases([def]);
+  }
   el('#case-select').value = def.id;
   el('#case-desc').textContent = def.description || '';
   el('#world-btn').hidden = !ctl;
   el('#terrain-btn').hidden = !ctl;
-  el('#terrain-btn').textContent = '🏔 Relieve 3D: ON';
+  el('#terrain-btn').textContent = '🏔 3D Terrain: ON';
   history.replaceState(null, '', `#${def.id}`);
   renderCaseMetrics(def);
-
-  const preferred = def.datasets.find((d) => getBeforeAfterPair(d).hasPair) ?? def.datasets[0];
-  state.datasetId = preferred?.id ?? null;
-  state.varId = preferred?.variables?.[0]?.id ?? null;
-  state.mapMode = getBeforeAfterPair(preferred).hasPair ? 'before' : 'after';
 
   renderDatasetControls(def);
   renderVectors(def);
   renderDownloads(def);
 
-  const previewsJob = preferred ? renderBeforeAfterPreviews(def, preferred, state.varId) : Promise.resolve();
-  const mapJob = ctl ? ctl.loadCase(def).then(() => syncMapToLayer()) : Promise.resolve();
+  const previewsJob = preferred ? renderBeforeAfterPreviews(def, preferred, preferred.variables[0]?.id) : Promise.resolve();
+  const mapJob = ctl ? ctl.loadCase(def, { globeOverview, hideDatasets: true }).then(() => {
+    if (cSeq === state.caseSeq) return syncMapToLayer();
+  }) : Promise.resolve();
   await Promise.all([previewsJob, mapJob]);
 }
 
@@ -405,13 +1103,13 @@ function openComparisonModal() {
   const cards = [];
   if (hasPair && state.previews.before && state.previews.after) {
     modalGrid.className = 'modal-grid';
-    cards.push({ title: `ANTES · ${frameShortTitle(before, 'Pre')}`, url: state.previews.before.url });
-    cards.push({ title: `DESPUÉS · ${frameShortTitle(after, 'Post')}`, url: state.previews.after.url });
+    cards.push({ title: `BEFORE · ${frameShortTitle(before, 'Pre')}`, url: state.previews.before.url });
+    cards.push({ title: `AFTER · ${frameShortTitle(after, 'Post')}`, url: state.previews.after.url });
     el('#modal-dl-before').hidden = false;
     el('#modal-dl-comp').hidden = false;
   } else if (state.previews.after) {
     modalGrid.className = 'modal-grid single';
-    cards.push({ title: frameShortTitle(after, 'Observación real'), url: state.previews.after.url });
+    cards.push({ title: frameShortTitle(after, 'Real observation'), url: state.previews.after.url });
     el('#modal-dl-before').hidden = true;
     el('#modal-dl-comp').hidden = true;
   }
@@ -422,7 +1120,60 @@ function openComparisonModal() {
   el('#compare-modal').showModal();
 }
 
+function openDataGuideModal() {
+  const modal = el('#data-guide-modal');
+  const activeCategory = state.active
+    ? categoryForCase(state.active)
+    : state.currentPage !== 'home'
+      ? state.currentPage
+      : null;
+
+  modal.querySelectorAll('.data-guide-card').forEach((card) => {
+    card.classList.toggle('is-highlighted', card.dataset.guideCategory === activeCategory);
+  });
+
+  if (!modal.open) modal.showModal();
+  const body = modal.querySelector('.data-guide-body');
+  if (body) body.scrollTop = 0;
+}
+
 function bindEvents() {
+  document.querySelectorAll('[data-page]').forEach((link) => {
+    link.addEventListener('click', () => setPage(link.dataset.page));
+  });
+  el('#home-case-grid').addEventListener('click', (event) => {
+    const card = event.target.closest('button[data-case-id]');
+    if (card) openCase(card.dataset.caseId);
+  });
+  el('#case-indicators').addEventListener('click', (event) => {
+    const indicator = event.target.closest('button[data-case-id]');
+    if (indicator) selectCase(indicator.dataset.caseId, { globeOverview: true });
+  });
+  el('#case-detail-panel').addEventListener('click', (event) => {
+    const monitoringButton = event.target.closest('.case-monitoring-button');
+    const view = el('.view');
+    if (!monitoringButton || !state.active || !ctl || view.classList.contains('is-monitoring')) return;
+    view.classList.add('is-monitoring');
+    const modeToggle = el('#monitoring-mode-toggle');
+    modeToggle.hidden = true;
+    ctl.focusCurrentCase().then(() => {
+      if (!view.classList.contains('is-monitoring')) return;
+      modeToggle.hidden = false;
+      el('#monitoring-info-card').hidden = false;
+      el('#monitoring-controls').hidden = false;
+      syncMonitoringModeToggle();
+    });
+  });
+  el('#monitoring-mode-toggle').addEventListener('click', () => {
+    if (!ctl || !el('.view').classList.contains('is-monitoring')) return;
+    const is3d = ctl.mode !== 'terrain';
+    ctl.setMonitoringOrbitEnabled(false);
+    ctl.setMode(is3d ? 'terrain' : 'flat');
+    ctl.setHillshade(is3d);
+    if (is3d) ctl.setMonitoringOrbitEnabled(true);
+    ctl.map.getCanvas().style.cursor = is3d ? 'grab' : '';
+    syncMonitoringModeToggle();
+  });
   el('#case-select').addEventListener('change', (e) => selectCase(e.target.value));
   el('#world-btn').addEventListener('click', () => {
     el('#world-btn').hidden = true;
@@ -434,17 +1185,30 @@ function bindEvents() {
     const next = ctl.mode === 'terrain' ? 'flat' : 'terrain';
     ctl.setMode(next);
     ctl.setHillshade(next === 'terrain');
-    el('#terrain-btn').textContent = next === 'terrain' ? '🏔 Relieve 3D: ON' : '🏔 Relieve 3D: OFF';
+    el('#terrain-btn').textContent = next === 'terrain' ? '🏔 3D Terrain: ON' : '🏔 3D Terrain: OFF';
   });
 
   el('#opacity-range').addEventListener('input', (e) => {
     const val = Number(e.target.value);
     el('#opacity-out').textContent = `${Math.round(val * 100)}%`;
+    const monitoringOpacity = el('#monitoring-opacity-range');
+    if (monitoringOpacity && !monitoringOpacity.disabled) {
+      monitoringOpacity.value = String(val);
+      el('#monitoring-opacity-output').textContent = `${Math.round(val * 100)}%`;
+    }
     if (state.datasetId) ctl?.setDatasetOpacity(state.datasetId, val);
   });
 
-  el('#btn-view-before').addEventListener('click', () => { state.mapMode = 'before'; syncMapToLayer(); });
-  el('#btn-view-after').addEventListener('click', () => { state.mapMode = 'after'; syncMapToLayer(); });
+  el('#btn-view-before').addEventListener('click', () => {
+    state.mapMode = 'before';
+    state.frameId = getBeforeAfterPair(activeDataset()).before?.id ?? null;
+    syncMapToLayer();
+  });
+  el('#btn-view-after').addEventListener('click', () => {
+    state.mapMode = 'after';
+    state.frameId = getBeforeAfterPair(activeDataset()).after?.id ?? null;
+    syncMapToLayer();
+  });
   el('#btn-view-swipe').addEventListener('click', () => { state.mapMode = 'swipe'; syncMapToLayer(); });
 
   el('#swipe-split').addEventListener('input', (e) => {
@@ -458,6 +1222,11 @@ function bindEvents() {
     if (state.active && ds) downloadSideBySidePng(state.active, ds, state.varId);
   });
   el('#btn-open-modal').addEventListener('click', openComparisonModal);
+  el('#hero-data-guide-btn').addEventListener('click', openDataGuideModal);
+  el('#data-guide-close').addEventListener('click', () => el('#data-guide-modal').close());
+  el('#data-guide-modal').addEventListener('click', (e) => {
+    if (e.target === el('#data-guide-modal')) el('#data-guide-modal').close();
+  });
   el('#modal-close').addEventListener('click', () => el('#compare-modal').close());
   el('#compare-modal').addEventListener('click', (e) => {
     if (e.target === el('#compare-modal')) el('#compare-modal').close();
@@ -466,13 +1235,13 @@ function bindEvents() {
   el('#modal-dl-before').addEventListener('click', () => {
     const ds = activeDataset();
     const { before } = getBeforeAfterPair(ds);
-    if (state.active && ds && before) downloadSingleRenderedPng(state.active.id, ds, before, state.varId, 'antes');
+    if (state.active && ds && before) downloadSingleRenderedPng(state.active.id, ds, before, state.varId, 'before');
   });
   el('#modal-dl-after').addEventListener('click', () => {
     const ds = activeDataset();
     const { after, before } = getBeforeAfterPair(ds);
     const frame = after || before;
-    if (state.active && ds && frame) downloadSingleRenderedPng(state.active.id, ds, frame, state.varId, 'despues');
+    if (state.active && ds && frame) downloadSingleRenderedPng(state.active.id, ds, frame, state.varId, 'after');
   });
   el('#modal-dl-comp').addEventListener('click', () => {
     const ds = activeDataset();
@@ -480,24 +1249,30 @@ function bindEvents() {
   });
 
   if (ctl) {
-    ctl.onCasePick = (id) => selectCase(id);
+    ctl.onCasePick = openCase;
+    ctl.onWorldClick = () => setPage('home');
     let hoverTick = 0;
     ctl.map.on('mousemove', (e) => {
       const now = performance.now();
-      if (now - hoverTick < 70 || !state.active) return;
+      if (now - hoverTick < 70 || !state.active || !el('.view').classList.contains('is-monitoring')) return;
       hoverTick = now;
+      const hSeq = ++state.hoverSeq;
       ctl.sampleAt(e.lngLat).then((hits) => {
+        if (hSeq !== state.hoverSeq || !state.active || !el('.view').classList.contains('is-monitoring')) return;
         const pill = el('#inspect-pill');
         if (!hits.length) { pill.hidden = true; return; }
         const h = hits[0];
         const lines = h.values
-          ? h.values.map((v) => `${esc(v.label)}: <strong>${v.value == null ? 'sin dato' : `${v.value.toFixed(2)} ${esc(v.unit || '')}`}</strong>`)
+          ? h.values.map((v) => `${esc(v.label)}: <strong>${v.value == null ? 'no data' : `${v.value.toFixed(2)} ${esc(v.unit || '')}`}</strong>`)
           : [`${esc(h.name)}`];
         pill.hidden = false;
         pill.innerHTML = `<div class="muted">${e.lngLat.lng.toFixed(4)}, ${e.lngLat.lat.toFixed(4)}</div>${lines.join('<br>')}`;
       });
     });
-    ctl.map.on('mouseout', () => { el('#inspect-pill').hidden = true; });
+    ctl.map.on('mouseout', () => {
+      state.hoverSeq++;
+      el('#inspect-pill').hidden = true;
+    });
   }
 }
 
@@ -505,19 +1280,20 @@ async function boot() {
   bindEvents();
   const { cases, problems } = await loadCatalog('data/catalog.json');
   state.cases = cases;
-  if (problems.length) setStatus(`Aviso: ${problems[0]}`);
+  renderHomeCases(cases);
+  if (problems.length) setStatus(`Warning: ${problems[0]}`);
   if (!cases.length) {
-    el('#case-desc').textContent = 'No hay casos con datos reales disponibles en data/catalog.json.';
+    el('#case-desc').textContent = 'No real-data cases available in data/catalog.json.';
     return;
   }
 
-  const incendios = cases.filter((c) => c.category === 'incendio' || c.id.startsWith('wildfire-') || Boolean(c.wildfire));
-  const biomasa = cases.filter((c) => c.category === 'biomasa' || c.id.startsWith('biomass-'));
-  const deshielo = cases.filter((c) => !incendios.includes(c) && !biomasa.includes(c));
+  const wildfires = cases.filter((c) => categoryForCase(c) === 'wildfires');
+  const biomass = cases.filter((c) => categoryForCase(c) === 'deforestation');
+  const permafrost = cases.filter((c) => categoryForCase(c) === 'permafrost');
   const groups = [
-    ['Incendios forestales reales', incendios],
-    ['Deshielo glaciar real', deshielo],
-    ['Biomasa forestal NISAR (Banda L)', biomasa],
+    ['Real Wildfire Events', wildfires],
+    ['Real Glacier & Snowmelt', permafrost],
+    ['NISAR Forest Biomass (L-Band)', biomass],
   ].filter(([, list]) => list.length);
 
   el('#case-select').innerHTML = groups
@@ -527,10 +1303,9 @@ async function boot() {
     )
     .join('');
 
+  history.replaceState(null, '', `${location.pathname}${location.search}`);
   ctl?.setCases(cases);
-  const hashId = location.hash.slice(1);
-  const initial = cases.find((c) => c.id === hashId) ?? cases[0];
-  await selectCase(initial.id);
+  await ctl?.showWorld();
 }
 
 boot();

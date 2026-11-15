@@ -47,93 +47,93 @@ SEVERITY_RGBA: tuple[tuple[int, int, int, int], ...] = (
 
 _RASTER_LAYER_SPECS: dict[str, dict[str, Any]] = {
     "s2_pre": {
-        "name": "Sentinel-2 RGB (Pre-incendio)",
+        "name": "Sentinel-2 RGB (Pre-fire)",
         "steps": [0],
         "visible": True,
         "opacity": 1.0,
-        "description": "Composición mediana Sentinel-2 L2A previa al incendio (bandas B04/B03/B02, gamma 1.4).",
+        "description": "Pre-fire Sentinel-2 L2A median composite (B04/B03/B02 bands, gamma 1.4).",
         "legend": None,
     },
     "s1_pre": {
-        "name": "Sentinel-1 SAR VV (Pre-incendio)",
+        "name": "Sentinel-1 SAR VV (Pre-fire)",
         "steps": [0],
         "visible": False,
         "opacity": 0.9,
-        "description": "Retrodispersión SAR banda C (VV en dB, rango -25 a 0 dB) previa al incendio.",
+        "description": "Pre-fire C-band SAR backscatter (VV in dB, range -25 to 0 dB).",
         "legend": None,
     },
     "s2_post": {
-        "name": "Sentinel-2 RGB (Post-incendio)",
+        "name": "Sentinel-2 RGB (Post-fire)",
         "steps": [1, 2],
         "visible": True,
         "opacity": 1.0,
-        "description": "Composición mediana Sentinel-2 L2A posterior al incendio mostrando cicatriz de quemado.",
+        "description": "Post-fire Sentinel-2 L2A median composite showing the burn scar.",
         "legend": None,
     },
     "s1_post": {
-        "name": "Sentinel-1 SAR VV (Post-incendio)",
+        "name": "Sentinel-1 SAR VV (Post-fire)",
         "steps": [1, 2],
         "visible": False,
         "opacity": 0.9,
-        "description": "Retrodispersión SAR banda C (VV en dB) posterior al incendio.",
+        "description": "Post-fire C-band SAR backscatter (VV in dB).",
         "legend": None,
     },
     "burn_probability": {
-        "name": "Probabilidad de quemado (GeoPulse)",
+        "name": "Burn probability (GeoPulse)",
         "steps": [1],
         "visible": True,
         "opacity": 0.85,
-        "description": "Probabilidad de incendio derivada de dNBR, NDVI de combustible y caída SAR VH.",
+        "description": "Wildfire burn probability derived from dNBR, pre-fire fuel NDVI, and SAR VH drop.",
         "legend": {
-            "title": "Probabilidad de quemado",
+            "title": "Burn probability",
             "items": [
-                {"color": "#eb461e", "label": "Moderada (0.5)"},
-                {"color": "#c8140a", "label": "Alta (1.0)"},
+                {"color": "#eb461e", "label": "Moderate (0.5)"},
+                {"color": "#c8140a", "label": "High (1.0)"},
             ],
         },
     },
     "burn_severity": {
-        "name": "Severidad de quemado dNBR (Key & Benson)",
+        "name": "dNBR Burn Severity (Key & Benson)",
         "steps": [2],
         "visible": True,
         "opacity": 0.85,
-        "description": "Clases discretas Key & Benson (2006) por dNBR: baja, moderada-baja, moderada-alta y alta.",
+        "description": "Discrete Key & Benson (2006) dNBR severity classes: low, moderate-low, moderate-high, and high.",
         "legend": {
-            "title": "Severidad dNBR",
+            "title": "dNBR Severity",
             "items": [
-                {"color": "#7fffd4", "label": "Baja (0.10–0.27)"},
-                {"color": "#ffff00", "label": "Moderada-baja (0.27–0.44)"},
-                {"color": "#ff8c00", "label": "Moderada-alta (0.44–0.66)"},
-                {"color": "#ff0000", "label": "Alta (> 0.66)"},
+                {"color": "#7fffd4", "label": "Low (0.10–0.27)"},
+                {"color": "#ffff00", "label": "Moderate-low (0.27–0.44)"},
+                {"color": "#ff8c00", "label": "Moderate-high (0.44–0.66)"},
+                {"color": "#ff0000", "label": "High (> 0.66)"},
             ],
         },
     },
     "change_probability": {
-        "name": "Probabilidad de cambio multimodal",
+        "name": "Multimodal change probability",
         "steps": [2],
         "visible": False,
         "opacity": 0.8,
-        "description": "Cambio espectral/retrodispersión combinado entre ventanas pre y post incendio.",
+        "description": "Combined spectral and backscatter change between pre-fire and post-fire windows.",
         "legend": {
-            "title": "Cambio S1/S2",
+            "title": "S1/S2 Change",
             "items": [
-                {"color": "#ffaa00", "label": "Cambio moderado (0.5)"},
-                {"color": "#ff7800", "label": "Cambio fuerte (1.0)"},
+                {"color": "#ffaa00", "label": "Moderate change (0.5)"},
+                {"color": "#ff7800", "label": "Strong change (1.0)"},
             ],
         },
     },
     "uncertainty": {
-        "name": "Incertidumbre (entropía / solo-SAR)",
+        "name": "Uncertainty (entropy / SAR-only)",
         "steps": [2],
         "visible": False,
         "opacity": 0.8,
-        "description": "Entropía binaria de la estimación de quemado e incertidumbre en zonas solo-SAR.",
+        "description": "Binary entropy of the burn estimate and uncertainty in SAR-only zones.",
         "legend": {
-            "title": "Incertidumbre",
+            "title": "Uncertainty",
             "items": [
-                {"color": "#78288c", "label": "Baja–media (0.3)"},
-                {"color": "#e6505a", "label": "Media–alta (0.7)"},
-                {"color": "#ffd23c", "label": "Revisión requerida (≥ 0.8)"},
+                {"color": "#78288c", "label": "Low–moderate (0.3)"},
+                {"color": "#e6505a", "label": "Moderate–high (0.7)"},
+                {"color": "#ffd23c", "label": "Review required (≥ 0.8)"},
             ],
         },
     },
@@ -271,6 +271,17 @@ def export_rgba_xyz_tiles(
         ty_min = _lat_to_tile_y(north, z)
         ty_max = _lat_to_tile_y(south, z)
 
+        y_entries: list[tuple[int, np.ndarray, np.ndarray]] = []
+        for ty in range(ty_min, ty_max + 1):
+            gy = (ty + pix / tile_size) / n_tiles
+            lats = np.degrees(np.arctan(np.sinh(math.pi * (1.0 - 2.0 * gy))))
+            src_rows = np.floor((north - lats) / (north - south) * src_h).astype(np.int64)
+            row_ok = (src_rows >= 0) & (src_rows < src_h)
+            if np.any(row_ok):
+                y_entries.append((ty, np.clip(src_rows, 0, src_h - 1)[:, None], row_ok))
+        if not y_entries:
+            continue
+
         for tx in range(tx_min, tx_max + 1):
             gx = (tx + pix / tile_size) / n_tiles
             lons = gx * 360.0 - 180.0
@@ -278,19 +289,11 @@ def export_rgba_xyz_tiles(
             col_ok = (src_cols >= 0) & (src_cols < src_w)
             if not np.any(col_ok):
                 continue
+            cc = np.clip(src_cols, 0, src_w - 1)[None, :]
 
-            for ty in range(ty_min, ty_max + 1):
-                gy = (ty + pix / tile_size) / n_tiles
-                lats = np.degrees(np.arctan(np.sinh(math.pi * (1.0 - 2.0 * gy))))
-                src_rows = np.floor((north - lats) / (north - south) * src_h).astype(np.int64)
-                row_ok = (src_rows >= 0) & (src_rows < src_h)
-                if not np.any(row_ok):
-                    continue
-
+            for ty, rr, row_ok in y_entries:
                 valid_mask = np.outer(row_ok, col_ok)
                 tile_rgba = np.zeros((tile_size, tile_size, 4), dtype=np.uint8)
-                rr = np.clip(src_rows, 0, src_h - 1)[:, None]
-                cc = np.clip(src_cols, 0, src_w - 1)[None, :]
                 sampled = rgba[rr, cc]
                 tile_rgba[valid_mask] = sampled[valid_mask]
 
@@ -403,7 +406,7 @@ def export_wildfire_case(
     case_layers: list[dict[str, Any]] = [
         {
             "id": "aoi",
-            "name": "Área de estudio (AOI)",
+            "name": "Study Area (AOI)",
             "type": "line",
             "source": {"type": "geojson", "data": f"data/cases/{case_id}/aoi.geojson"},
             "paint": {
@@ -411,8 +414,8 @@ def export_wildfire_case(
                 "line-width": 2,
                 "line-dasharray": [3, 2],
             },
-            "description": "Polígono límite del incendio configurado en GeoPulse.",
-            "popupFields": [["name", "Área"]],
+            "description": "Wildfire boundary polygon configured in GeoPulse.",
+            "popupFields": [["name", "Area"]],
             "visible": True,
         }
     ]
@@ -460,28 +463,28 @@ def export_wildfire_case(
         [
             {
                 "id": "burn-extent-casing",
-                "name": "Perímetro de incendio (contorno)",
+                "name": "Burn perimeter (casing)",
                 "type": "line",
                 "source": {"type": "geojson", "data": f"data/cases/{case_id}/burn_extent.geojson"},
                 "paint": {"line-color": "#000000", "line-opacity": 0.6, "line-width": 3.4},
                 "steps": [1, 2],
                 "visible": True,
-                "description": "Sombra base del perímetro de quemado GeoPulse (probabilidad ≥ 0.5).",
+                "description": "Base dark casing for the GeoPulse burn perimeter (probability ≥ 0.5).",
             },
             {
                 "id": "burn-extent-outline",
-                "name": "Perímetro de incendio (GeoPulse)",
+                "name": "Burn perimeter (GeoPulse)",
                 "type": "line",
                 "source": {"type": "geojson", "data": f"data/cases/{case_id}/burn_extent.geojson"},
                 "paint": {"line-color": "#ffd60a", "line-width": 1.6},
                 "steps": [1, 2],
                 "visible": True,
                 "legend": {
-                    "title": "Perímetro de quemado",
-                    "items": [{"color": "#ffd60a", "label": "Probabilidad ≥ 0.5"}],
+                    "title": "Burn perimeter",
+                    "items": [{"color": "#ffd60a", "label": "Probability ≥ 0.5"}],
                 },
-                "popupFields": [["area_km2", "Área quemada", "km²"]],
-                "description": "Contorno amarillo GeoPulse donde la probabilidad de quemado supera el umbral 0.5.",
+                "popupFields": [["area_km2", "Burned area", "km²"]],
+                "description": "GeoPulse yellow outline where burn probability exceeds threshold 0.5.",
             },
         ]
     )
@@ -504,8 +507,8 @@ def export_wildfire_case(
     review_km2 = summary.get("review_km2", 0.0)
     enriched_desc = (
         f"{description} "
-        f"[Superficie quemada estimada: {affected_km2:.2f} km² de {observed_km2:.1f} km² observados; "
-        f"zona de revisión por incertidumbre: {review_km2:.2f} km²]."
+        f"[Estimated burned area: {affected_km2:.2f} km² of {observed_km2:.1f} km² observed; "
+        f"uncertainty review zone: {review_km2:.2f} km²]."
     )
 
     pre_date = _format_window_date(before_window)
@@ -524,19 +527,19 @@ def export_wildfire_case(
         },
         "timeline": [
             {
-                "label": "Pre-incendio",
+                "label": "Pre-fire",
                 "date": pre_date,
-                "note": f"Ventana previa ({before_window or 'pre'}). Compuestos Sentinel-2 RGB y Sentinel-1 VV.",
+                "note": f"Pre-fire window ({before_window or 'pre'}). Sentinel-2 RGB and Sentinel-1 VV composites.",
             },
             {
-                "label": "Post-incendio (GeoPulse)",
+                "label": "Post-fire (GeoPulse)",
                 "date": post_date,
-                "note": f"Ventana posterior ({after_window or 'post'}). Probabilidad de quemado y perímetro GeoPulse.",
+                "note": f"Post-fire window ({after_window or 'post'}). Burn probability and GeoPulse perimeter.",
             },
             {
-                "label": "Severidad e Incertidumbre",
+                "label": "Severity & Uncertainty",
                 "date": post_date,
-                "note": "Severidad dNBR Key & Benson (2006), probabilidad de cambio multimodal e incertidumbre.",
+                "note": "Key & Benson (2006) dNBR severity, multimodal change probability, and uncertainty.",
             },
         ],
         "layers": case_layers,
@@ -715,14 +718,14 @@ def _encode_severity_gray8(severity: np.ndarray) -> np.ndarray:
 
 
 _WILDFIRE_GEOTIFF_SPECS: tuple[tuple[str, str, str, str], ...] = (
-    ("s2_pre_nbr", "Sentinel-2 NBR Antes (.tif)", "s2_nbr", "before"),
-    ("s2_post_nbr", "Sentinel-2 NBR Después (.tif)", "s2_nbr", "after"),
-    ("s1_pre_vh", "Sentinel-1 VH Antes (.tif)", "s1_sar", "before"),
-    ("s1_post_vh", "Sentinel-1 VH Después (.tif)", "s1_sar", "after"),
-    ("burn_severity", "Severidad dNBR (.tif)", "geopulse_burn", "change"),
-    ("burn_probability", "Probabilidad de quema (.tif)", "geopulse_burn", "change"),
-    ("change_probability", "Probabilidad de cambio (.tif)", "geopulse_burn", "change"),
-    ("uncertainty", "Incertidumbre (.tif)", "geopulse_burn", "change"),
+    ("s2_pre_nbr", "Sentinel-2 NBR Before (.tif)", "s2_nbr", "before"),
+    ("s2_post_nbr", "Sentinel-2 NBR After (.tif)", "s2_nbr", "after"),
+    ("s1_pre_vh", "Sentinel-1 VH Before (.tif)", "s1_sar", "before"),
+    ("s1_post_vh", "Sentinel-1 VH After (.tif)", "s1_sar", "after"),
+    ("burn_severity", "dNBR Severity (.tif)", "geopulse_burn", "change"),
+    ("burn_probability", "Burn Probability (.tif)", "geopulse_burn", "change"),
+    ("change_probability", "Change Probability (.tif)", "geopulse_burn", "change"),
+    ("uncertainty", "Uncertainty (.tif)", "geopulse_burn", "change"),
     ("dem_elevation", "Copernicus DEM (.tif)", "reference", "reference"),
 )
 
@@ -733,7 +736,7 @@ def _export_wildfire_geotiff_downloads(
     dst_case_dir: Path,
     base_prefix: str,
 ) -> list[dict[str, Any]]:
-    """Copia GeoTIFFs reales de incendio a public/data y genera metadatos de descarga."""
+    """Copy real wildfire GeoTIFFs to public/data and generate download metadata."""
     tif_dir = dst_case_dir / "geotiffs"
     tif_dir.mkdir(parents=True, exist_ok=True)
     downloads: list[dict[str, Any]] = []
@@ -825,16 +828,20 @@ def publish_cases_to_sar_madness_v2(
         dst_rasters_dir = dst_case_dir / "rasters"
         dst_rasters_dir.mkdir(parents=True, exist_ok=True)
 
+        def _read_tif(suffix: str, dtype: Any) -> np.ndarray:
+            with Image.open(src_dl_dir / f"{cid}_{suffix}.tif") as im:
+                return np.array(im, dtype=dtype)
+
         # Read real physical GeoTIFF arrays
-        bp = np.array(Image.open(src_dl_dir / f"{cid}_burn_probability.tif"), dtype=np.float32)
-        bs = np.array(Image.open(src_dl_dir / f"{cid}_burn_severity.tif"), dtype=np.uint8)
-        cp = np.array(Image.open(src_dl_dir / f"{cid}_change_probability.tif"), dtype=np.float32)
-        unc = np.array(Image.open(src_dl_dir / f"{cid}_uncertainty.tif"), dtype=np.float32)
-        nbr_pre = np.array(Image.open(src_dl_dir / f"{cid}_s2_pre_nbr.tif"), dtype=np.float32)
-        nbr_post = np.array(Image.open(src_dl_dir / f"{cid}_s2_post_nbr.tif"), dtype=np.float32)
-        vh_pre = np.array(Image.open(src_dl_dir / f"{cid}_s1_pre_vh.tif"), dtype=np.float32)
-        vh_post = np.array(Image.open(src_dl_dir / f"{cid}_s1_post_vh.tif"), dtype=np.float32)
-        dem = np.array(Image.open(src_dl_dir / f"{cid}_dem_elevation.tif"), dtype=np.float32)
+        bp = _read_tif("burn_probability", np.float32)
+        bs = _read_tif("burn_severity", np.uint8)
+        cp = _read_tif("change_probability", np.float32)
+        unc = _read_tif("uncertainty", np.float32)
+        nbr_pre = _read_tif("s2_pre_nbr", np.float32)
+        nbr_post = _read_tif("s2_post_nbr", np.float32)
+        vh_pre = _read_tif("s1_pre_vh", np.float32)
+        vh_post = _read_tif("s1_post_vh", np.float32)
+        dem = _read_tif("dem_elevation", np.float32)
 
         dem_valid = np.isfinite(dem) & (dem > -9000.0)
         dem_min = float(np.floor(np.min(dem[dem_valid]))) if np.any(dem_valid) else 0.0
@@ -906,7 +913,7 @@ def publish_cases_to_sar_madness_v2(
         datasets: list[dict[str, Any]] = [
             {
                 "id": "geopulse_burn",
-                "name": "GeoPulse · Fusión SAR + Óptico",
+                "name": "GeoPulse · SAR + Optical Fusion",
                 "kind": "raster",
                 "status": "real",
                 "platform": "Sentinel-2 L2A + Sentinel-1 RTC",
@@ -917,7 +924,7 @@ def publish_cases_to_sar_madness_v2(
                 "variables": [
                     {
                         "id": "burn_prob",
-                        "label": "Probabilidad de quemado",
+                        "label": "Burn Probability",
                         "quantity": "burn_probability",
                         "polarization": None,
                         "unit": "prob (0–1)",
@@ -926,15 +933,15 @@ def publish_cases_to_sar_madness_v2(
                             "max": 1,
                             "colors": ["#eb461e", "#c8140a"],
                             "stops": [[0.2, "#eb461e00"], [0.5, "#eb461e96"], [1.0, "#c8140aeb"]],
-                            "nodata_label": "Transparente = sin quemado (< 0.2)",
+                            "nodata_label": "Transparent = unburned (< 0.2)",
                         },
                     },
                     {
                         "id": "burn_sev",
-                        "label": "Severidad dNBR (Key & Benson)",
+                        "label": "dNBR Severity (Key & Benson)",
                         "quantity": "burn_severity",
                         "polarization": None,
-                        "unit": "clase 0–4",
+                        "unit": "class 0–4",
                         "legend": {
                             "min": 0,
                             "max": 4,
@@ -945,12 +952,12 @@ def publish_cases_to_sar_madness_v2(
                                 "3": "#ff8c00e6",
                                 "4": "#ff0000eb",
                             },
-                            "nodata_label": "1 Baja · 2 Mod-baja · 3 Mod-alta · 4 Alta",
+                            "nodata_label": "1 Low · 2 Mod-low · 3 Mod-high · 4 High",
                         },
                     },
                     {
                         "id": "change_prob",
-                        "label": "Cambio multimodal S1/S2",
+                        "label": "S1/S2 Multimodal Change",
                         "quantity": "change_probability",
                         "polarization": None,
                         "unit": "prob (0–1)",
@@ -959,12 +966,12 @@ def publish_cases_to_sar_madness_v2(
                             "max": 1,
                             "colors": ["#ffaa00", "#ff7800"],
                             "stops": [[0.2, "#ffaa0000"], [0.5, "#ffaa008c"], [1.0, "#ff7800e6"]],
-                            "nodata_label": "Transparente = sin cambio (< 0.2)",
+                            "nodata_label": "Transparent = no change (< 0.2)",
                         },
                     },
                     {
                         "id": "uncertainty",
-                        "label": "Incertidumbre Shannon H(p)",
+                        "label": "Shannon Uncertainty H(p)",
                         "quantity": "uncertainty",
                         "polarization": None,
                         "unit": "bits (0–1)",
@@ -973,7 +980,7 @@ def publish_cases_to_sar_madness_v2(
                             "max": 1,
                             "colors": ["#3c145a", "#78288c", "#e6505a", "#ffd23c"],
                             "stops": [[0.0, "#3c145a00"], [0.3, "#78288c6e"], [0.7, "#e6505abe"], [1.0, "#ffd23ce6"]],
-                            "nodata_label": "≥ 0.80 bits = revisión · ≥ 0.50 = solo-SAR",
+                            "nodata_label": "≥ 0.80 bits = review · ≥ 0.50 = SAR-only",
                         },
                     },
                 ],
@@ -998,7 +1005,7 @@ def publish_cases_to_sar_madness_v2(
             },
             {
                 "id": "s2_rgb",
-                "name": "Sentinel-2 L2A · Óptico RGB",
+                "name": "Sentinel-2 L2A · Optical RGB",
                 "kind": "raster",
                 "status": "real",
                 "platform": "Sentinel-2A/2B/2C",
@@ -1009,7 +1016,7 @@ def publish_cases_to_sar_madness_v2(
                 "variables": [
                     {
                         "id": "rgb",
-                        "label": "Color verdadero (B04/B03/B02)",
+                        "label": "True Color (B04/B03/B02)",
                         "quantity": "reflectance",
                         "polarization": None,
                         "unit": "RGB",
@@ -1022,13 +1029,13 @@ def publish_cases_to_sar_madness_v2(
                 "render": {"opacity": 1.0, "resampling": "linear"},
                 "defaultVisible": True,
                 "frames": [
-                    {"id": "s2-pre", "datetime": pre_date, "label": f"Antes · {before_win}", "phase": "before", "files": {"rgb": f"{base_prefix}/rasters/s2_pre.png"}},
-                    {"id": "s2-post", "datetime": post_date, "label": f"Después · {after_win}", "phase": "after", "files": {"rgb": f"{base_prefix}/rasters/s2_post.png"}},
+                    {"id": "s2-pre", "datetime": pre_date, "label": f"Before · {before_win}", "phase": "before", "files": {"rgb": f"{base_prefix}/rasters/s2_pre.png"}},
+                    {"id": "s2-post", "datetime": post_date, "label": f"After · {after_win}", "phase": "after", "files": {"rgb": f"{base_prefix}/rasters/s2_post.png"}},
                 ],
             },
             {
                 "id": "s2_nbr",
-                "name": "Sentinel-2 · Índice NBR (Vegetación/Quemado)",
+                "name": "Sentinel-2 · NBR Index (Vegetation/Burn)",
                 "kind": "raster",
                 "status": "real",
                 "platform": "Sentinel-2",
@@ -1039,15 +1046,15 @@ def publish_cases_to_sar_madness_v2(
                 "variables": [
                     {
                         "id": "NBR",
-                        "label": "Índice NBR",
+                        "label": "NBR Index",
                         "quantity": "spectral_index",
                         "polarization": None,
-                        "unit": "índice",
+                        "unit": "index",
                         "legend": {
                             "min": -1,
                             "max": 1,
                             "colors": ["#7a1f1f", "#e4572e", "#f4e9a8", "#66bb6a", "#1b5e20"],
-                            "nodata_label": "Transparente = nube / sin dato óptico",
+                            "nodata_label": "Transparent = cloud / no optical data",
                         },
                     }
                 ],
@@ -1058,13 +1065,13 @@ def publish_cases_to_sar_madness_v2(
                 "render": {"opacity": 0.8, "resampling": "linear"},
                 "defaultVisible": False,
                 "frames": [
-                    {"id": "nbr-pre", "datetime": pre_date, "label": f"Antes · {before_win}", "phase": "before", "files": {"NBR": f"{base_prefix}/rasters/s2_pre_nbr.png"}},
-                    {"id": "nbr-post", "datetime": post_date, "label": f"Después · {after_win}", "phase": "after", "files": {"NBR": f"{base_prefix}/rasters/s2_post_nbr.png"}},
+                    {"id": "nbr-pre", "datetime": pre_date, "label": f"Before · {before_win}", "phase": "before", "files": {"NBR": f"{base_prefix}/rasters/s2_pre_nbr.png"}},
+                    {"id": "nbr-post", "datetime": post_date, "label": f"After · {after_win}", "phase": "after", "files": {"NBR": f"{base_prefix}/rasters/s2_post_nbr.png"}},
                 ],
             },
             {
                 "id": "s1_sar",
-                "name": "Sentinel-1 RTC · Radar SAR VH (Todo-Clima)",
+                "name": "Sentinel-1 RTC · VH SAR Radar (All-Weather)",
                 "kind": "raster",
                 "status": "real",
                 "platform": "Sentinel-1A",
@@ -1075,7 +1082,7 @@ def publish_cases_to_sar_madness_v2(
                 "variables": [
                     {
                         "id": "VH",
-                        "label": "Retrodispersión VH",
+                        "label": "VH Backscatter",
                         "quantity": "backscatter",
                         "polarization": "VH",
                         "unit": "dB",
@@ -1083,7 +1090,7 @@ def publish_cases_to_sar_madness_v2(
                             "min": -30,
                             "max": 0,
                             "colors": ["#0b0f14", "#64748b", "#f8fafc"],
-                            "nodata_label": "Transparente = sin dato",
+                            "nodata_label": "Transparent = no data",
                         },
                     }
                 ],
@@ -1094,42 +1101,8 @@ def publish_cases_to_sar_madness_v2(
                 "render": {"opacity": 0.85, "resampling": "linear"},
                 "defaultVisible": False,
                 "frames": [
-                    {"id": "s1-pre", "datetime": pre_date, "label": f"Antes · {before_win}", "phase": "before", "files": {"VH": f"{base_prefix}/rasters/s1_pre_vh.png"}},
-                    {"id": "s1-post", "datetime": post_date, "label": f"Después · {after_win}", "phase": "after", "files": {"VH": f"{base_prefix}/rasters/s1_post_vh.png"}},
-                ],
-            },
-            {
-                "id": "dem",
-                "name": "Copernicus DEM 30m · Elevación",
-                "kind": "raster",
-                "status": "real",
-                "platform": "Copernicus GLO-30",
-                "sensor": "DEM",
-                "provider": "Microsoft Planetary Computer",
-                "product": "Elevación superficial",
-                "attribution": "Copernicus GLO-30 DEM",
-                "variables": [
-                    {
-                        "id": "elev",
-                        "label": "Elevación",
-                        "quantity": "elevation",
-                        "polarization": None,
-                        "unit": "m",
-                        "legend": {
-                            "min": dem_min,
-                            "max": dem_max,
-                            "colors": ["#1e3a5f", "#2a9d8f", "#e9c46a", "#e76f51", "#f8fafc"],
-                        },
-                    }
-                ],
-                "source": {"type": "image", "encoding": "gray8", "nodata": 0},
-                "extent": list(bounds),
-                "crs": "EPSG:4326",
-                "resolution": {"value": 30, "unit": "m"},
-                "render": {"opacity": 0.7, "resampling": "linear"},
-                "defaultVisible": False,
-                "frames": [
-                    {"id": "dem-ref", "datetime": pre_date, "files": {"elev": f"{base_prefix}/rasters/dem_elevation.png"}}
+                    {"id": "s1-pre", "datetime": pre_date, "label": f"Before · {before_win}", "phase": "before", "files": {"VH": f"{base_prefix}/rasters/s1_pre_vh.png"}},
+                    {"id": "s1-post", "datetime": post_date, "label": f"After · {after_win}", "phase": "after", "files": {"VH": f"{base_prefix}/rasters/s1_post_vh.png"}},
                 ],
             },
         ]
@@ -1137,29 +1110,29 @@ def publish_cases_to_sar_madness_v2(
         vectors: list[dict[str, Any]] = [
             {
                 "id": "aoi",
-                "name": "Área de estudio (AOI)",
+                "name": "Study Area (AOI)",
                 "type": "line",
                 "status": "real",
                 "simulated": False,
                 "source": {"type": "geojson", "data": f"{base_prefix}/aoi.geojson"},
                 "paint": {"line-color": "#38bdf8", "line-width": 2, "line-dasharray": [3, 2]},
-                "description": "Polígono límite del incendio configurado en GeoPulse.",
-                "popupFields": [["name", "Área"]],
+                "description": "Wildfire boundary polygon configured in GeoPulse.",
+                "popupFields": [["name", "Area"]],
             },
             {
                 "id": "burn-extent-casing",
-                "name": "Perímetro quemado (contorno)",
+                "name": "Burn perimeter (casing)",
                 "type": "line",
                 "status": "real",
                 "simulated": False,
                 "source": {"type": "geojson", "data": f"{base_prefix}/burn_extent.geojson"},
                 "time": {"property": "date", "mode": "asof"},
                 "paint": {"line-color": "#000000", "line-opacity": 0.65, "line-width": 3.4},
-                "description": "Sombra base del perímetro GeoPulse (probabilidad ≥ 0.50).",
+                "description": "Base dark casing for the GeoPulse perimeter (probability ≥ 0.50).",
             },
             {
                 "id": "burn-extent-outline",
-                "name": "Perímetro de quemado (GeoPulse)",
+                "name": "Burn perimeter (GeoPulse)",
                 "type": "line",
                 "status": "real",
                 "simulated": False,
@@ -1167,20 +1140,32 @@ def publish_cases_to_sar_madness_v2(
                 "time": {"property": "date", "mode": "asof"},
                 "paint": {"line-color": "#ffd60a", "line-width": 1.8},
                 "legend": {
-                    "title": "Perímetro GeoPulse",
-                    "items": [{"color": "#ffd60a", "label": "Probabilidad ≥ 0.50"}],
+                    "title": "GeoPulse Perimeter",
+                    "items": [{"color": "#ffd60a", "label": "Probability ≥ 0.50"}],
                 },
-                "description": "Contorno amarillo GeoPulse donde la probabilidad de quemado supera 0.50.",
-                "popupFields": [["area_km2", "Área del polígono", "km²"], ["threshold", "Umbral P(quemado)"]],
+                "description": "GeoPulse yellow outline where burn probability exceeds 0.50.",
+                "popupFields": [["area_km2", "Polygon area", "km²"], ["threshold", "P(burn) threshold"]],
             },
         ]
 
-        datasets = [ds for ds in datasets if ds.get("id") != "dem"]
         downloads = _export_wildfire_geotiff_downloads(cid, src_dl_dir, dst_case_dir, base_prefix)
+
+        affected_km2 = summary.get("affected_km2", 0.0) or 0.0
+        observed_km2 = summary.get("observed_km2", 0.0) or 0.0
+        review_km2 = summary.get("review_km2", 0.0) or 0.0
+        resolved_title = preset.name if preset else old_case.get("title", cid)
+        if preset:
+            resolved_desc = (
+                f"{preset.description} "
+                f"[Estimated burned area: {affected_km2:.2f} km² of {observed_km2:.1f} km² observed; "
+                f"uncertainty review zone: {review_km2:.2f} km²]."
+            )
+        else:
+            resolved_desc = old_case.get("description", "")
 
         case_v2: dict[str, Any] = {
             "simulated": False,
-            "category": "incendio",
+            "category": "wildfire",
             "metrics": {
                 "preWindow": before_win,
                 "postWindow": after_win,
@@ -1191,8 +1176,8 @@ def publish_cases_to_sar_madness_v2(
             "schemaVersion": 2,
             "id": cid,
             "status": "real",
-            "title": old_case.get("title", cid),
-            "description": old_case.get("description", ""),
+            "title": resolved_title,
+            "description": resolved_desc,
             "view": {
                 "center": center,
                 "zoom": zoom,

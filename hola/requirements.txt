@@ -9,5 +9,5 @@ click>=8.1.0
 rich>=13.0.0
 pytest>=8.0.0
 
-# Opcional: puente comunitario gee-community/sar-asf-to-gee
+# Optional: community bridge gee-community/sar-asf-to-gee
 # pip install git+https://github.com/gee-community/sar-asf-to-gee.git

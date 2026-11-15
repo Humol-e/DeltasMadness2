@@ -1,4 +1,4 @@
-"""Pruebas unitarias para el algoritmo físico NISAR L3 AGB ATBD."""
+"""Unit tests for the NISAR L3 AGB ATBD physical algorithm."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def test_synthetic_agb_roundtrip_and_lbfgsb_agreement() -> None:
     np.testing.assert_allclose(inv.agb_mgha, true_agb, atol=0.05)
     np.testing.assert_allclose(inv.carbon_mgha, 0.47 * inv.agb_mgha, rtol=1e-5)
 
-    # Verifica coincidencia exacta contra scipy.optimize.minimize(L-BFGS-B)
+    # Verify exact match against scipy.optimize.minimize(L-BFGS-B)
     w0 = compute_initial_agb(hv)
     for r in range(2):
         for c in range(2):

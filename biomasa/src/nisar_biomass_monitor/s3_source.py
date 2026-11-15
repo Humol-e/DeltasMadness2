@@ -1,4 +1,4 @@
-"""Descarga y lectura de escenas reales NISAR L2 GCOV (.h5) y referencias LENO desde S3."""
+"""Download and read real NISAR L2 GCOV (.h5) scenes and LENO references from Wasabi S3."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ _DATE_RE = re.compile(r"_(\d{8})T\d{6}_")
 
 @dataclass(frozen=True)
 class RemoteNisarScene:
-    """Metadatos de una escena NISAR GCOV en Wasabi S3."""
+    """Metadata for a NISAR GCOV scene on Wasabi S3."""
 
     date_tag: str
     key: str
@@ -32,7 +32,7 @@ class RemoteNisarScene:
 
 @dataclass(frozen=True)
 class ResampledGcovScene:
-    """Escena GCOV agregada a resolución objetivo (100 m / 1 ha) sobre el ROI."""
+    """GCOV scene aggregated to target resolution (100 m / 1 ha) over the ROI."""
 
     date_tag: str
     acquisition_iso: str
@@ -46,7 +46,7 @@ class ResampledGcovScene:
 
 @dataclass(frozen=True)
 class LenoReferenceLayers:
-    """Capas auxiliares reales de cobertura (NLCD LULC) y referencia Planet/FNF."""
+    """Real auxiliary land-cover (NLCD LULC) and Planet/FNF validation layers."""
 
     nlcd_lulc: np.ndarray
     forest_mask: np.ndarray
@@ -55,15 +55,16 @@ class LenoReferenceLayers:
 
 
 def list_remote_gcov_scenes(site: SiteDefinition, *, timeout_s: float = 30.0) -> list[RemoteNisarScene]:
-    """Lista las escenas HDF5 GCOV públicas disponibles para el sitio NISAR."""
+    """List public HDF5 GCOV scenes available for the NISAR site."""
     prefix = f"{site.s3_prefix}GCOV/simulated/"
-    resp = requests.get(
+    with requests.get(
         f"{site.s3_base_url}/?list-type=2&prefix={prefix}",
         timeout=timeout_s,
-    )
-    resp.raise_for_status()
+    ) as resp:
+        resp.raise_for_status()
+        xml_text = resp.text
     ns = {"s3": "http://s3.amazonaws.com/doc/2006-03-01/"}
-    root = ET.fromstring(resp.text)
+    root = ET.fromstring(xml_text)
 
     scenes: list[RemoteNisarScene] = []
     for item in root.findall("s3:Contents", ns):
@@ -95,7 +96,7 @@ def download_cached_file(
     expected_size: int | None = None,
     timeout_s: float = 240.0,
 ) -> Path:
-    """Descarga un archivo de Wasabi S3 en `dest_path` evitando descargas incompletas."""
+    """Download a file from Wasabi S3 to `dest_path`, avoiding partial files on disk."""
     dest_path.parent.mkdir(parents=True, exist_ok=True)
     if dest_path.is_file():
         size = dest_path.stat().st_size
@@ -103,13 +104,17 @@ def download_cached_file(
             return dest_path
 
     tmp_path = dest_path.with_suffix(dest_path.suffix + ".part")
-    with requests.get(url, stream=True, timeout=timeout_s) as resp:
-        resp.raise_for_status()
-        with open(tmp_path, "wb") as fh:
-            for chunk in resp.iter_content(chunk_size=1024 * 1024):
-                if chunk:
-                    fh.write(chunk)
-    tmp_path.replace(dest_path)
+    try:
+        with requests.get(url, stream=True, timeout=timeout_s) as resp:
+            resp.raise_for_status()
+            with open(tmp_path, "wb") as fh:
+                for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        fh.write(chunk)
+        tmp_path.replace(dest_path)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
     return dest_path
 
 
@@ -120,12 +125,12 @@ def download_scenes_for_dates(
     *,
     max_workers: int = 3,
 ) -> dict[str, tuple[RemoteNisarScene, Path]]:
-    """Descarga (si faltan en caché) las escenas `.h5` solicitadas en paralelo."""
+    """Download missing requested `.h5` scenes in parallel using the local cache."""
     by_date = {s.date_tag: s for s in scenes}
     requested: list[RemoteNisarScene] = []
     for tag in date_tags:
         if tag not in by_date:
-            raise KeyError(f"Fecha GCOV no disponible en Wasabi S3: {tag}")
+            raise KeyError(f"GCOV date not available on Wasabi S3: {tag}")
         requested.append(by_date[tag])
 
     def _fetch(sc: RemoteNisarScene) -> tuple[str, tuple[RemoteNisarScene, Path]]:
@@ -145,7 +150,7 @@ def read_nisar_gcov_100m(
     date_tag: str,
     source_url: str = "",
 ) -> ResampledGcovScene:
-    """Lee solo el recorte del ROI desde el `.h5` (20 m) y lo promedia a 100 m (1 ha)."""
+    """Read only the ROI slice from the `.h5` (20 m) file and average to 100 m (1 ha)."""
     xmin, ymin, xmax, ymax = site.roi_bounds_utm
     w_out, h_out = site.roi_width_100m, site.roi_height_100m
     res_m = site.target_resolution_m
@@ -159,10 +164,12 @@ def read_nisar_gcov_100m(
         x_mask = (x_coords >= xmin) & (x_coords < xmax)
         y_mask = (y_coords > ymin) & (y_coords <= ymax)
         if not np.any(x_mask) or not np.any(y_mask):
-            raise ValueError(f"{h5_path.name} no intersecta roi_bounds_utm={site.roi_bounds_utm}")
+            raise ValueError(f"{h5_path.name} does not intersect roi_bounds_utm={site.roi_bounds_utm}")
 
-        c0, c1 = int(np.where(x_mask)[0][0]), int(np.where(x_mask)[0][-1]) + 1
-        r0, r1 = int(np.where(y_mask)[0][0]), int(np.where(y_mask)[0][-1]) + 1
+        x_idx = np.where(x_mask)[0]
+        y_idx = np.where(y_mask)[0]
+        c0, c1 = int(x_idx[0]), int(x_idx[-1]) + 1
+        r0, r1 = int(y_idx[0]), int(y_idx[-1]) + 1
 
         hh_sub = g["HHHH"][r0:r1, c0:c1].astype(np.float64)
         hv_sub = g["HVHV"][r0:r1, c0:c1].astype(np.float64)
@@ -209,7 +216,7 @@ def read_nisar_gcov_100m(
 
 
 def load_leno_reference_layers(site: SiteDefinition, cache_dir: Path) -> LenoReferenceLayers:
-    """Descarga y muestrea `LENO_LULC.tif`, clasificación LENO 100 m y referencia Planet."""
+    """Download and sample `LENO_LULC.tif`, 100 m LENO classification, and Planet reference."""
     lulc_path = download_cached_file(f"{site.s3_base_url}/{site.lulc_key}", cache_dir / "LENO_LULC.tif")
     cls_path = download_cached_file(
         f"{site.s3_base_url}/{site.classification_ref_key}",
@@ -254,7 +261,7 @@ def load_leno_reference_layers(site: SiteDefinition, cache_dir: Path) -> LenoRef
         dist_arr = (np.array(img, dtype=np.float32) > 0.5).astype(np.uint8)
 
     excluded = np.isin(nlcd, np.asarray(site.nlcd_excluded_classes, dtype=np.uint8))
-    # Máscara válida de bosque/vegetación compatible con notebook ATBD y cobertura LENO (cls > 0)
+    # Valid forest/vegetation mask compatible with the ATBD notebook and LENO coverage (cls > 0)
     forest_mask = (nlcd > 0) & (~excluded) & (cls_arr > 0)
 
     return LenoReferenceLayers(

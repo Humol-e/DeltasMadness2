@@ -1,6 +1,6 @@
 {
   "generatedAtUtc": "2026-11-15T03:01:04.842515+00:00",
-  "pipeline": "nisar_biomass_monitor (basado en DeltasMadness2/NISAR_Biomass)",
+  "pipeline": "nisar_biomass_monitor (based on DeltasMadness2/NISAR_Biomass)",
   "siteCode": "LENO",
   "epsgNative": 32616,
   "resolutionMeters": 100.0,

@@ -107,10 +107,10 @@ AOI_PRESETS: dict[str, AOIPreset] = {
     "palisades": AOIPreset(
         key="wildfire_palisades_la",
         name="Palisades Fire — Los Angeles, CA (2025)",
-        region="Los Angeles, California, EE. UU.",
+        region="Los Angeles, California, USA",
         description=(
-            "Incendio urbano-forestal en Pacific Palisades y montañas de Santa Mónica (enero 2025). "
-            "Combina Sentinel-2 L2A (dNBR/NDVI), Sentinel-1 RTC (retrodispersión VH/VV) y DEM Copernicus 30 m."
+            "Urban-wildland fire in Pacific Palisades and the Santa Monica Mountains (January 2025). "
+            "Combines Sentinel-2 L2A (dNBR/NDVI), Sentinel-1 RTC (VH/VV backscatter), and Copernicus 30 m DEM."
         ),
         bbox=BoundingBox(min_lon=-118.62, min_lat=34.03, max_lon=-118.5, max_lat=34.12),
         before="2024-12-01/2025-01-06",
@@ -121,10 +121,10 @@ AOI_PRESETS: dict[str, AOIPreset] = {
     "camp_paradise": AOIPreset(
         key="wildfire_camp_paradise",
         name="Camp Fire — Paradise, CA (2018)",
-        region="Butte County, California, EE. UU.",
+        region="Butte County, California, USA",
         description=(
-            "Incendio catastrófico Camp Fire en Paradise y Butte Creek (noviembre 2018). "
-            "Analiza severidad de quemado Key & Benson (dNBR) y pérdida estructural/forestal Sentinel-1/2."
+            "Catastrophic Camp Fire in Paradise and Butte Creek (November 2018). "
+            "Analyzes Key & Benson burn severity (dNBR) and structural/forest loss from Sentinel-1/2."
         ),
         bbox=BoundingBox(min_lon=-121.78, min_lat=39.68, max_lon=-121.63, max_lat=39.79),
         before="2018-09-15/2018-11-07",
@@ -134,11 +134,11 @@ AOI_PRESETS: dict[str, AOIPreset] = {
     ),
     "martin_nv": AOIPreset(
         key="wildfire_martin_nv",
-        name="Martin Fire — sagebrush steppe, NV (2018)",
-        region="Elko / Humboldt County, Nevada, EE. UU.",
+        name="Martin Fire — Sagebrush Steppe, NV (2018)",
+        region="Elko / Humboldt County, Nevada, USA",
         description=(
-            "Gran incendio de estepa y matorral Martin Fire en Nevada (julio 2018). "
-            "Detecta cicatriz de quemado sobre vegetación semiárida mediante dNBR, NDVI previo y Sentinel-1 VH."
+            "Large sagebrush and steppe Martin Fire in Nevada (July 2018). "
+            "Detects burn scar across semi-arid vegetation using dNBR, pre-fire NDVI, and Sentinel-1 VH."
         ),
         bbox=BoundingBox(min_lon=-116.65, min_lat=41.5, max_lon=-116.5, max_lat=41.63),
         before="2018-05-15/2018-07-04",
@@ -149,8 +149,8 @@ AOI_PRESETS: dict[str, AOIPreset] = {
     "maui_lahaina": AOIPreset(
         key="wildfire_maui_lahaina",
         name="Lahaina / Kula Fire — Maui, HI (2023)",
-        region="Maui, Hawái, EE. UU.",
-        description="Incendio costero rápido impulsado por viento fuerte en Maui.",
+        region="Maui, Hawaii, USA",
+        description="Fast-moving coastal wildfire driven by strong winds on Maui.",
         bbox=BoundingBox(min_lon=-156.72, min_lat=20.82, max_lon=-156.58, max_lat=20.94),
         before="2023-07-10/2023-08-05",
         after="2023-08-12/2023-09-05",
@@ -159,8 +159,8 @@ AOI_PRESETS: dict[str, AOIPreset] = {
     "jasper_ab": AOIPreset(
         key="wildfire_jasper_ab",
         name="Jasper National Park Wildfire — Alberta (2024)",
-        region="Rocosas Canadienses, Canadá",
-        description="Incendio boreal en coníferas subalpinas con alta severidad dNBR.",
+        region="Canadian Rockies, Canada",
+        description="Boreal wildfire in subalpine conifers with high dNBR burn severity.",
         bbox=BoundingBox(min_lon=-118.22, min_lat=52.76, max_lon=-117.92, max_lat=52.96),
         before="2024-06-20/2024-07-18",
         after="2024-08-08/2024-09-05",
@@ -169,8 +169,8 @@ AOI_PRESETS: dict[str, AOIPreset] = {
     "valparaiso_cl": AOIPreset(
         key="wildfire_valparaiso_cl",
         name="Viña del Mar / Valparaíso (2024)",
-        region="Zona Central, Chile",
-        description="Megaincendio en plantaciones forestales, quebradas e interfaz urbana.",
+        region="Central Zone, Chile",
+        description="Megafire across forest plantations, ravines, and the urban-wildland interface.",
         bbox=BoundingBox(min_lon=-71.56, min_lat=-33.12, max_lon=-71.36, max_lat=-32.98),
         before="2024-01-05/2024-01-31",
         after="2024-02-06/2024-03-01",
@@ -179,8 +179,8 @@ AOI_PRESETS: dict[str, AOIPreset] = {
     "evros_gr": AOIPreset(
         key="wildfire_evros_gr",
         name="Dadia / Alexandroupolis — Evros (2023)",
-        region="Tracia Oriental, Grecia",
-        description="Gran incendio forestal mediterráneo evaluado por fusión óptica y SAR.",
+        region="Eastern Thrace, Greece",
+        description="Large Mediterranean forest wildfire assessed via optical and SAR fusion.",
         bbox=BoundingBox(min_lon=25.75, min_lat=40.82, max_lon=26.35, max_lat=41.20),
         before="2023-07-15/2023-08-15",
         after="2023-09-02/2023-09-25",
@@ -188,9 +188,9 @@ AOI_PRESETS: dict[str, AOIPreset] = {
     ),
     "tenerife_es": AOIPreset(
         key="wildfire_tenerife_es",
-        name="Corona Forestal de Tenerife (2023)",
-        region="Islas Canarias, España",
-        description="Bosque de pino canario en laderas volcánicas de alta pendiente.",
+        name="Corona Forestal, Tenerife (2023)",
+        region="Canary Islands, Spain",
+        description="Canary Island pine forest on steep volcanic slopes.",
         bbox=BoundingBox(min_lon=-16.58, min_lat=28.26, max_lon=-16.34, max_lat=28.44),
         before="2023-07-15/2023-08-12",
         after="2023-08-26/2023-09-20",
@@ -199,8 +199,8 @@ AOI_PRESETS: dict[str, AOIPreset] = {
     "tarahumara_mx": AOIPreset(
         key="wildfire_tarahumara_mx",
         name="Sierra Tarahumara / Bocoyna (2024)",
-        region="Chihuahua, México",
-        description="Bosque templado de pino-encino afectado por estiaje severo.",
+        region="Chihuahua, Mexico",
+        description="Temperate pine-oak forest affected by severe drought.",
         bbox=BoundingBox(min_lon=-107.80, min_lat=27.60, max_lon=-107.45, max_lat=27.90),
         before="2024-03-01/2024-04-05",
         after="2024-06-01/2024-06-30",
@@ -208,9 +208,9 @@ AOI_PRESETS: dict[str, AOIPreset] = {
     ),
     "pantanal_br": AOIPreset(
         key="wildfire_pantanal_br",
-        name="Pantanal Norte / Poconé (2024)",
-        region="Mato Grosso, Brasil",
-        description="Quemas extensas en humedal tropical con persistencia de humo.",
+        name="Northern Pantanal / Poconé (2024)",
+        region="Mato Grosso, Brazil",
+        description="Extensive burning in a tropical wetland under persistent smoke.",
         bbox=BoundingBox(min_lon=-56.95, min_lat=-16.85, max_lon=-56.45, max_lat=-16.45),
         before="2024-05-01/2024-06-15",
         after="2024-09-10/2024-10-15",
@@ -218,9 +218,9 @@ AOI_PRESETS: dict[str, AOIPreset] = {
     ),
     "los_alerces_ar": AOIPreset(
         key="wildfire_los_alerces_ar",
-        name="P. N. Los Alerces / Esquel (2024)",
-        region="Patagonia Andina, Argentina",
-        description="Bosque andino patagónico afectado por incendios estivales.",
+        name="Los Alerces National Park / Esquel (2024)",
+        region="Andean Patagonia, Argentina",
+        description="Andean Patagonian forest affected by summer wildfires.",
         bbox=BoundingBox(min_lon=-71.75, min_lat=-42.95, max_lon=-71.45, max_lat=-42.72),
         before="2024-01-01/2024-01-23",
         after="2024-02-12/2024-03-10",
@@ -310,7 +310,7 @@ def load_geopulse_example(
             description=(
                 fallback.description
                 if fallback
-                else f"Caso de incendio GeoPulse: {req.get('title', example_name)}"
+                else f"GeoPulse wildfire case: {req.get('title', example_name)}"
             ),
             bbox=bbox,
             before=str(req["before"]),
@@ -353,7 +353,7 @@ def resolve_aoi(aoi_spec: str, *, geopulse_dir: Path | None = None) -> tuple[str
         min_lon, min_lat, max_lon, max_lat = (float(p) for p in parts)
     except ValueError as exc:
         raise ValueError(f"Bounding box coordinates must be numeric: '{aoi_spec}'") from exc
-    return f"AOI personalizado ({aoi_spec})", BoundingBox(
+    return f"Custom AOI ({aoi_spec})", BoundingBox(
         min_lon=min_lon,
         min_lat=min_lat,
         max_lon=max_lon,

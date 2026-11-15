@@ -1,4 +1,4 @@
-"""Exportador de productos físicos NISAR L3 AGB hacia el visor 3D sar-Madness (schema v2)."""
+"""Exporter of NISAR L3 AGB physical products to the sar-Madness 3D viewer (Schema v2)."""
 
 from __future__ import annotations
 
@@ -16,11 +16,17 @@ from shapely.geometry import Polygon, mapping
 from shapely.ops import unary_union
 
 from .config import NisarAtbdParameters, SiteDefinition
-from .geo_utils import reproject_utm_to_wgs84_grid, utm_bounds_to_wgs84, utm_to_lonlat, write_wgs84_geotiff
+from .geo_utils import (
+    build_utm_to_wgs84_remap,
+    reproject_utm_to_wgs84_grid,
+    utm_bounds_to_wgs84,
+    utm_to_lonlat,
+    write_wgs84_geotiff,
+)
 from .nisar_atbd import NisarInversionResult
 from .s3_source import LenoReferenceLayers, ResampledGcovScene
 
-# Paleta oficial NLCD para LENO_LULC
+# Official NLCD palette for LENO_LULC
 _NLCD_COLORS: dict[int, tuple[int, int, int, int]] = {
     11: (2, 132, 199, 225),   # Open Water
     12: (224, 242, 254, 225), # Perennial Ice/Snow
@@ -43,7 +49,7 @@ _NLCD_COLORS: dict[int, tuple[int, int, int, int]] = {
 
 @dataclass(frozen=True)
 class ExportedCaseSummary:
-    """Resumen de exportación hacia `sar-Madness/public/data/cases/<case-id>`."""
+    """Export summary for `sar-Madness/public/data/cases/<case-id>`."""
 
     case_id: str
     case_dir: Path
@@ -59,7 +65,7 @@ def encode_gray8_png(
     vmax: float,
     valid_mask: np.ndarray | None = None,
 ) -> np.ndarray:
-    """Codifica matriz física float a uint8 `[1..255]` dejando `0` como nodata transparente."""
+    """Encode a float physical matrix to uint8 `[1..255]`, reserving `0` for transparent nodata."""
     data = np.asarray(arr, dtype=np.float64)
     finite = np.isfinite(data)
     if valid_mask is not None:
@@ -116,7 +122,7 @@ def extract_mask_polygons_geojson(
     label_name: str = "disturbance",
     source_name: str = "NISAR L3 AGB",
 ) -> dict[str, Any]:
-    """Extrae polígonos GeoJSON EPSG:4326 desde una máscara binaria usando `contourpy`."""
+    """Extract EPSG:4326 GeoJSON polygons from a binary mask using `contourpy`."""
     mask = np.asarray(binary_mask_wgs84, dtype=np.float64)
     h, w = mask.shape
     west, south, east, north = bounds_wgs84
@@ -178,7 +184,7 @@ def extract_mask_polygons_geojson(
 
 
 def build_aoi_geojson(site: SiteDefinition) -> dict[str, Any]:
-    """Construye el polígono del área de estudio LENO proyectando las 4 esquinas UTM a WGS84."""
+    """Build the study area polygon by projecting the 4 UTM corners to WGS84."""
     xmin, ymin, xmax, ymax = site.roi_bounds_utm
     corners_x = np.array([xmin, xmax, xmax, xmin, xmin], dtype=np.float64)
     corners_y = np.array([ymax, ymax, ymin, ymin, ymax], dtype=np.float64)
@@ -192,7 +198,7 @@ def build_aoi_geojson(site: SiteDefinition) -> dict[str, Any]:
                 "type": "Feature",
                 "properties": {
                     "id": f"{site.site_code.lower()}-aoi",
-                    "name": f"Área de estudio {site.site_code} (100 m / 1 ha)",
+                    "name": f"{site.site_code} Study Area (100 m / 1 ha)",
                     "area_km2": area_km2,
                 },
                 "geometry": {"type": "Polygon", "coordinates": [ring]},
@@ -202,7 +208,7 @@ def build_aoi_geojson(site: SiteDefinition) -> dict[str, Any]:
 
 
 def register_case_in_catalog_v2(catalog_path: Path, case_rel_path: str) -> None:
-    """Registra `case_rel_path` en `public/data/catalog.json` preservando casos existentes."""
+    """Register `case_rel_path` in `public/data/catalog.json`, preserving existing cases."""
     catalog_path.parent.mkdir(parents=True, exist_ok=True)
     if catalog_path.is_file():
         data = json.loads(catalog_path.read_text(encoding="utf-8"))
@@ -213,6 +219,16 @@ def register_case_in_catalog_v2(catalog_path: Path, case_rel_path: str) -> None:
         cases.append(case_rel_path)
     payload = {"schemaVersion": 2, "cases": cases}
     catalog_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def _safe_masked_mean(arr: np.ndarray, mask: np.ndarray, digits: int) -> float | None:
+    if not np.any(mask):
+        return None
+    vals = arr[mask]
+    finite = np.isfinite(vals)
+    if not np.any(finite):
+        return None
+    return round(float(np.mean(vals[finite])), digits)
 
 
 def export_biomass_case_to_madness(
@@ -227,7 +243,7 @@ def export_biomass_case_to_madness(
     madness_root: Path,
     loss_threshold_mgha: float = -40.0,
 ) -> ExportedCaseSummary:
-    """Exporta capas WGS84 (PNG + GeoTIFF + GeoJSON + case.json v2 + provenance.json)."""
+    """Export WGS84 layers (PNG + GeoTIFF + GeoJSON + case.json v2 + provenance.json)."""
     case_dir = madness_root / "public" / "data" / "cases" / site.case_id
     geotiff_dir = case_dir / "geotiffs"
     case_dir.mkdir(parents=True, exist_ok=True)
@@ -235,7 +251,7 @@ def export_biomass_case_to_madness(
 
     bounds_wgs84 = utm_bounds_to_wgs84(site.roi_bounds_utm, site.epsg)
     extent = [round(v, 6) for v in bounds_wgs84]
-    w_out = site.roi_width_100m * 2   # 420 px (~50 m en WGS84 para suavizar convergencia UTM)
+    w_out = site.roi_width_100m * 2   # 420 px (~50 m in WGS84 to smooth UTM convergence)
     h_out = site.roi_height_100m * 2  # 386 px
 
     delta_agb_utm = np.where(
@@ -244,27 +260,35 @@ def export_biomass_case_to_madness(
         np.nan,
     ).astype(np.float32)
 
-    # Reproyección UTM 16N -> malla regular EPSG:4326
+    # Precompute UTM 16N -> regular EPSG:4326 grid remap once across all layers of the same ROI grid.
+    utm_remap = build_utm_to_wgs84_remap(
+        pre_inv.agb_mgha.shape,
+        site.roi_bounds_utm,
+        site.epsg,
+        width=w_out,
+        height=h_out,
+        bounds_wgs84=bounds_wgs84,
+    )
     agb_pre_w, _ = reproject_utm_to_wgs84_grid(
-        pre_inv.agb_mgha, site.roi_bounds_utm, site.epsg, width=w_out, height=h_out, bounds_wgs84=bounds_wgs84
+        pre_inv.agb_mgha, site.roi_bounds_utm, site.epsg, width=w_out, height=h_out, bounds_wgs84=bounds_wgs84, remap=utm_remap
     )
     agb_post_w, _ = reproject_utm_to_wgs84_grid(
-        post_inv.agb_mgha, site.roi_bounds_utm, site.epsg, width=w_out, height=h_out, bounds_wgs84=bounds_wgs84
+        post_inv.agb_mgha, site.roi_bounds_utm, site.epsg, width=w_out, height=h_out, bounds_wgs84=bounds_wgs84, remap=utm_remap
     )
     agb_delta_w, _ = reproject_utm_to_wgs84_grid(
-        delta_agb_utm, site.roi_bounds_utm, site.epsg, width=w_out, height=h_out, bounds_wgs84=bounds_wgs84
+        delta_agb_utm, site.roi_bounds_utm, site.epsg, width=w_out, height=h_out, bounds_wgs84=bounds_wgs84, remap=utm_remap
     )
     hv_pre_w, _ = reproject_utm_to_wgs84_grid(
-        pre_inv.hv_db, site.roi_bounds_utm, site.epsg, width=w_out, height=h_out, bounds_wgs84=bounds_wgs84
+        pre_inv.hv_db, site.roi_bounds_utm, site.epsg, width=w_out, height=h_out, bounds_wgs84=bounds_wgs84, remap=utm_remap
     )
     hv_post_w, _ = reproject_utm_to_wgs84_grid(
-        post_inv.hv_db, site.roi_bounds_utm, site.epsg, width=w_out, height=h_out, bounds_wgs84=bounds_wgs84
+        post_inv.hv_db, site.roi_bounds_utm, site.epsg, width=w_out, height=h_out, bounds_wgs84=bounds_wgs84, remap=utm_remap
     )
     hh_pre_w, _ = reproject_utm_to_wgs84_grid(
-        pre_inv.hh_db, site.roi_bounds_utm, site.epsg, width=w_out, height=h_out, bounds_wgs84=bounds_wgs84
+        pre_inv.hh_db, site.roi_bounds_utm, site.epsg, width=w_out, height=h_out, bounds_wgs84=bounds_wgs84, remap=utm_remap
     )
     hh_post_w, _ = reproject_utm_to_wgs84_grid(
-        post_inv.hh_db, site.roi_bounds_utm, site.epsg, width=w_out, height=h_out, bounds_wgs84=bounds_wgs84
+        post_inv.hh_db, site.roi_bounds_utm, site.epsg, width=w_out, height=h_out, bounds_wgs84=bounds_wgs84, remap=utm_remap
     )
     nlcd_w, _ = reproject_utm_to_wgs84_grid(
         refs.nlcd_lulc,
@@ -274,6 +298,7 @@ def export_biomass_case_to_madness(
         height=h_out,
         bounds_wgs84=bounds_wgs84,
         nearest=True,
+        remap=utm_remap,
     )
     planet_w, _ = reproject_utm_to_wgs84_grid(
         refs.planet_disturbance,
@@ -283,9 +308,10 @@ def export_biomass_case_to_madness(
         height=h_out,
         bounds_wgs84=bounds_wgs84,
         nearest=True,
+        remap=utm_remap,
     )
 
-    # PNGs para visor Mapbox (gray8 con rangos físicos reales + rgba para categóricos)
+    # Viewer PNGs (gray8 with real physical ranges + rgba for categorical overlays)
     _save_gray8_png(encode_gray8_png(agb_pre_w, vmin=0.0, vmax=220.0), case_dir / "agb_pre.png")
     _save_gray8_png(encode_gray8_png(agb_post_w, vmin=0.0, vmax=220.0), case_dir / "agb_post.png")
     _save_gray8_png(encode_gray8_png(agb_delta_w, vmin=-120.0, vmax=60.0), case_dir / "agb_delta.png")
@@ -296,7 +322,7 @@ def export_biomass_case_to_madness(
     _save_rgba_png(_render_nlcd_rgba(nlcd_w), case_dir / "lulc_nlcd.png")
     _save_rgba_png(_render_disturbance_rgba(planet_w), case_dir / "planet_disturbance.png")
 
-    # Vectores GeoJSON
+    # GeoJSON vectors
     aoi_gj = build_aoi_geojson(site)
     (case_dir / "aoi.geojson").write_text(json.dumps(aoi_gj, indent=2), encoding="utf-8")
 
@@ -319,16 +345,16 @@ def export_biomass_case_to_madness(
     )
     (case_dir / "planet_disturbance.geojson").write_text(json.dumps(planet_gj, indent=2), encoding="utf-8")
 
-    # GeoTIFFs descargables reales EPSG:4326
+    # Real downloadable EPSG:4326 GeoTIFFs
     geotiff_specs = [
-        ("agb-pre", "Biomasa Aérea Pre NISAR (Mg/ha) — EPSG:4326", "nisar_agb", "before", "agb_pre_wgs84.tif", agb_pre_w, -9999.0),
-        ("agb-post", "Biomasa Aérea Post NISAR (Mg/ha) — EPSG:4326", "nisar_agb", "after", "agb_post_wgs84.tif", agb_post_w, -9999.0),
-        ("agb-delta", "Cambio de Biomasa ΔAGB (Mg/ha) — EPSG:4326", "agb_change", "change", "agb_delta_wgs84.tif", agb_delta_w, -9999.0),
-        ("hv-pre", "SAR Banda L HV Pre (dB) — EPSG:4326", "nisar_hv", "before", "hv_pre_db_wgs84.tif", hv_pre_w, -9999.0),
-        ("hv-post", "SAR Banda L HV Post (dB) — EPSG:4326", "nisar_hv", "after", "hv_post_db_wgs84.tif", hv_post_w, -9999.0),
-        ("hh-pre", "SAR Banda L HH Pre (dB) — EPSG:4326", "nisar_hh", "before", "hh_pre_db_wgs84.tif", hh_pre_w, -9999.0),
-        ("hh-post", "SAR Banda L HH Post (dB) — EPSG:4326", "nisar_hh", "after", "hh_post_db_wgs84.tif", hh_post_w, -9999.0),
-        ("nlcd-lulc", "Cobertura NLCD LENO (clases uint8) — EPSG:4326", "lulc_fnf", "before", "nlcd_lulc_wgs84.tif", nlcd_w, 0),
+        ("agb-pre", "NISAR Aboveground Biomass Pre (Mg/ha) — EPSG:4326", "nisar_agb", "before", "agb_pre_wgs84.tif", agb_pre_w, -9999.0),
+        ("agb-post", "NISAR Aboveground Biomass Post (Mg/ha) — EPSG:4326", "nisar_agb", "after", "agb_post_wgs84.tif", agb_post_w, -9999.0),
+        ("agb-delta", "Biomass Change ΔAGB (Mg/ha) — EPSG:4326", "agb_change", "change", "agb_delta_wgs84.tif", agb_delta_w, -9999.0),
+        ("hv-pre", "SAR L-band HV Pre (dB) — EPSG:4326", "nisar_hv", "before", "hv_pre_db_wgs84.tif", hv_pre_w, -9999.0),
+        ("hv-post", "SAR L-band HV Post (dB) — EPSG:4326", "nisar_hv", "after", "hv_post_db_wgs84.tif", hv_post_w, -9999.0),
+        ("hh-pre", "SAR L-band HH Pre (dB) — EPSG:4326", "nisar_hh", "before", "hh_pre_db_wgs84.tif", hh_pre_w, -9999.0),
+        ("hh-post", "SAR L-band HH Post (dB) — EPSG:4326", "nisar_hh", "after", "hh_post_db_wgs84.tif", hh_post_w, -9999.0),
+        ("nlcd-lulc", "LENO NLCD Land Cover (uint8 classes) — EPSG:4326", "lulc_fnf", "before", "nlcd_lulc_wgs84.tif", nlcd_w, 0),
     ]
     downloads: list[dict[str, Any]] = []
     for dl_id, label, ds_id, phase, fname, arr_data, nodata_val in geotiff_specs:
@@ -345,7 +371,7 @@ def export_biomass_case_to_madness(
             }
         )
 
-    # Métricas científicas calculadas en malla métrica exacta de 100 m (1 ha/píxel = 0.01 km²/píxel)
+    # Scientific metrics computed on exact 100 m metric grid (1 ha/pixel = 0.01 km²/pixel)
     ok_both = np.isfinite(pre_inv.agb_mgha) & np.isfinite(post_inv.agb_mgha)
     dist_px = ok_both & (refs.planet_disturbance == 1)
     intact_px = ok_both & (refs.planet_disturbance == 0) & (refs.classification_100m == 1)
@@ -359,19 +385,19 @@ def export_biomass_case_to_madness(
         "postWindow": post_end if len(post_scenes) == 1 else f"{post_scenes[0].acquisition_iso[:10]} → {post_scenes[-1].acquisition_iso[:10]}",
         "observedKm2": round(float(site.roi_width_100m * site.roi_height_100m) * cell_km2, 2),
         "forestAreaKm2": round(float(np.sum(ok_both)) * cell_km2, 2),
-        "agbPreMean": round(float(np.nanmean(pre_inv.agb_mgha[ok_both])), 1),
-        "agbPostMean": round(float(np.nanmean(post_inv.agb_mgha[ok_both])), 1),
-        "agbIntactPre": round(float(np.nanmean(pre_inv.agb_mgha[intact_px])), 1) if np.any(intact_px) else None,
-        "agbIntactPost": round(float(np.nanmean(post_inv.agb_mgha[intact_px])), 1) if np.any(intact_px) else None,
-        "agbDisturbedPre": round(float(np.nanmean(pre_inv.agb_mgha[dist_px])), 1) if np.any(dist_px) else None,
-        "agbDisturbedPost": round(float(np.nanmean(post_inv.agb_mgha[dist_px])), 1) if np.any(dist_px) else None,
+        "agbPreMean": _safe_masked_mean(pre_inv.agb_mgha, ok_both, 1),
+        "agbPostMean": _safe_masked_mean(post_inv.agb_mgha, ok_both, 1),
+        "agbIntactPre": _safe_masked_mean(pre_inv.agb_mgha, intact_px, 1),
+        "agbIntactPost": _safe_masked_mean(post_inv.agb_mgha, intact_px, 1),
+        "agbDisturbedPre": _safe_masked_mean(pre_inv.agb_mgha, dist_px, 1),
+        "agbDisturbedPost": _safe_masked_mean(post_inv.agb_mgha, dist_px, 1),
         "biomassLossKm2": round(float(np.sum(loss_px)) * cell_km2, 2),
         "planetDistKm2": round(float(np.sum(refs.planet_disturbance == 1)) * cell_km2, 2),
-        # 1 píxel 100m = 1 ha -> suma(ΔAGB Mg/ha) en pérdida / 1000 = Gg (kt) biomasa, * 0.47 = Gg C
+        # 1 pixel at 100 m = 1 ha -> sum(ΔAGB Mg/ha) over loss / 1000 = Gg (kt) biomass, * 0.47 = Gg C
         "carbonLossGg": round(abs(float(np.sum(delta_agb_utm[loss_px]))) * 0.47 / 1000.0, 2) if np.any(loss_px) else 0.0,
-        "hvPreDb": round(float(np.nanmean(pre_inv.hv_db[ok_both])), 2),
-        "hvPostDb": round(float(np.nanmean(post_inv.hv_db[ok_both])), 2),
-        "modelRmseDb": round(float(np.nanmean(pre_inv.rmse_db[ok_both])), 2),
+        "hvPreDb": _safe_masked_mean(pre_inv.hv_db, ok_both, 2),
+        "hvPostDb": _safe_masked_mean(post_inv.hv_db, ok_both, 2),
+        "modelRmseDb": _safe_masked_mean(pre_inv.rmse_db, ok_both, 2),
     }
 
     center_lon = round((extent[0] + extent[2]) / 2.0, 5)
@@ -384,12 +410,12 @@ def export_biomass_case_to_madness(
         "id": site.case_id,
         "status": "real",
         "simulated": False,
-        "category": "biomasa",
+        "category": "biomass",
         "title": site.title,
         "region": f"{site.region} · {site.country}",
         "description": (
-            f"{site.subtitle}. Inversión física L3 ATBD sobre GCOV Banda L (20 m → 100 m / 1 ha) "
-            "con cobertura NLCD y validación óptica PlanetScope 2022–2023."
+            f"{site.subtitle}. Physical L3 ATBD inversion on L-band GCOV (20 m → 100 m / 1 ha) "
+            "with NLCD land cover and PlanetScope 2022–2023 optical validation."
         ),
         "view": {
             "center": [center_lon, center_lat],
@@ -398,18 +424,18 @@ def export_biomass_case_to_madness(
             "bearing": 8,
         },
         "sources": [
-            "NASA NISAR L2 Simulated GCOV Banda L (UAVSAR/ALOS-2 · Sitio LENO S3 Público)",
-            "Modelo Físico NISAR L3 AGB ATBD (config.ini calibrado · inversión dB ponderada HH/HV)",
-            "USGS NLCD (LENO_LULC 30 m Albers) y Validación Óptica Planet (2022-09-30 → 2023-09-18)",
+            "NASA NISAR L2 Simulated L-band GCOV (UAVSAR/ALOS-2 · Public LENO S3 Site)",
+            "NISAR L3 AGB ATBD Physical Model (calibrated config.ini · weighted HH/HV dB inversion)",
+            "USGS NLCD (LENO_LULC 30 m Albers) & Planet Optical Validation (2022-09-30 → 2023-09-18)",
         ],
         "metrics": metrics,
         "datasets": [
             {
                 "id": "nisar_agb",
-                "name": "Biomasa Aérea NISAR L3 (AGB)",
+                "name": "NISAR L3 Aboveground Biomass (AGB)",
                 "kind": "raster",
                 "status": "real",
-                "platform": "NISAR (Simulado UAVSAR/ALOS-2)",
+                "platform": "NISAR (Simulated UAVSAR/ALOS-2)",
                 "sensor": "L-SAR GCOV",
                 "provider": "Wasabi S3 Public / NISAR ATBD",
                 "product": "L3 Aboveground Biomass (100 m / 1 ha)",
@@ -423,7 +449,7 @@ def export_biomass_case_to_madness(
                 "variables": [
                     {
                         "id": "agb",
-                        "label": "Biomasa Aérea (AGB)",
+                        "label": "Aboveground Biomass (AGB)",
                         "quantity": "aboveground_biomass",
                         "polarization": "HH+HV",
                         "unit": "Mg/ha",
@@ -431,21 +457,21 @@ def export_biomass_case_to_madness(
                             "min": 0.0,
                             "max": 220.0,
                             "colors": ["#1e1b4b", "#1d4ed8", "#0d9488", "#22c55e", "#eab308", "#fef08a"],
-                            "nodata_label": "Transparente = agua / urbano / sin cobertura",
+                            "nodata_label": "Transparent = water / urban / no data",
                         },
                     }
                 ],
                 "frames": [
                     {
                         "id": "pre",
-                        "label": f"Antes · {pre_start}",
+                        "label": f"Before · {pre_start}",
                         "phase": "before",
                         "datetime": pre_dt,
                         "files": {"agb": f"data/cases/{site.case_id}/agb_pre.png"},
                     },
                     {
                         "id": "post",
-                        "label": f"Después · {post_end}",
+                        "label": f"After · {post_end}",
                         "phase": "after",
                         "datetime": post_dt,
                         "files": {"agb": f"data/cases/{site.case_id}/agb_post.png"},
@@ -454,13 +480,13 @@ def export_biomass_case_to_madness(
             },
             {
                 "id": "nisar_hv",
-                "name": "SAR Banda L HV · Volumen Dosel",
+                "name": "SAR L-band HV · Canopy Volume",
                 "kind": "raster",
                 "status": "real",
-                "platform": "NISAR (Simulado)",
+                "platform": "NISAR (Simulated)",
                 "sensor": "L-SAR GCOV",
                 "provider": "Wasabi S3 Public / NISAR ATBD",
-                "product": "Gamma0 HV (100 m promedio)",
+                "product": "Gamma0 HV (100 m mean)",
                 "attribution": "NASA NISAR ATBD",
                 "extent": extent,
                 "crs": "EPSG:4326",
@@ -485,14 +511,14 @@ def export_biomass_case_to_madness(
                 "frames": [
                     {
                         "id": "pre",
-                        "label": f"HV Antes · {pre_start}",
+                        "label": f"HV Before · {pre_start}",
                         "phase": "before",
                         "datetime": pre_dt,
                         "files": {"hv_db": f"data/cases/{site.case_id}/hv_pre.png"},
                     },
                     {
                         "id": "post",
-                        "label": f"HV Después · {post_end}",
+                        "label": f"HV After · {post_end}",
                         "phase": "after",
                         "datetime": post_dt,
                         "files": {"hv_db": f"data/cases/{site.case_id}/hv_post.png"},
@@ -501,13 +527,13 @@ def export_biomass_case_to_madness(
             },
             {
                 "id": "nisar_hh",
-                "name": "SAR Banda L HH · Tronco–Suelo",
+                "name": "SAR L-band HH · Trunk–Ground",
                 "kind": "raster",
                 "status": "real",
-                "platform": "NISAR (Simulado)",
+                "platform": "NISAR (Simulated)",
                 "sensor": "L-SAR GCOV",
                 "provider": "Wasabi S3 Public / NISAR ATBD",
-                "product": "Gamma0 HH (100 m promedio)",
+                "product": "Gamma0 HH (100 m mean)",
                 "attribution": "NASA NISAR ATBD",
                 "extent": extent,
                 "crs": "EPSG:4326",
@@ -532,14 +558,14 @@ def export_biomass_case_to_madness(
                 "frames": [
                     {
                         "id": "pre",
-                        "label": f"HH Antes · {pre_start}",
+                        "label": f"HH Before · {pre_start}",
                         "phase": "before",
                         "datetime": pre_dt,
                         "files": {"hh_db": f"data/cases/{site.case_id}/hh_pre.png"},
                     },
                     {
                         "id": "post",
-                        "label": f"HH Después · {post_end}",
+                        "label": f"HH After · {post_end}",
                         "phase": "after",
                         "datetime": post_dt,
                         "files": {"hh_db": f"data/cases/{site.case_id}/hh_post.png"},
@@ -548,13 +574,13 @@ def export_biomass_case_to_madness(
             },
             {
                 "id": "agb_change",
-                "name": "Cambio Neto de Biomasa (ΔAGB)",
+                "name": "Net Biomass Change (ΔAGB)",
                 "kind": "raster",
                 "status": "real",
-                "platform": "NISAR (Simulado)",
+                "platform": "NISAR (Simulated)",
                 "sensor": "L-SAR L3 Diff",
                 "provider": "NISAR_Biomass L3 Pipeline",
-                "product": "ΔAGB = Post − Antes (Mg/ha)",
+                "product": "ΔAGB = After − Before (Mg/ha)",
                 "attribution": "DeltasMadness2 / NISAR_Biomass",
                 "extent": extent,
                 "crs": "EPSG:4326",
@@ -565,7 +591,7 @@ def export_biomass_case_to_madness(
                 "variables": [
                     {
                         "id": "delta_agb",
-                        "label": "ΔAGB (Post − Antes)",
+                        "label": "ΔAGB (After − Before)",
                         "quantity": "biomass_change",
                         "polarization": "HH+HV",
                         "unit": "Mg/ha",
@@ -573,7 +599,7 @@ def export_biomass_case_to_madness(
                             "min": -120.0,
                             "max": 60.0,
                             "colors": ["#991b1b", "#ef4444", "#f97316", "#64748b", "#22c55e", "#15803d"],
-                            "nodata_label": "Rojo = pérdida severa · Verde = ganancia",
+                            "nodata_label": "Red = severe loss · Green = gain",
                         },
                     }
                 ],
@@ -589,13 +615,13 @@ def export_biomass_case_to_madness(
             },
             {
                 "id": "lulc_fnf",
-                "name": "Cobertura NLCD & Referencia Planet",
+                "name": "NLCD Land Cover & Planet Reference",
                 "kind": "raster",
                 "status": "real",
                 "platform": "USGS NLCD / PlanetScope",
                 "sensor": "Multispectral",
                 "provider": "Wasabi S3 Public / NEON LENO",
-                "product": "LENO LULC + Validación de Perturbación",
+                "product": "LENO LULC + Disturbance Validation",
                 "attribution": "USGS / Planet Labs Validation",
                 "extent": extent,
                 "crs": "EPSG:4326",
@@ -606,23 +632,23 @@ def export_biomass_case_to_madness(
                 "variables": [
                     {
                         "id": "lulc_dist",
-                        "label": "Cobertura NLCD / Perturbación Planet",
+                        "label": "NLCD Land Cover / Planet Disturbance",
                         "quantity": "land_cover",
                         "polarization": None,
-                        "unit": "clase",
+                        "unit": "class",
                     }
                 ],
                 "frames": [
                     {
                         "id": "pre",
-                        "label": "Antes · Cobertura NLCD LENO",
+                        "label": "Before · LENO NLCD Land Cover",
                         "phase": "before",
                         "datetime": pre_dt,
                         "files": {"lulc_dist": f"data/cases/{site.case_id}/lulc_nlcd.png"},
                     },
                     {
                         "id": "post",
-                        "label": "Después · Perturbación Referencia Planet",
+                        "label": "After · Planet Reference Disturbance",
                         "phase": "after",
                         "datetime": "2023-09-18T00:00:00Z",
                         "files": {"lulc_dist": f"data/cases/{site.case_id}/planet_disturbance.png"},
@@ -633,7 +659,7 @@ def export_biomass_case_to_madness(
         "vectors": [
             {
                 "id": "aoi",
-                "name": "Área de estudio LENO (405.30 km²)",
+                "name": "LENO Study Area (405.30 km²)",
                 "status": "real",
                 "simulated": False,
                 "type": "line",
@@ -643,7 +669,7 @@ def export_biomass_case_to_madness(
             },
             {
                 "id": "biomass_loss_nisar",
-                "name": "Pérdida Severa NISAR (ΔAGB ≤ −40 Mg/ha)",
+                "name": "NISAR Severe Loss (ΔAGB ≤ −40 Mg/ha)",
                 "status": "real",
                 "simulated": False,
                 "type": "fill",
@@ -651,17 +677,17 @@ def export_biomass_case_to_madness(
                 "source": {"type": "geojson", "data": f"data/cases/{site.case_id}/biomass_loss_nisar.geojson"},
                 "paint": {"fill-color": "#f97316", "fill-opacity": 0.45, "fill-outline-color": "#fdba74"},
                 "legend": {
-                    "title": "Detección NISAR L3",
+                    "title": "NISAR L3 Detection",
                     "items": [{"color": "#f97316", "label": "ΔAGB ≤ −40 Mg/ha"}],
                 },
                 "popupFields": [
-                    ["area_km2", "Área de pérdida", "km²"],
-                    ["area_ha", "Superficie", "ha"],
+                    ["area_km2", "Loss area", "km²"],
+                    ["area_ha", "Surface", "ha"],
                 ],
             },
             {
                 "id": "planet_disturbance_vec",
-                "name": "Validación Óptica Planet (2022–2023)",
+                "name": "Planet Optical Validation (2022–2023)",
                 "status": "real",
                 "simulated": False,
                 "type": "fill",
@@ -669,12 +695,12 @@ def export_biomass_case_to_madness(
                 "source": {"type": "geojson", "data": f"data/cases/{site.case_id}/planet_disturbance.geojson"},
                 "paint": {"fill-color": "#f43f5e", "fill-opacity": 0.55, "fill-outline-color": "#ffe4e6"},
                 "legend": {
-                    "title": "Referencia Óptica Planet",
-                    "items": [{"color": "#f43f5e", "label": "Perturbación confirmada"}],
+                    "title": "Planet Optical Reference",
+                    "items": [{"color": "#f43f5e", "label": "Confirmed disturbance"}],
                 },
                 "popupFields": [
-                    ["area_km2", "Área perturbada", "km²"],
-                    ["area_ha", "Superficie", "ha"],
+                    ["area_km2", "Disturbed area", "km²"],
+                    ["area_ha", "Surface", "ha"],
                 ],
             },
         ],
@@ -686,7 +712,7 @@ def export_biomass_case_to_madness(
 
     provenance = {
         "generatedAtUtc": datetime.now(timezone.utc).isoformat(),
-        "pipeline": "nisar_biomass_monitor (basado en DeltasMadness2/NISAR_Biomass)",
+        "pipeline": "nisar_biomass_monitor (based on DeltasMadness2/NISAR_Biomass)",
         "siteCode": site.site_code,
         "epsgNative": site.epsg,
         "resolutionMeters": site.target_resolution_m,

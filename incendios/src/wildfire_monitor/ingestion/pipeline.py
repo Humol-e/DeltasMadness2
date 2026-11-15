@@ -239,7 +239,7 @@ def run_wildfire_to_platform(
         resolved_before = before
         resolved_after = after
         resolved_case_id = case_id or "wildfire-custom"
-        resolved_desc = description or f"Análisis GeoPulse para {resolved_title}."
+        resolved_desc = description or f"GeoPulse analysis for {resolved_title}."
         aoi_geom = bbox.to_geojson_polygon()
 
     resolved_download_dir = download_dir or settings.resolved_download_dir()
@@ -503,9 +503,9 @@ def convert_geopulse_dir_to_platform(
     if isinstance(after_win, list):
         after_win = "/".join(after_win)
 
-    resolved_title = title or f"Incendio GeoPulse: {resolved_case_id}"
+    resolved_title = title or f"GeoPulse Wildfire: {resolved_case_id}"
     resolved_desc = description or (
-        f"Datos GeoPulse convertidos sin modificar su apariencia original ({src.name})."
+        f"GeoPulse data converted without altering its original visual appearance ({src.name})."
     )
 
     resolved_download_dir = download_dir or settings.resolved_download_dir()

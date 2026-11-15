@@ -33,9 +33,9 @@ def upload_geotiff_to_gcs(
 ) -> str:
     """Upload a local GeoTIFF file to Google Cloud Storage and return its gs:// URI."""
     if not local_path.exists() or not local_path.is_file():
-        raise FileNotFoundError(f"No se encontró el GeoTIFF local: {local_path}")
+        raise FileNotFoundError(f"Local GeoTIFF not found: {local_path}")
     if local_path.suffix.lower() not in {".tif", ".tiff"}:
-        raise ValueError(f"El archivo '{local_path}' no tiene extensión GeoTIFF (.tif/.tiff).")
+        raise ValueError(f"File '{local_path}' does not have a GeoTIFF extension (.tif/.tiff).")
 
     normalized_object = gcs_object_path.lstrip("/")
     bucket = client.bucket(bucket_name)
@@ -52,8 +52,8 @@ def ensure_image_collection(collection_id: str) -> str:
         asset_type = str(asset.get("type", "")).upper()
         if asset_type and asset_type != "IMAGE_COLLECTION":
             raise ValueError(
-                f"El asset '{normalized_id}' ya existe pero es de tipo '{asset_type}', "
-                "no 'IMAGE_COLLECTION'."
+                f"Asset '{normalized_id}' already exists with type '{asset_type}', "
+                "not 'IMAGE_COLLECTION'."
             )
         return normalized_id
     except ee.EEException:
@@ -87,7 +87,7 @@ def build_gee_ingestion_manifest(
 ) -> dict[str, Any]:
     """Build a GEE ImageManifest payload compatible with ee.data.startIngestion."""
     if not gcs_uri.startswith("gs://"):
-        raise ValueError(f"La URI origen debe empezar con 'gs://': {gcs_uri}")
+        raise ValueError(f"Source URI must start with 'gs://': {gcs_uri}")
 
     normalized_asset_id = ee.data.convert_asset_id_to_asset_name(asset_id.strip("/"))
     tileset: dict[str, Any] = {
@@ -161,12 +161,12 @@ def _wait_for_ingestion_operation(
         if status.get("done", False):
             error_msg = (status.get("error") or {}).get("message")
             if error_msg:
-                raise RuntimeError(f"Falló la ingesta en GEE ({operation_name}): {error_msg}")
+                raise RuntimeError(f"GEE ingestion failed ({operation_name}): {error_msg}")
             return state
         if time.monotonic() >= deadline:
             raise TimeoutError(
-                f"Tiempo de espera agotado ({timeout_sec}s) para la tarea GEE {operation_name} "
-                f"(último estado: {state})."
+                f"Timed out ({timeout_sec}s) waiting for GEE task {operation_name} "
+                f"(last state: {state})."
             )
         time.sleep(poll_interval_sec)
 
@@ -219,7 +219,7 @@ def ingest_gcs_geotiff_to_gee(
         if not operation_name:
             if not project_id:
                 raise ValueError(
-                    "Se requiere project_id para consultar el estado de la operación en GEE."
+                    "project_id is required to poll the GEE ingestion operation status."
                 )
             operation_name = f"projects/{project_id}/operations/{task_id}"
         state = _wait_for_ingestion_operation(operation_name, timeout_sec=timeout_sec)

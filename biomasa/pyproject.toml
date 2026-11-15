@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nisar-biomass-monitor"
+version = "0.1.0"
+description = "Pipeline de biomasa forestal NISAR L3 ATBD (GCOV Banda L -> AGB Mg/ha y cambio de biomasa para sar-Madness)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "h5py>=3.10.0",
+    "numpy>=1.26.0",
+    "scipy>=1.11.0",
+    "pillow>=10.0.0",
+    "contourpy>=1.2.0",
+    "shapely>=2.0.0",
+    "requests>=2.31.0",
+    "pydantic>=2.10.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[project.scripts]
+biomasa-stage1 = "nisar_biomass_monitor.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

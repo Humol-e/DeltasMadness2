@@ -1,0 +1,40 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "leno-aoi",
+        "name": "\u00c1rea de estudio LENO (100 m / 1 ha)",
+        "area_km2": 405.3
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -88.292601,
+              32.242568
+            ],
+            [
+              -88.06973,
+              32.244652
+            ],
+            [
+              -88.067698,
+              32.070566
+            ],
+            [
+              -88.290146,
+              32.068496
+            ],
+            [
+              -88.292601,
+              32.242568
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,559 @@
+{
+  "schemaVersion": 2,
+  "id": "biomass-leno-nisar",
+  "status": "real",
+  "simulated": false,
+  "category": "biomasa",
+  "title": "Biomasa Forestal NISAR L3 — Lenoir Landing (LENO)",
+  "region": "Alabama (Río Tombigbee / Sitio NEON LENO) · Estados Unidos",
+  "description": "Estimación de Biomasa Aérea (AGB) en Banda L (GCOV) y perturbación forestal 2021–2024. Inversión física L3 ATBD sobre GCOV Banda L (20 m → 100 m / 1 ha) con cobertura NLCD y validación óptica PlanetScope 2022–2023.",
+  "view": {
+    "center": [
+      -88.18015,
+      32.15657
+    ],
+    "zoom": 11.1,
+    "pitch": 42,
+    "bearing": 8
+  },
+  "sources": [
+    "NASA NISAR L2 Simulated GCOV Banda L (UAVSAR/ALOS-2 · Sitio LENO S3 Público)",
+    "Modelo Físico NISAR L3 AGB ATBD (config.ini calibrado · inversión dB ponderada HH/HV)",
+    "USGS NLCD (LENO_LULC 30 m Albers) y Validación Óptica Planet (2022-09-30 → 2023-09-18)"
+  ],
+  "metrics": {
+    "preWindow": "2022-09-30",
+    "postWindow": "2023-09-29",
+    "observedKm2": 405.3,
+    "forestAreaKm2": 270.89,
+    "agbPreMean": 72.7,
+    "agbPostMean": 66.1,
+    "agbIntactPre": 83.0,
+    "agbIntactPost": 77.3,
+    "agbDisturbedPre": 87.3,
+    "agbDisturbedPost": 14.1,
+    "biomassLossKm2": 17.53,
+    "planetDistKm2": 5.9,
+    "carbonLossGg": 50.79,
+    "hvPreDb": -11.57,
+    "hvPostDb": -11.78,
+    "modelRmseDb": 0.53
+  },
+  "datasets": [
+    {
+      "id": "nisar_agb",
+      "name": "Biomasa Aérea NISAR L3 (AGB)",
+      "kind": "raster",
+      "status": "real",
+      "platform": "NISAR (Simulado UAVSAR/ALOS-2)",
+      "sensor": "L-SAR GCOV",
+      "provider": "Wasabi S3 Public / NISAR ATBD",
+      "product": "L3 Aboveground Biomass (100 m / 1 ha)",
+      "attribution": "NASA-ISRO NISAR ATBD",
+      "extent": [
+        -88.292601,
+        32.068496,
+        -88.067698,
+        32.244652
+      ],
+      "crs": "EPSG:4326",
+      "resolution": {
+        "value": 100,
+        "unit": "m"
+      },
+      "source": {
+        "type": "image",
+        "encoding": "gray8",
+        "nodata": 0
+      },
+      "render": {
+        "opacity": 0.9,
+        "resampling": "linear"
+      },
+      "defaultVisible": true,
+      "variables": [
+        {
+          "id": "agb",
+          "label": "Biomasa Aérea (AGB)",
+          "quantity": "aboveground_biomass",
+          "polarization": "HH+HV",
+          "unit": "Mg/ha",
+          "legend": {
+            "min": 0.0,
+            "max": 220.0,
+            "colors": [
+              "#1e1b4b",
+              "#1d4ed8",
+              "#0d9488",
+              "#22c55e",
+              "#eab308",
+              "#fef08a"
+            ],
+            "nodata_label": "Transparente = agua / urbano / sin cobertura"
+          }
+        }
+      ],
+      "frames": [
+        {
+          "id": "pre",
+          "label": "Antes · 2022-09-30",
+          "phase": "before",
+          "datetime": "2022-09-30T05:47:58Z",
+          "files": {
+            "agb": "data/cases/biomass-leno-nisar/agb_pre.png"
+          }
+        },
+        {
+          "id": "post",
+          "label": "Después · 2023-09-29",
+          "phase": "after",
+          "datetime": "2023-09-29T05:47:58Z",
+          "files": {
+            "agb": "data/cases/biomass-leno-nisar/agb_post.png"
+          }
+        }
+      ]
+    },
+    {
+      "id": "nisar_hv",
+      "name": "SAR Banda L HV · Volumen Dosel",
+      "kind": "raster",
+      "status": "real",
+      "platform": "NISAR (Simulado)",
+      "sensor": "L-SAR GCOV",
+      "provider": "Wasabi S3 Public / NISAR ATBD",
+      "product": "Gamma0 HV (100 m promedio)",
+      "attribution": "NASA NISAR ATBD",
+      "extent": [
+        -88.292601,
+        32.068496,
+        -88.067698,
+        32.244652
+      ],
+      "crs": "EPSG:4326",
+      "resolution": {
+        "value": 100,
+        "unit": "m"
+      },
+      "source": {
+        "type": "image",
+        "encoding": "gray8",
+        "nodata": 0
+      },
+      "render": {
+        "opacity": 0.88,
+        "resampling": "linear"
+      },
+      "defaultVisible": false,
+      "variables": [
+        {
+          "id": "hv_db",
+          "label": "Gamma0 HV",
+          "quantity": "backscatter",
+          "polarization": "HV",
+          "unit": "dB",
+          "legend": {
+            "min": -22.0,
+            "max": -6.0,
+            "colors": [
+              "#090d16",
+              "#334155",
+              "#64748b",
+              "#cbd5e1",
+              "#f8fafc"
+            ]
+          }
+        }
+      ],
+      "frames": [
+        {
+          "id": "pre",
+          "label": "HV Antes · 2022-09-30",
+          "phase": "before",
+          "datetime": "2022-09-30T05:47:58Z",
+          "files": {
+            "hv_db": "data/cases/biomass-leno-nisar/hv_pre.png"
+          }
+        },
+        {
+          "id": "post",
+          "label": "HV Después · 2023-09-29",
+          "phase": "after",
+          "datetime": "2023-09-29T05:47:58Z",
+          "files": {
+            "hv_db": "data/cases/biomass-leno-nisar/hv_post.png"
+          }
+        }
+      ]
+    },
+    {
+      "id": "nisar_hh",
+      "name": "SAR Banda L HH · Tronco–Suelo",
+      "kind": "raster",
+      "status": "real",
+      "platform": "NISAR (Simulado)",
+      "sensor": "L-SAR GCOV",
+      "provider": "Wasabi S3 Public / NISAR ATBD",
+      "product": "Gamma0 HH (100 m promedio)",
+      "attribution": "NASA NISAR ATBD",
+      "extent": [
+        -88.292601,
+        32.068496,
+        -88.067698,
+        32.244652
+      ],
+      "crs": "EPSG:4326",
+      "resolution": {
+        "value": 100,
+        "unit": "m"
+      },
+      "source": {
+        "type": "image",
+        "encoding": "gray8",
+        "nodata": 0
+      },
+      "render": {
+        "opacity": 0.88,
+        "resampling": "linear"
+      },
+      "defaultVisible": false,
+      "variables": [
+        {
+          "id": "hh_db",
+          "label": "Gamma0 HH",
+          "quantity": "backscatter",
+          "polarization": "HH",
+          "unit": "dB",
+          "legend": {
+            "min": -16.0,
+            "max": 0.0,
+            "colors": [
+              "#090d16",
+              "#3b2f2f",
+              "#92400e",
+              "#f59e0b",
+              "#fef3c7"
+            ]
+          }
+        }
+      ],
+      "frames": [
+        {
+          "id": "pre",
+          "label": "HH Antes · 2022-09-30",
+          "phase": "before",
+          "datetime": "2022-09-30T05:47:58Z",
+          "files": {
+            "hh_db": "data/cases/biomass-leno-nisar/hh_pre.png"
+          }
+        },
+        {
+          "id": "post",
+          "label": "HH Después · 2023-09-29",
+          "phase": "after",
+          "datetime": "2023-09-29T05:47:58Z",
+          "files": {
+            "hh_db": "data/cases/biomass-leno-nisar/hh_post.png"
+          }
+        }
+      ]
+    },
+    {
+      "id": "agb_change",
+      "name": "Cambio Neto de Biomasa (ΔAGB)",
+      "kind": "raster",
+      "status": "real",
+      "platform": "NISAR (Simulado)",
+      "sensor": "L-SAR L3 Diff",
+      "provider": "NISAR_Biomass L3 Pipeline",
+      "product": "ΔAGB = Post − Antes (Mg/ha)",
+      "attribution": "DeltasMadness2 / NISAR_Biomass",
+      "extent": [
+        -88.292601,
+        32.068496,
+        -88.067698,
+        32.244652
+      ],
+      "crs": "EPSG:4326",
+      "resolution": {
+        "value": 100,
+        "unit": "m"
+      },
+      "source": {
+        "type": "image",
+        "encoding": "gray8",
+        "nodata": 0
+      },
+      "render": {
+        "opacity": 0.9,
+        "resampling": "linear"
+      },
+      "defaultVisible": false,
+      "variables": [
+        {
+          "id": "delta_agb",
+          "label": "ΔAGB (Post − Antes)",
+          "quantity": "biomass_change",
+          "polarization": "HH+HV",
+          "unit": "Mg/ha",
+          "legend": {
+            "min": -120.0,
+            "max": 60.0,
+            "colors": [
+              "#991b1b",
+              "#ef4444",
+              "#f97316",
+              "#64748b",
+              "#22c55e",
+              "#15803d"
+            ],
+            "nodata_label": "Rojo = pérdida severa · Verde = ganancia"
+          }
+        }
+      ],
+      "frames": [
+        {
+          "id": "change",
+          "label": "ΔAGB (2022-09-30 → 2023-09-29)",
+          "phase": "after",
+          "datetime": "2023-09-29T05:47:58Z",
+          "files": {
+            "delta_agb": "data/cases/biomass-leno-nisar/agb_delta.png"
+          }
+        }
+      ]
+    },
+    {
+      "id": "lulc_fnf",
+      "name": "Cobertura NLCD & Referencia Planet",
+      "kind": "raster",
+      "status": "real",
+      "platform": "USGS NLCD / PlanetScope",
+      "sensor": "Multispectral",
+      "provider": "Wasabi S3 Public / NEON LENO",
+      "product": "LENO LULC + Validación de Perturbación",
+      "attribution": "USGS / Planet Labs Validation",
+      "extent": [
+        -88.292601,
+        32.068496,
+        -88.067698,
+        32.244652
+      ],
+      "crs": "EPSG:4326",
+      "resolution": {
+        "value": 100,
+        "unit": "m"
+      },
+      "source": {
+        "type": "image",
+        "encoding": "rgba"
+      },
+      "render": {
+        "opacity": 0.85,
+        "resampling": "nearest"
+      },
+      "defaultVisible": false,
+      "variables": [
+        {
+          "id": "lulc_dist",
+          "label": "Cobertura NLCD / Perturbación Planet",
+          "quantity": "land_cover",
+          "polarization": null,
+          "unit": "clase"
+        }
+      ],
+      "frames": [
+        {
+          "id": "pre",
+          "label": "Antes · Cobertura NLCD LENO",
+          "phase": "before",
+          "datetime": "2022-09-30T05:47:58Z",
+          "files": {
+            "lulc_dist": "data/cases/biomass-leno-nisar/lulc_nlcd.png"
+          }
+        },
+        {
+          "id": "post",
+          "label": "Después · Perturbación Referencia Planet",
+          "phase": "after",
+          "datetime": "2023-09-18T00:00:00Z",
+          "files": {
+            "lulc_dist": "data/cases/biomass-leno-nisar/planet_disturbance.png"
+          }
+        }
+      ]
+    }
+  ],
+  "vectors": [
+    {
+      "id": "aoi",
+      "name": "Área de estudio LENO (405.30 km²)",
+      "status": "real",
+      "simulated": false,
+      "type": "line",
+      "defaultVisible": true,
+      "source": {
+        "type": "geojson",
+        "data": "data/cases/biomass-leno-nisar/aoi.geojson"
+      },
+      "paint": {
+        "line-color": "#38bdf8",
+        "line-width": 1.8,
+        "line-dasharray": [
+          3,
+          2
+        ]
+      }
+    },
+    {
+      "id": "biomass_loss_nisar",
+      "name": "Pérdida Severa NISAR (ΔAGB ≤ −40 Mg/ha)",
+      "status": "real",
+      "simulated": false,
+      "type": "fill",
+      "defaultVisible": false,
+      "source": {
+        "type": "geojson",
+        "data": "data/cases/biomass-leno-nisar/biomass_loss_nisar.geojson"
+      },
+      "paint": {
+        "fill-color": "#f97316",
+        "fill-opacity": 0.45,
+        "fill-outline-color": "#fdba74"
+      },
+      "legend": {
+        "title": "Detección NISAR L3",
+        "items": [
+          {
+            "color": "#f97316",
+            "label": "ΔAGB ≤ −40 Mg/ha"
+          }
+        ]
+      },
+      "popupFields": [
+        [
+          "area_km2",
+          "Área de pérdida",
+          "km²"
+        ],
+        [
+          "area_ha",
+          "Superficie",
+          "ha"
+        ]
+      ]
+    },
+    {
+      "id": "planet_disturbance_vec",
+      "name": "Validación Óptica Planet (2022–2023)",
+      "status": "real",
+      "simulated": false,
+      "type": "fill",
+      "defaultVisible": true,
+      "source": {
+        "type": "geojson",
+        "data": "data/cases/biomass-leno-nisar/planet_disturbance.geojson"
+      },
+      "paint": {
+        "fill-color": "#f43f5e",
+        "fill-opacity": 0.55,
+        "fill-outline-color": "#ffe4e6"
+      },
+      "legend": {
+        "title": "Referencia Óptica Planet",
+        "items": [
+          {
+            "color": "#f43f5e",
+            "label": "Perturbación confirmada"
+          }
+        ]
+      },
+      "popupFields": [
+        [
+          "area_km2",
+          "Área perturbada",
+          "km²"
+        ],
+        [
+          "area_ha",
+          "Superficie",
+          "ha"
+        ]
+      ]
+    }
+  ],
+  "downloads": [
+    {
+      "id": "agb-pre",
+      "label": "Biomasa Aérea Pre NISAR (Mg/ha) — EPSG:4326",
+      "datasetId": "nisar_agb",
+      "phase": "before",
+      "format": "geotiff",
+      "url": "data/cases/biomass-leno-nisar/geotiffs/agb_pre_wgs84.tif",
+      "sizeBytes": 648766
+    },
+    {
+      "id": "agb-post",
+      "label": "Biomasa Aérea Post NISAR (Mg/ha) — EPSG:4326",
+      "datasetId": "nisar_agb",
+      "phase": "after",
+      "format": "geotiff",
+      "url": "data/cases/biomass-leno-nisar/geotiffs/agb_post_wgs84.tif",
+      "sizeBytes": 648766
+    },
+    {
+      "id": "agb-delta",
+      "label": "Cambio de Biomasa ΔAGB (Mg/ha) — EPSG:4326",
+      "datasetId": "agb_change",
+      "phase": "change",
+      "format": "geotiff",
+      "url": "data/cases/biomass-leno-nisar/geotiffs/agb_delta_wgs84.tif",
+      "sizeBytes": 648766
+    },
+    {
+      "id": "hv-pre",
+      "label": "SAR Banda L HV Pre (dB) — EPSG:4326",
+      "datasetId": "nisar_hv",
+      "phase": "before",
+      "format": "geotiff",
+      "url": "data/cases/biomass-leno-nisar/geotiffs/hv_pre_db_wgs84.tif",
+      "sizeBytes": 648766
+    },
+    {
+      "id": "hv-post",
+      "label": "SAR Banda L HV Post (dB) — EPSG:4326",
+      "datasetId": "nisar_hv",
+      "phase": "after",
+      "format": "geotiff",
+      "url": "data/cases/biomass-leno-nisar/geotiffs/hv_post_db_wgs84.tif",
+      "sizeBytes": 648766
+    },
+    {
+      "id": "hh-pre",
+      "label": "SAR Banda L HH Pre (dB) — EPSG:4326",
+      "datasetId": "nisar_hh",
+      "phase": "before",
+      "format": "geotiff",
+      "url": "data/cases/biomass-leno-nisar/geotiffs/hh_pre_db_wgs84.tif",
+      "sizeBytes": 648766
+    },
+    {
+      "id": "hh-post",
+      "label": "SAR Banda L HH Post (dB) — EPSG:4326",
+      "datasetId": "nisar_hh",
+      "phase": "after",
+      "format": "geotiff",
+      "url": "data/cases/biomass-leno-nisar/geotiffs/hh_post_db_wgs84.tif",
+      "sizeBytes": 648766
+    },
+    {
+      "id": "nlcd-lulc",
+      "label": "Cobertura NLCD LENO (clases uint8) — EPSG:4326",
+      "datasetId": "lulc_fnf",
+      "phase": "before",
+      "format": "geotiff",
+      "url": "data/cases/biomass-leno-nisar/geotiffs/nlcd_lulc_wgs84.tif",
+      "sizeBytes": 162386
+    }
+  ]
+}

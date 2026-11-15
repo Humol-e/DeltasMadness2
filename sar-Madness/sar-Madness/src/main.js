@@ -167,6 +167,13 @@ function renderCaseMetrics(def) {
   if (m.snowPrePct != null && m.snowPostPct != null) items.push(['Nieve MODIS (Antes → Después)', `${m.snowPrePct}% → ${m.snowPostPct}%`]);
   if (m.lstPreC != null && m.lstPostC != null) items.push(['Temp. superficie', `${m.lstPreC}°C → ${m.lstPostC}°C`]);
   if (m.meltAreaKm2 != null) items.push(['Retroceso nival (ΔNDSI)', `${m.meltAreaKm2} km²`]);
+  if (m.forestAreaKm2 != null) items.push(['Área forestal válida', `${m.forestAreaKm2} km²`]);
+  if (m.agbPreMean != null && m.agbPostMean != null) items.push(['AGB media (Antes → Después)', `${m.agbPreMean} → ${m.agbPostMean} Mg/ha`]);
+  if (m.agbDisturbedPre != null && m.agbDisturbedPost != null) items.push(['AGB zonas perturbadas', `${m.agbDisturbedPre} → ${m.agbDisturbedPost} Mg/ha`]);
+  if (m.biomassLossKm2 != null) items.push(['Pérdida severa NISAR (≤−40)', `${m.biomassLossKm2} km²`]);
+  if (m.planetDistKm2 != null) items.push(['Ref. perturbación Planet', `${m.planetDistKm2} km²`]);
+  if (m.carbonLossGg != null) items.push(['Pérdida de carbono (0.47·ΔAGB)', `${m.carbonLossGg} Gg C`]);
+  if (m.hvPreDb != null && m.hvPostDb != null) items.push(['Banda L HV (Antes → Después)', `${m.hvPreDb} → ${m.hvPostDb} dB`]);
   box.innerHTML = items.map(([k, v]) => `<div class="metric"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('');
 }
 
@@ -505,10 +512,12 @@ async function boot() {
   }
 
   const incendios = cases.filter((c) => c.category === 'incendio' || c.id.startsWith('wildfire-') || Boolean(c.wildfire));
-  const deshielo = cases.filter((c) => !incendios.includes(c));
+  const biomasa = cases.filter((c) => c.category === 'biomasa' || c.id.startsWith('biomass-'));
+  const deshielo = cases.filter((c) => !incendios.includes(c) && !biomasa.includes(c));
   const groups = [
     ['Incendios forestales reales', incendios],
     ['Deshielo glaciar real', deshielo],
+    ['Biomasa forestal NISAR (Banda L)', biomasa],
   ].filter(([, list]) => list.length);
 
   el('#case-select').innerHTML = groups

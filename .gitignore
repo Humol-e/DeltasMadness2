@@ -3,3 +3,5 @@ HDFView/
 hola/config/service_account.json
 /hola/.env
 hola2/
+biomasa/data/cache/
+biomasa/src/*.egg-info/

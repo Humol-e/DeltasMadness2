@@ -24,13 +24,15 @@ incendios/
 │           ├── native_catalog.py
 │           ├── geopulse_bridge.py
 │           ├── platform_exporter.py
-│           └── pipeline.py
+│           ├── pipeline.py
+│           └── sar_burn.py
 ├── tests/
 │   ├── test_config.py
 │   ├── test_pc_auth.py
 │   ├── test_native_catalog.py
 │   ├── test_geopulse_bridge.py
 │   ├── test_platform_exporter.py
+│   ├── test_sar_burn.py
 │   └── test_stage1_pipeline.py
 └── data/
     ├── downloads/   # Single-band PIL-compatible GeoTIFFs + catalog.json
@@ -73,7 +75,18 @@ wildfire-stage1 convert-geopulse ../geopulse/outputs/my_wildfire
 
 # Export Schema v2 cases + gray8 rasters + GeoTIFFs into sar-Madness
 wildfire-stage1 publish-madness
+
+# Derive all-weather SAR-only burn & OPERA DIST-S1 layers (VV/VH or NISAR HH/HV)
+wildfire-stage1 sar-burn --case all --polarization VV_VH
 ```
+
+## All-Weather Pure-SAR Burn & Surface Disturbance (`sar_burn.py`)
+
+Alongside the Sentinel-2 + Sentinel-1 optical fusion baseline, `wildfire_monitor.ingestion.sar_burn` implements a **pure-SAR burned-area and disturbance detector** (operating under dense smoke or cloud cover across both **Sentinel-1 `VV/VH`** and **NISAR `HH/HV`**):
+
+1. **NASA OPERA `DIST-S1` / `RTC` normalization:** smooths pre/post backscatter in linear power space (`5×5` box filter), standardizes `RBD` and `LogRBR` via scene median/MAD, and computes a dual-polarization Mahalanobis disturbance z-score (`opera_dist`, `[0, 4]`) gated by pre-fire canopy backscatter.
+2. **Radar burn & vegetation indices:** computes `RBD`, depolarized `LogRBR`, `ΔRVI`, `ΔDPSVI`, `ΔRFDI`, `5×5` GLCM contrast change, and the dual-pol covariance test statistic `-2 ln Q` (`mortcanty/eesarseq`).
+3. **Unsupervised K-means clustering:** quantile-seeded 4-cluster K-means ordered into discrete classes (`0` unburned/outside domain, `1` low disturbance, `2` moderate burn, `3` high burn), exporting `sar_burn_extent.geojson` and 3 GeoTIFFs per wildfire case.
 
 ## Automated tests
 

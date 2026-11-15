@@ -149,8 +149,8 @@ DeltasMadness2/
 │   │   ├── cli.py
 │   │   ├── config.py
 │   │   ├── pc_auth.py
-│   │   └── ingestion/ (geopulse_bridge.py, native_catalog.py, pipeline.py, platform_exporter.py)
-│   └── tests/                                             # 27 pytest tests
+│   │   └── ingestion/ (geopulse_bridge.py, native_catalog.py, pipeline.py, platform_exporter.py, sar_burn.py)
+│   └── tests/                                             # 33 pytest tests
 ├── NISAR_Biomass/                                         # Reference L3 AGB ATBD science submodule (config.ini)
 └── sar-Madness/sar-Madness/                               # Active 3D web viewer (Mapbox GL JS v3.9.0 + Vite v5.4.11)
     ├── README.md
@@ -159,7 +159,7 @@ DeltasMadness2/
     ├── .env.example
     ├── docs/ (SCHEMA.md, case.example.jsonc, case.template.json)
     ├── scripts/validate-catalog.mjs
-    ├── tests/placeSearch.test.mjs                         # 3 Node tests (utility module)
+    ├── tests/                                             # Node tests (placeSearch, rasterCanvas, wetSnow, sarBurn)
     ├── public/data/ (catalog.json + 6 cases in cases/)
     └── src/
         ├── main.js
@@ -180,16 +180,18 @@ DeltasMadness2/
 ### 2. `hola` (`glacier-monitor` v0.1.0)
 * Queries **Google Earth Engine** (`COPERNICUS/S1_GRD`, `COPERNICUS/S2_SR_HARMONIZED`, `MODIS/061/MOD10A1`, `MODIS/061/MOD11A1`) and the **NASA ASF Search / HyP3** bridge (`SENTINEL1`, `NISAR`, `NISAR_SCIENCE_PRODUCTS`, `UAVSAR`, `OPERA_S1`), with optional support for `gee-community/sar-asf-to-gee` and GCS/GEE Asset uploads.
 * Exports Before/After composites (`NDSI`, Sentinel-2 RGB, Sentinel-1 `VV`/`VH`, MODIS `% snow`, MODIS `LST °C`), snow-loss GeoJSON polygons (`ndsi_drop_thresh=0.16`, `pre_snow_min=0.28`), and GeoTIFFs for `langtang` and `khumbu` (Nepal).
+* Derives a **SAR wet-snow layer** (`ingestion/sar_wetsnow.py`, CLI `glacier-stage1 sar-wetsnow`) from the same Sentinel-1 `VV`/`VH` Before/After pair: a multitemporal backscatter-ratio classifier (dry-snow reference vs. melt season) that is sensor-agnostic by design, so a calibrated NISAR pair can feed it later. It is published as an extra `SAR Wet Snow · Sentinel-1 ΔdB` dataset (class map + `ΔVV`/`ΔVH` ratio maps), a `SAR Wet Snow Zone` outline, three GeoTIFFs, and a `Wet snow (SAR)` metric in each glacier case.
 
 ### 3. `incendios` (`wildfire-monitor` v0.1.0)
 * Connects to **Microsoft Planetary Computer** STAC (`sentinel-2-l2a`, `sentinel-1-rtc`, `cop-dem-glo-30`) + TiTiler and monitors active Scout alerts (**NASA EONET v3**, **GDACS**, **Copernicus EMS**).
 * Includes a standalone pure-Python GeoTIFF codec and Krüger ($n^6$) UTM–WGS84 reprojection.
 * Runs the deterministic physical baseline `compute_wildfire_physics` (`GeoPulse Physics Baseline v0.1.0`): sigmoid fusion of `dNBR` (`DNBR_BURN=0.1`) and fuel `NDVI` (`NDVI_FUEL=0.1`), all-weather Sentinel-1 `VH` drop fallback (`VH_DROP_DB=2.0`, `VH_CANOPY_DB=-17.0`) where `S2` is `NaN`, pre-event physical water constraint (`MNDWI` / `VV`), 4 Key & Benson (2006) severity classes `(0.1, 0.27, 0.44, 0.66)`, Shannon binary-entropy uncertainty $H(p)$, and `burn_extent.geojson` polygons (`P >= 0.50`). Includes **11 preset AOIs** (`palisades`, `camp_paradise`, `martin_nv`, `maui_lahaina`, `jasper_ab`, `valparaiso_cl`, `evros_gr`, `tenerife_es`, `tarahumara_mx`, `pantanal_br`, `los_alerces_ar`).
+* Derives an **all-weather pure-SAR burn & OPERA DIST-S1 layer** (`ingestion/sar_burn.py`, CLI `wildfire-stage1 sar-burn`) supporting both Sentinel-1 (`VV/VH`) and NISAR (`HH/HV`): `5×5` power-domain despeckling, median/MAD-standardized dual-pol OPERA Mahalanobis disturbance metric (`opera_dist`), `RBD`, depolarized `LogRBR`, `ΔRVI`, `ΔDPSVI`, `ΔRFDI`, `5×5` GLCM contrast change, dual-pol covariance omnibus statistic `-2 ln Q`, and deterministic 4-cluster unsupervised K-means, publishing `sar_burn`, `sar_burn_extent.geojson`, 3 GeoTIFFs, and the `SAR burn (all-weather)` metric.
 
 ### 4. 3D Web Viewer (`sar-Madness/sar-Madness`)
 * Built with **Mapbox GL JS `^3.9.0`** and **Vite `^5.4.11`**.
 * Supports **3D Globe**, **Flat Map**, and **3D Terrain** views with `terrarium` elevation tiles, switchable basemaps, and runtime **Esri World Imagery** fallback when Mapbox tile requests hit HTTP `429` rate limits (requires `VITE_MAPBOX_ACCESS_TOKEN` in `.env` to initialize the 3D globe and Satellite Monitoring view).
-* Performs client-side scientific LUT rendering of `gray8` rasters and `rgba` composites, real timestamp stepping without artificial cross-date interpolation, interactive **Before / After** geographic swipe comparison, real cursor pixel probing, GeoJSON perimeter overlays, comparative `.png` plate exports (`src/lib/beforeAfterExport.js`), and raw `.tif` downloads. Note: `src/lib/placeSearch.js` is an offline search/coordinate parser utility (covered by Node tests) not yet wired to a search bar in `src/main.js`.
+* Performs client-side scientific LUT rendering of `gray8` rasters and `rgba` composites, real timestamp stepping without artificial cross-date interpolation, interactive **Before / After** geographic swipe comparison, real cursor pixel probing, GeoJSON perimeter overlays, comparative `.png` plate exports (`src/lib/beforeAfterExport.js`), and raw `.tif` downloads. The home search bar (`src/lib/placeSearch.js`) resolves published events, CLI presets, `lat, lon` coordinates and bounding boxes (plus geocoding) and suggests the nearest published case.
 
 ---
 
@@ -223,6 +225,12 @@ $$\text{NDSI} = \frac{B_3 - B_{11}}{B_3 + B_{11}}, \qquad \text{LST}\ [^\circ\te
 
 $$\text{MeltLoss (\%)} = \max\bigl(0,\; 100 \cdot (\text{NDSI}_{\text{pre}} - \text{NDSI}_{\text{post}})\bigr), \qquad \text{Melt} \iff (\text{NDSI}_{\text{pre}} \ge 0.28) \land (\text{NDSI}_{\text{pre}} - \text{NDSI}_{\text{post}} \ge 0.16)$$
 
+* **SAR wet-snow detection (`Sentinel-1` `VV`/`VH`, multitemporal backscatter ratio).** Liquid water raises the dielectric loss of the snowpack, so C-band backscatter drops when dry winter snow turns wet (Nagler & Rott, 2000; Nagler et al., 2016). In dB the ratio against the dry-snow reference window is a difference, evaluated only where optical snow existed in the reference:
+
+$$R_p = \sigma^0_{p,\text{melt}} - \sigma^0_{p,\text{ref}}\ [\text{dB}],\; p \in \{\text{VV}, \text{VH}\}, \qquad \text{Wet snow} \iff (\text{NDSI}_{\text{pre}} \ge 0.28) \land (R_{\text{VV}} \le -2\text{ dB}) \land (R_{\text{VH}} \le -2\text{ dB})$$
+
+  A drop in a single channel is reported as *possible wet snow*; pixels whose reference is below the noise/shadow floor (`VV < −18 dB`, `VH < −24 dB`) are excluded. **Limitations:** inputs are median composites of `COPERNICUS/S1_GRD` (not terrain-flattened, mixed orbits) and the melt window spans May–Aug, so the layer is a qualitative indicator to read together with the optical snow-loss layer, not a validated snow-wetness retrieval.
+
 ### 3. Wildfires: Optical + SAR Fallback & Uncertainty (`incendios`)
 * **Normalized spectral indices (`Sentinel-2 L2A`) and bounded sigmoid** ($\sigma(x) = (1 + e^{-\mathrm{clip}(x, -30, 30)})^{-1}$):
 
@@ -241,6 +249,8 @@ $$C_{\text{S1}} = \sigma\!\left(\frac{\max(|\Delta\text{VV}|, |\Delta\text{VH}|)
 * **Key & Benson (2006) severity classes (within $P_{\text{burn}} \ge 0.50$) and Shannon binary-entropy uncertainty** ($q = \mathrm{clip}(P, 10^{-6}, 1-10^{-6})$, floor $0.5$ in SAR-only zones and review $> 0.8$):
 
 $$H(P) = -\bigl(q\log_2(q) + (1 - q)\log_2(1 - q)\bigr)\ \text{bits}, \qquad \Delta\text{NBR} \in \{[0.10, 0.27),\ [0.27, 0.44),\ [0.44, 0.66),\ \ge 0.66\}$$
+
+* **All-weather pure-SAR burn & NASA OPERA `DIST-S1` formulation (`sar_burn.py`)** supporting both Sentinel-1 (`VV/VH`) and NISAR L-band (`HH/HV`) after $5\times 5$ linear-power despeckling: polarimetric indices ($\text{RBD}$, depolarized $\text{LogRBR}$, $\Delta\text{RVI}$, $\Delta\text{DPSVI}$, $\Delta\text{RFDI}$), $5\times 5$ GLCM contrast change (`levels=16`), dual-pol Wishart covariance omnibus test ($-2\ln Q$, $\text{ENL}=5.0$), robust median/MAD dual-pol Mahalanobis `OPERA DIST-S1` metric (with $\rho \in [-0.75, 0.75]$ clamped to $[0.0, 4.0]$), and deterministic 4-cluster K-means classification (unburned, low disturbance, moderate burn, high-severity burn).
 
 ### 4. Geodesy, Topographic Slope & Raster Quantization (`sar-Madness`)
 * **DEM terrain slope (`COP-DEM`):** $\theta_{\text{slope}} = \arctan\!\left(\sqrt{(\partial z/\partial x)^2 + (\partial z/\partial y)^2}\right)$.
@@ -265,6 +275,9 @@ $$H(P) = -\bigl(q\log_2(q) + (1 - q)\log_2(1 - q)\bigr)\ \text{bits}, \qquad \De
 * **Integrated / Referenced External Repositories:**
   * [`NISAR-Science-Algorithms/NISAR_Biomass`](https://github.com/NISAR-Science-Algorithms/NISAR_Biomass) (submodule in `NISAR_Biomass/`, basis of `biomasa/`).
   * [`nrahaman1/geopulse`](https://github.com/nrahaman1/geopulse) (`threshold-baseline` physical model and reference wildfires for `incendios/`).
+  * [`opera-adt/dist-s1`](https://github.com/opera-adt/dist-s1) & [`opera-adt/RTC`](https://github.com/opera-adt/RTC) (NASA OPERA RTC backscatter normalization & dual-pol Mahalanobis surface-disturbance logic in `incendios/src/wildfire_monitor/ingestion/sar_burn.py`).
+  * [`Jando93/Sentinel-1-unsupervised-burned-area-detection`](https://github.com/Jando93/Sentinel-1-unsupervised-burned-area-detection) (pure-SAR burned-area indices `RBD`, `LogRBR`, `ΔRVI`, `ΔDPSVI`, GLCM contrast & unsupervised K-means ported into `sar_burn.py` for `VV/VH` and `HH/HV`).
+  * [`ErliPinto/Sentinel-1-SAR-vegetation-indices`](https://github.com/ErliPinto/Sentinel-1-SAR-vegetation-indices) & [`mortcanty/eesarseq`](https://github.com/mortcanty/eesarseq) (dual-pol `ΔRFDI` vegetation indices and Wishart covariance omnibus test `-2 ln Q` in `sar_burn.py`).
   * [`gee-community/sar-asf-to-gee`](https://github.com/gee-community/sar-asf-to-gee) (optional ASF HyP3 → GEE bridge in `hola/pyproject.toml`).
   * SDKs & Web Viewer: [`mapbox/mapbox-gl-js`](https://github.com/mapbox/mapbox-gl-js), [`vitejs/vite`](https://github.com/vitejs/vite), [`google/earthengine-api`](https://github.com/google/earthengine-api).
 * **Other Geospatial Platforms & Visual Assets:** [Microsoft Planetary Computer STAC](https://planetarycomputer.microsoft.com/api/stac/v1), [Google Earth Engine](https://developers.google.com/earth-engine/datasets), [USGS NLCD](https://www.usgs.gov/centers/eros/science/national-land-cover-database) (`LENO_LULC.tif`), PlanetScope disturbance validation (`PLANET_VAL_FINALDIST_100M_LENO_*`), [GDACS RSS](https://www.gdacs.org/xml/rss.xml), [AWS Terrain Tiles (`terrarium`)](https://registry.opendata.aws/terrain-tiles/), Esri World Imagery (429 runtime fallback), Key & Benson (2006), and curated public-case header thumbnails stored in `sar-Madness/sar-Madness/public/images/cases/`.
@@ -318,11 +331,14 @@ wildfire-stage1 list-aois
 wildfire-stage1 doctor
 wildfire-stage1 scout-wildfires --source eonet
 wildfire-stage1 publish-madness
+wildfire-stage1 sar-burn --case all --polarization VV_VH
 
 # Glaciers (requires GEE project in hola/.env; ASF/HyP3 uses NASA Earthdata token)
 glacier-stage1 list-aois
 glacier-stage1 doctor
 glacier-stage1 publish-madness
+# Derive the SAR wet-snow layer from the published glacier cases (offline, no GEE needed)
+glacier-stage1 sar-wetsnow
 ```
 
 > **Security note:** never commit live tokens, `.env` files, or `service_account.json` credentials to version control.
@@ -336,10 +352,10 @@ Verified on the codebase:
 | Suite / Check | Command | Observed Result |
 | :--- | :--- | :--- |
 | Web catalog validation (`sar-Madness`) | `cd sar-Madness/sar-Madness && node scripts/validate-catalog.mjs` | **6 / 6 valid cases** (`Valid catalog (100% real data)`) |
-| Search & coordinate utility tests (`sar-Madness`) | `cd sar-Madness/sar-Madness && node --test tests/placeSearch.test.mjs` | **3 passed** |
+| Search, raster legend, SAR burn & wet-snow contract tests (`sar-Madness`) | `cd sar-Madness/sar-Madness && node --test tests/*.mjs` | **22 passed** |
 | Biomass unit tests (`biomasa`) | `cd biomasa && py -B -m pytest -p no:cacheprovider -q` | **8 passed** |
-| Glacier unit tests (`hola`) | `cd hola && py -B -m pytest -p no:cacheprovider -q` | **44 passed** |
-| Wildfire unit tests (`incendios`) | `cd incendios && py -B -m pytest -p no:cacheprovider -q` | **27 passed** |
+| Glacier unit tests (`hola`) | `cd hola && py -B -m pytest -p no:cacheprovider -q` | **56 passed** |
+| Wildfire unit tests (`incendios`) | `cd incendios && py -B -m pytest -p no:cacheprovider -q` | **33 passed** |
 
 ---
 
@@ -358,8 +374,8 @@ Developed collaboratively by **Delta Madness**:
 * **Luis Emiliano Castro Reza** — [@Humol-e](https://github.com/Humol-e)
 * **Raúl Isaac Santos Ruiz** — [@Peanut-Butter-Arc](https://github.com/Peanut-Butter-Arc)
 * **Karla Yelitza Figueroa Garcia** — [@karlayelitza020705-ui](https://github.com/karlayelitza020705-ui)
-* **Aaron Fernandez Lizarraga** — `[PENDING — INSERT GITHUB PROFILE LINK]`
-* **Liv Nicole Gay De la O** — `[PENDING — INSERT GITHUB PROFILE LINK]`
+* **Aaron Fernandez Lizarraga**
+* **Liv Nicole Gay De la O**
 
 ---
 

@@ -118,6 +118,7 @@ export const UI_COPY = {
       noMetrics: 'No metrics available for this event.',
       metricLabels: {
         burnedArea: 'Burned area',
+        sarBurnArea: 'SAR burn (all-weather)',
         studyArea: 'Study area',
         preWindow: 'Pre-window',
         postWindow: 'Post-window',
@@ -370,6 +371,7 @@ export const UI_COPY = {
       noMetrics: 'No hay métricas disponibles para este evento.',
       metricLabels: {
         burnedArea: 'Área quemada',
+        sarBurnArea: 'Quema SAR (todo clima)',
         studyArea: 'Área de estudio',
         preWindow: 'Ventana previa',
         postWindow: 'Ventana posterior',
@@ -543,6 +545,7 @@ const CASE_TEXT_ES = {
 const TERM_ES = {
   // Dataset names
   'GeoPulse · SAR + Optical Fusion': 'GeoPulse · Fusión SAR + Óptica',
+  'SAR Burn & Disturbance · OPERA RTC + K-Means': 'Quema y Perturbación SAR · OPERA RTC + K-Means',
   'Sentinel-2 L2A · Optical RGB': 'Sentinel-2 L2A · Óptico RGB',
   'Sentinel-2 · NBR Index (Vegetation/Burn)': 'Sentinel-2 · Índice NBR (Vegetación/Quema)',
   'Sentinel-1 RTC · VH SAR Radar (All-Weather)': 'Sentinel-1 RTC · Radar SAR VH (Todo clima)',
@@ -577,6 +580,11 @@ const TERM_ES = {
   'True Color (B4/B3/B2)': 'Color real (B4/B3/B2)',
   'NBR Index': 'Índice NBR',
   'VH Backscatter': 'Retrodispersión VH',
+  'VV Backscatter': 'Retrodispersión VV',
+  'SAR Burn Class (K-Means + OPERA DIST)': 'Clase de Quema SAR (K-Means + OPERA DIST)',
+  'OPERA DIST-S1 Disturbance Metric': 'Métrica de Perturbación OPERA DIST-S1',
+  'ΔRVI Radar Vegetation Change': 'Cambio de Vegetación Radar ΔRVI',
+  'LogRBR Depolarized Burn Ratio': 'Razón de Quema Despolarizada LogRBR',
   'Snow Index (NDSI)': 'Índice de nieve (NDSI)',
   'VH Polarization': 'Polarización VH',
   'VV Polarization': 'Polarización VV',
@@ -588,6 +596,8 @@ const TERM_ES = {
   'NLCD Land Cover / Planet Disturbance': 'Cobertura NLCD / Perturbación Planet',
   'class 0–4': 'clase 0–4',
   'class 0–3': 'clase 0–3',
+  'z-score (0–4)': 'puntaje z (0–4)',
+  'ΔRVI': 'ΔRVI',
   'Wet-snow class (VV+VH ratio)': 'Clase de nieve húmeda (razón VV+VH)',
   'VV ratio (After − Before)': 'Razón VV (Después − Antes)',
   'VH ratio (After − Before)': 'Razón VH (Después − Antes)',
@@ -597,6 +607,7 @@ const TERM_ES = {
   'Study Area (AOI)': 'Área de estudio (AOI)',
   'Burn perimeter (casing)': 'Perímetro de quema (borde)',
   'Burn perimeter (GeoPulse)': 'Perímetro de quema (GeoPulse)',
+  'SAR Unsupervised Burn Zone': 'Zona de Quema No Supervisada SAR',
   'Detected Melt Zone': 'Zona de deshielo detectada',
   'SAR Wet Snow Zone': 'Zona de nieve húmeda SAR',
   'LENO Study Area (405.30 km²)': 'Área de estudio LENO (405.30 km²)',
@@ -612,6 +623,9 @@ const TERM_ES = {
   'Change Probability (.tif)': 'Probabilidad de cambio (.tif)',
   'Uncertainty (.tif)': 'Incertidumbre (.tif)',
   'Copernicus DEM (.tif)': 'Copernicus DEM (.tif)',
+  'SAR Unsupervised Burn Class (.tif)': 'Clase de Quema SAR No Supervisada (.tif)',
+  'OPERA DIST-S1 Disturbance (.tif)': 'Perturbación OPERA DIST-S1 (.tif)',
+  'SAR ΔRVI Vegetation Change (.tif)': 'Cambio de Vegetación SAR ΔRVI (.tif)',
   'Sentinel-2 RGB Before (.tif)': 'Sentinel-2 RGB Antes (.tif)',
   'Sentinel-2 RGB After (.tif)': 'Sentinel-2 RGB Después (.tif)',
   'Sentinel-2 NDSI Before (.tif)': 'Sentinel-2 NDSI Antes (.tif)',
@@ -647,6 +661,16 @@ const TERM_ES = {
   '1 Stable snow · 2 Possible wet · 3 Wet snow': '1 Nieve estable · 2 Posible húmeda · 3 Nieve húmeda',
   'Blue = backscatter drop (wet snow) · Transparent ≈ 0 dB · Orange = increase':
     'Azul = caída de retrodispersión (nieve húmeda) · Transparente ≈ 0 dB · Naranja = aumento',
+  '1 Low disturbance · 2 Moderate burn · 3 High burn':
+    '1 Baja perturbación · 2 Quema moderada · 3 Quema alta',
+  'Transparent < 0.5 σ · 1.5–2.5 Moderate · ≥ 2.5 High disturbance':
+    'Transparente < 0.5 σ · 1.5–2.5 Moderada · ≥ 2.5 Alta perturbación',
+  'Red/Orange = canopy structure loss · Transparent ≈ 0 · Green = regrowth':
+    'Rojo/Naranja = pérdida de estructura · Transparente ≈ 0 · Verde = rebrote',
+  'Rose/Orange = depolarization burn drop · Transparent ≈ 0 dB · Blue = moisture/gain':
+    'Rosa/Naranja = caída por quema · Transparente ≈ 0 dB · Azul = humedad/aumento',
+  'SAR burned area': 'Área quemada SAR',
+  Polarization: 'Polarización',
   'Wet snow area': 'Área de nieve húmeda',
   'Area': 'Área',
   'Polygon area': 'Área del polígono',
@@ -688,6 +712,7 @@ export function localizeFrameLabel(label, lang = DEFAULT_LANG) {
     .replace(/^HV After · /, 'HV Después · ')
     .replace(/^HH Before · /, 'HH Antes · ')
     .replace(/^HH After · /, 'HH Después · ')
+    .replace(/^SAR Change · /, 'Cambio SAR · ')
     .replace(/^Change /, 'Cambio ')
     .replace(/(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})/g, '$1 a $2');
 }

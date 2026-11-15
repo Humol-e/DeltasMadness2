@@ -295,5 +295,53 @@ def catalog_geotiffs_cmd(geotiff_paths: tuple[Path, ...], event_id: str | None) 
     console.print(f"[green]Catalog updated:[/green] {rep.catalog_path} ({len(rep.files)} files)")
 
 
+@main.command("sar-burn")
+@click.option(
+    "--case",
+    "case_arg",
+    default="all",
+    show_default=True,
+    help="Published wildfire case id (wildfire-camp-paradise, wildfire-martin-nv, wildfire-palisades-la) or 'all'.",
+)
+@click.option(
+    "--polarization",
+    "pol_mode",
+    type=click.Choice(["VV_VH", "HH_HV"], case_sensitive=True),
+    default="VV_VH",
+    show_default=True,
+    help="Dual-pol channel pair: VV_VH (Sentinel-1 C-band) or HH_HV (NISAR L-band).",
+)
+@click.option(
+    "--target-dir",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=None,
+    help="sar-Madness public/ directory containing data/cases/.",
+)
+def sar_burn_cmd(case_arg: str, pol_mode: str, target_dir: Path | None) -> None:
+    """Compute all-weather SAR burn & OPERA DIST-S1 layers from published wildfire cases."""
+    from wildfire_monitor.ingestion.sar_burn import default_public_dir, publish_sar_burn_for_case
+
+    public_dir = (target_dir or default_public_dir()).resolve()
+    cases_dir = public_dir / "data" / "cases"
+    if case_arg.strip().lower() == "all":
+        selected = [
+            d.name
+            for d in sorted(cases_dir.iterdir())
+            if d.is_dir() and d.name.startswith("wildfire-") and (d / "case.json").exists()
+        ]
+    else:
+        selected = [case_arg.strip()]
+
+    for cid in selected:
+        res = publish_sar_burn_for_case(cid, public_dir, pol_mode=pol_mode)  # type: ignore[arg-type]
+        s = res.stats
+        console.print(
+            f"[green]SAR burn {res.case_id}[/green] | pol={res.pol_mode} | "
+            f"burn={s['sarBurnKm2']} km² | high={s['sarHighBurnKm2']} km² | "
+            f"dist={s['sarDisturbedKm2']} km² | mean ΔRVI={s['sarMeanDeltaRvi']} | "
+            f"GeoTIFFs={res.geotiff_count}"
+        )
+
+
 if __name__ == "__main__":
     main()

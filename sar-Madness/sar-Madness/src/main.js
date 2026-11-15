@@ -637,6 +637,7 @@ function renderMonitoringInfo(def) {
     case 'wildfires':
       facts = [
         [mCopy.metricLabels.burnedArea, area(metrics.affectedKm2)],
+        [mCopy.metricLabels.sarBurnArea, area(metrics.sarBurnKm2)],
         [mCopy.metricLabels.studyArea, area(metrics.observedKm2)],
         [mCopy.metricLabels.preWindow, metrics.preWindow],
         [mCopy.metricLabels.postWindow, metrics.postWindow],

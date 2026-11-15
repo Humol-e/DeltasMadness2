@@ -1215,6 +1215,80 @@ def publish_cases_to_sar_madness_v2(
         (dst_case_dir / "case.json").write_text(
             json.dumps(case_v2, ensure_ascii=False, indent=2), encoding="utf-8"
         )
+
+        # Derive all-weather pure-SAR burn & OPERA DIST-S1 layers when both VV and VH are present
+        vv_pre_arr: np.ndarray | None = None
+        vv_post_arr: np.ndarray | None = None
+        vv_pre_tif = src_dl_dir / f"{cid}_s1_pre_vv.tif"
+        vv_post_tif = src_dl_dir / f"{cid}_s1_post_vv.tif"
+        s1_pre_png = src_case_dir / "layers" / "s1_pre.png"
+        s1_post_png = src_case_dir / "layers" / "s1_post.png"
+
+        if vv_pre_tif.exists() and vv_post_tif.exists():
+            vv_pre_arr = _read_tif("s1_pre_vv", np.float32)
+            vv_post_arr = _read_tif("s1_post_vv", np.float32)
+        elif s1_pre_png.exists() and s1_post_png.exists():
+            from wildfire_monitor.ingestion.sar_burn import S1_PNG_VV_RANGE_DB, decode_gray8_values
+
+            with Image.open(s1_pre_png) as im_pre, Image.open(s1_post_png) as im_post:
+                rgba_pre = np.array(im_pre.convert("RGBA"))
+                rgba_post = np.array(im_post.convert("RGBA"))
+            vv_pre_vals = decode_gray8_values(rgba_pre[..., 0], *S1_PNG_VV_RANGE_DB, nodata=None)
+            vv_post_vals = decode_gray8_values(rgba_post[..., 0], *S1_PNG_VV_RANGE_DB, nodata=None)
+            vv_pre_arr = np.where(rgba_pre[..., 3] > 0, vv_pre_vals, np.nan).astype(np.float32)
+            vv_post_arr = np.where(rgba_post[..., 3] > 0, vv_post_vals, np.nan).astype(np.float32)
+
+        if vv_pre_arr is not None and vv_post_arr is not None:
+            from wildfire_monitor.ingestion.sar_burn import (
+                attach_sar_burn_to_case,
+                classify_sar_burn,
+                write_sar_burn_assets,
+            )
+
+            sar_bbox = BoundingBox(
+                min_lon=float(bounds[0]),
+                min_lat=float(bounds[1]),
+                max_lon=float(bounds[2]),
+                max_lat=float(bounds[3]),
+            )
+            vh_pre_clean = np.where(vh_pre > -9000.0, vh_pre, np.nan).astype(np.float32)
+            vh_post_clean = np.where(vh_post > -9000.0, vh_post, np.nan).astype(np.float32)
+            vv_pre_clean = np.where(np.isfinite(vv_pre_arr) & (vv_pre_arr > -9000.0), vv_pre_arr, np.nan).astype(
+                np.float32
+            )
+            vv_post_clean = np.where(np.isfinite(vv_post_arr) & (vv_post_arr > -9000.0), vv_post_arr, np.nan).astype(
+                np.float32
+            )
+
+            sar_res = classify_sar_burn(
+                vv_pre_clean,
+                vv_post_clean,
+                vh_pre_clean,
+                vh_post_clean,
+                pol_mode="VV_VH",
+            )
+            sar_assets = write_sar_burn_assets(
+                sar_res,
+                sar_bbox,
+                dst_case_dir,
+                cid,
+                post_date=post_date,
+                co_pre_db=vv_pre_clean,
+                co_post_db=vv_post_clean,
+            )
+            attach_sar_burn_to_case(
+                case_v2,
+                sar_assets,
+                case_id=cid,
+                extent=list(bounds),
+                before_win=before_win,
+                after_win=after_win,
+                post_date=post_date,
+            )
+            (dst_case_dir / "case.json").write_text(
+                json.dumps(case_v2, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+
         register_case_in_catalog_v2(catalog_path, f"data/cases/{cid}/case.json")
         published.append(cid)
 

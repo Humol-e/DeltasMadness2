@@ -117,8 +117,12 @@ def _write_local_catalog(
 
     for meta in metadata_records:
         key = (meta.asset_name, meta.product_layer)
+        try:
+            rel_path = meta.local_path.resolve().relative_to(download_dir.resolve()).as_posix()
+        except ValueError:
+            rel_path = meta.local_path.name
         entry = {
-            "local_path": str(meta.local_path),
+            "local_path": rel_path,
             "asset_name": meta.asset_name,
             "sensor": meta.sensor,
             "product_layer": meta.product_layer,

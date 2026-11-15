@@ -598,7 +598,10 @@ def _merge_catalog_json(source_catalog: Path, target_catalog: Path, target_downl
         copied += 1
 
         new_entry = dict(entry)
-        new_entry["local_path"] = str(dst_file)
+        try:
+            new_entry["local_path"] = dst_file.resolve().relative_to(target_downloads_dir.resolve()).as_posix()
+        except ValueError:
+            new_entry["local_path"] = dst_file.name
         sig = (new_entry.get("asset_name"), new_entry.get("product_layer"))
         if sig not in seen:
             existing.append(new_entry)

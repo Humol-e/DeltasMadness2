@@ -610,6 +610,15 @@ def build_glacier_case_definition(
                             "min": 0.0,
                             "max": 80.0,
                             "colors": ["#0f172a", "#3b82f6", "#facc15", "#f97316", "#ef4444"],
+                            "stops": [
+                                [0.0, "#0f172a00"],
+                                [4.0, "#1e3a8a55"],
+                                [16.0, "#3b82f6b8"],
+                                [35.0, "#facc15e0"],
+                                [55.0, "#f97316f0"],
+                                [80.0, "#ef4444ff"],
+                            ],
+                            "nodata_label": "Transparent = 0% loss",
                         },
                     }
                 ],
@@ -845,11 +854,12 @@ def export_glacier_case_to_madness(
                 "sizeBytes": len(tif_bytes),
             }
         )
+        rel_local = (tif_local_dir / fname).resolve().relative_to(dl_root.resolve()).as_posix()
         local_cat_entries.append(
             {
                 "id": dl_id,
                 "filename": fname,
-                "local_path": str((tif_local_dir / fname).resolve()),
+                "local_path": rel_local,
                 "bounds": grid_spec["bounds"],
                 "size_bytes": len(tif_bytes),
             }

@@ -2,7 +2,7 @@
 
 This guide explains how to read real outputs from every `glacier_monitor` module, how to choose valid scenes, and what final files are saved in local mode (`data/downloads/`).
 
-> **Note for Windows CMD (`C:\Users\Rulis>`):**
+> **Note for Windows CMD (`C:\path\to\DeltasMadness2>`):**
 > - Change into the project folder first (`cd ...\hola`) so downloads are saved under `hola\data\downloads`.
 > - **Do not paste lines starting with `#`** in CMD (unlike PowerShell, CMD tries to execute `#` as a command).
 > - **Always replace `<...>`** with an actual granule name; in CMD, literal `<` and `>` cause `The syntax of the command is incorrect`.

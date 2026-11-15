@@ -2,7 +2,7 @@
 import { parseJsonc, validateCase, normalizeCase, toMs } from './schema.js';
 import { buildAxis } from './timeline.js';
 
-const BASE = import.meta.env.BASE_URL || '/';
+const BASE = import.meta.env?.BASE_URL || '/';
 export const resolveUrl = (p) => (/^(https?:)?\/\//.test(p) || p.startsWith('data:') ? p : BASE + p.replace(/^\//, ''));
 
 async function fetchJson(path) {

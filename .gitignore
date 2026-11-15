@@ -3,13 +3,22 @@
 **/.env
 .env.local
 .env.*.local
+*.pem
+*.key
+*_token*
+*credentials*.json
+*service_account*.json
 config/greecreds.json
 hola/config/service_account.json
 
-# Local caches, raw HDFView tools, and temporary directories
+# Local caches, raw HDFView tools, heavy datasets, and duplicate staging outputs
 HDFView/
 hola2/
 biomasa/data/cache/
+*.h5
+hola/data/downloads/*/*.tif
+incendios/data/downloads/
+incendios/data/cases/
 *.egg-info/
 **/__pycache__/
 *.py[cod]

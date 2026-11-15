@@ -1,62 +1,62 @@
-# SAR Cambios · NASA Space Apps 2026 — "Bailando con los SAR"
+# SAR Cambios · NASA Space Apps 2026 — "Dancing with the SARs"
 
-Visor interactivo (Mapbox GL JS + Vite, JavaScript puro) para explorar cambios en la superficie con capas SAR.
-**Estado actual: prototipo con datos SINTÉTICOS (DEMO).** No detecta emergencias ni usa datos en tiempo real.
+Interactive viewer (Mapbox GL JS + Vite, vanilla JavaScript) for exploring surface changes with SAR layers.
+**Current status: prototype with SYNTHETIC (DEMO) data.** It does not detect emergencies or use real-time data.
 
-## Ejecutar
+## Run
 ```bash
 npm install
-cp .env.example .env      # pega tu token público pk.* en VITE_MAPBOX_ACCESS_TOKEN
+cp .env.example .env      # paste your public pk.* token into VITE_MAPBOX_ACCESS_TOKEN
 npm run dev
 ```
-`npm run demo-data` regenera los datos demo (requiere Python 3).
+`npm run demo-data` regenerates the demo data (requires Python 3).
 
-## Estructura
+## Structure
 ```
-src/main.js               UI (selector de caso, slider, capas, leyenda, panel de atributos)
-src/lib/mapController.js  Mapbox: cargar caso, filtrar por paso, visibilidad, clic
-src/lib/registry.js       Registro/validación de casos y capas, carga de GeoJSON
-public/data/cases/        index.json + una carpeta por caso (case.json + capas)
-scripts/make_demo_data.py Generador de datos sintéticos
+src/main.js               UI (case selector, slider, layers, legend, attributes panel)
+src/lib/mapController.js  Mapbox: load case, step filtering, visibility, click handling
+src/lib/registry.js       Case/layer registry and validation, GeoJSON loader
+public/data/cases/        index.json + one folder per case (case.json + layers)
+scripts/make_demo_data.py Synthetic demo data generator
 ```
 
-## Formato de caso (`public/data/cases/<id>/case.json`)
+## Case Format (`public/data/cases/<id>/case.json`)
 ```json
 {
-  "id": "mi-caso", "title": "Título", "description": "Texto",
+  "id": "my-case", "title": "Title", "description": "Text",
   "view": { "center": [lon, lat], "zoom": 11, "pitch": 0, "bearing": 0 },
-  "timeline": [ { "label": "Antes", "date": "2026-08-01", "note": "…" }, { "label": "Después", "date": "2026-08-27" } ],
-  "layers": [ { ...capa } ]
+  "timeline": [ { "label": "Before", "date": "2026-08-01", "note": "…" }, { "label": "After", "date": "2026-08-27" } ],
+  "layers": [ { ...layer } ]
 }
 ```
-Capa: `id, name, type (fill|line|circle|raster), source, paint, description, popupFields, legend, attribution, demo`.
-- `source`: `{ "type": "geojson", "data": "data/cases/mi-caso/x.geojson" }` o `{ "type": "raster", "tiles": ["https://…/{z}/{x}/{y}.png"], "tileSize": 256 }`.
-- `time`: `{ "property": "step", "mode": "exact" | "cumulative" }`. Cada feature trae `properties.step` (índice de `timeline`). `exact` = solo ese paso (antes/después); `cumulative` = hasta ese paso (avance de incendio).
-- `steps`: `[0, 2]` muestra la capa solo en esos pasos (útil para un ráster por fecha).
-- `popupFields`: `[["clave", "Etiqueta", "unidad"]]`.
+Layer: `id, name, type (fill|line|circle|raster), source, paint, description, popupFields, legend, attribution, demo`.
+- `source`: `{ "type": "geojson", "data": "data/cases/my-case/x.geojson" }` or `{ "type": "raster", "tiles": ["https://…/{z}/{x}/{y}.png"], "tileSize": 256 }`.
+- `time`: `{ "property": "step", "mode": "exact" | "cumulative" }`. Each feature includes `properties.step` (`timeline` index). `exact` = only that step (before/after); `cumulative` = up to that step (fire spread).
+- `steps`: `[0, 2]` shows the layer only at those steps (useful for one raster per date).
+- `popupFields`: `[["key", "Label", "unit"]]`.
 
-## Añadir un caso nuevo
-1. Crea `public/data/cases/mi-caso/` con `case.json` y tus `.geojson`.
-2. Añade `"data/cases/mi-caso/case.json"` a `public/data/cases/index.json`.
-3. Recarga. Si algo falta o falla, la UI lo indica y el resto sigue funcionando.
+## Adding a New Case
+1. Create `public/data/cases/my-case/` with `case.json` and your `.geojson` files.
+2. Add `"data/cases/my-case/case.json"` to `public/data/cases/index.json`.
+3. Reload. If anything is missing or fails, the UI reports it while the rest keeps working.
 
-## Añadir una capa nueva
-Agrega un objeto a `layers` del `case.json` (ver arriba). Desde código: `registerCase(def)` en `registry.js`.
+## Adding a New Layer
+Add an object to `layers` in `case.json` (see above). From code: `registerCase(def)` in `registry.js`.
 
-## Conectar un pipeline SAR (pendiente)
-El pipeline (Emiliano y Raul) solo debe escribir archivos con este formato:
-- Vectores (puntos de velocidad InSAR, polígonos de cambio, perímetros) → GeoJSON con `properties.step`.
-- Ráster (retrodispersión σ0 HH/HV/VV, coherencia, interferogramas, mapas de cambio) → tiles XYZ (COG + titiler, o tiles estáticos) referenciados como `source.type = "raster"`.
+## Connecting a SAR Pipeline (Legacy Hookup Notes)
+The pipeline writes files matching this format:
+- Vectors (InSAR velocity points, change polygons, perimeters) -> GeoJSON with `properties.step`.
+- Raster (σ0 HH/HV/VV backscatter, coherence, interferograms, change maps) -> XYZ tiles (COG + titiler, or static tiles) referenced as `source.type = "raster"`.
 
-## Datos reales necesarios para validez científica
-- Sentinel-1 / NISAR / SAOCOM / RADARSAT vía ASF Vertex o NASA Earthdata (verifica disponibilidad y fechas de NISAR para tu zona).
-- InSAR: pares interferométricos (p. ej. ASF HyP3), coherencia, series de desplazamiento (LOS), corrección de atmósfera y DEM.
-- Cambio: σ0 calibrado (γ0/σ0 en dB), speckle filtrado, ratio/diferencia entre fechas, comparación por polarización.
-- Incendios: focos térmicos (NASA FIRMS) para validar; el SAR delimita cicatriz, no mide calor.
-- Contexto: imagen óptica, DEM, inventarios de glaciares/deslizamientos.
+## Real Data Needed for Scientific Validity
+- Sentinel-1 / NISAR / SAOCOM / RADARSAT via ASF Vertex or NASA Earthdata (verify NISAR availability and dates for your area).
+- InSAR: interferometric pairs (e.g., ASF HyP3), coherence, line-of-sight (LOS) displacement series, atmospheric and DEM corrections.
+- Change: calibrated σ0 (γ0/σ0 in dB), speckle filtering, multi-date ratio/difference, polarization comparison.
+- Wildfires: thermal hotspots (NASA FIRMS) for validation; SAR delineates burn scars rather than measuring heat.
+- Context: optical imagery, DEM, glacier/landslide inventories.
 
-## Limitaciones
-- Todo dato incluido es sintético. Fechas `null` = sin definir.
-- El caso Langtang es ilustrativo; el evento del 26-ago-2026 debe verificarse con fuentes antes de citarlo.
-- Antes/después es por pasos discretos (no hay swipe con dos mapas ni mezcla ráster aún).
-- Sin backend, sin autenticación, sin alertas reales.
+## Limitations
+- All included data is synthetic. `null` dates = undefined.
+- The Langtang case is illustrative; verify the Aug 26, 2026 event against primary sources before citing it.
+- Before/after works via discrete steps (no dual-map swipe or raster blending yet in this demo).
+- No backend, no authentication, no real-time alerts.

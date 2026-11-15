@@ -1,8 +1,8 @@
-# Incendios Forestales (GeoPulse → sar-platform)
+# Wildfire Monitor (GeoPulse -> sar-platform / sar-Madness)
 
-Módulo de ingesta, análisis y conversión de datos de incendios forestales basado en [geopulse](../geopulse), organizado con la misma estructura modular de [hola](../hola) para que el programa principal ([sar-platform](../sar-platform)) pueda leerlos directamente sin alterar su apariencia visual ni sus colores originales.
+Wildfire ingestion, analysis, and conversion module based on [geopulse](../geopulse), structured alongside [hola](../hola) so that the web viewer ([sar-Madness](../sar-Madness/sar-Madness) / `sar-platform`) can load its outputs directly while preserving original colors and visual fidelity.
 
-## Estructura del proyecto
+## Project structure
 
 ```text
 incendios/
@@ -33,48 +33,50 @@ incendios/
 │   ├── test_platform_exporter.py
 │   └── test_stage1_pipeline.py
 └── data/
-    ├── downloads/   # GeoTIFFs compatibles con PIL/sar-platform + catalog.json
-    └── cases/       # Casos case.json + GeoJSON + tiles XYZ + index.json
+    ├── downloads/   # Single-band PIL-compatible GeoTIFFs + catalog.json
+    └── cases/       # case.json + GeoJSON + XYZ tiles + index.json
 ```
 
-## Cómo adaptamos los datos de GeoPulse para `sar-platform`
+## How GeoPulse data is adapted for `sar-platform` / `sar-Madness`
 
-1. **GeoTIFFs y `catalog.json` compatibles con `sar-platform` (`data/downloads/`):**
-   - `sar-platform` lee GeoTIFFs locales mediante `Pillow` (`glacier_monitor.bridge.geotiff.load_geotiff_raster`) y metadatos desde `catalog.json`.
-   - `wildfire_monitor` decodifica las escenas STAC de Microsoft Planetary Computer (`sentinel-2-l2a`, `sentinel-1-rtc`, `cop-dem-glo-30`) o carpetas COG comprimidas de GeoPulse y genera GeoTIFFs monobanda sin compresión con etiquetas GeoKey estándar (`34735`, `33550`, `33922`, `42113`) y un `catalog.json` con exactamente el mismo esquema de `hola`.
-2. **Casos `case.json` y teselas XYZ conservando exactamente cómo se ven (`data/cases/`):**
-   - Cada incendio genera `case.json`, `aoi.geojson`, `burn_extent.geojson`, `summary.json`, `provenance.json`, `layers/*.png` y teselas Web Mercator `tiles/<capa>/{z}/{x}/{y}.png`.
-   - Todas las paletas visuales de GeoPulse se conservan pixel a pixel:
-     - **Probabilidad de quemado:** degradado GeoPulse `#eb461e` → `#c8140a`.
-     - **Severidad dNBR (Key & Benson, 2006):** Baja `#7fffd4`, Moderada-baja `#ffff00`, Moderada-alta `#ff8c00`, Alta `#ff0000`.
-     - **Probabilidad de cambio multimodal:** `#ffaa00` → `#ff7800`.
-     - **Incertidumbre:** `#3c145a` → `#e6505a` → `#ffd23c`.
-     - **Perímetro de quemado:** contorno amarillo `#ffd60a` con borde `#000000`.
+1. **GeoTIFFs and `catalog.json` (`data/downloads/`):**
+   - `sar-platform` reads local GeoTIFFs through `Pillow` and metadata from `catalog.json`.
+   - `wildfire_monitor` decodes Microsoft Planetary Computer STAC scenes (`sentinel-2-l2a`, `sentinel-1-rtc`, `cop-dem-glo-30`) or compressed GeoPulse COG folders and writes uncompressed single-band `EPSG:4326` GeoTIFFs with standard GeoKeys (`34735`, `33550`, `33922`, `42113`) plus `catalog.json`.
+2. **Cases (`case.json`) and XYZ tiles preserving exact visual appearance (`data/cases/`):**
+   - Each wildfire generates `case.json`, `aoi.geojson`, `burn_extent.geojson`, `summary.json`, `provenance.json`, `layers/*.png`, and Web Mercator tiles `tiles/<layer>/{z}/{x}/{y}.png`.
+   - All GeoPulse visual palettes are preserved pixel-for-pixel:
+     - **Burn probability:** GeoPulse gradient `#eb461e` -> `#c8140a`.
+     - **dNBR burn severity (Key & Benson, 2006):** Low `#7fffd4`, Moderate-low `#ffff00`, Moderate-high `#ff8c00`, High `#ff0000`.
+     - **Multimodal change probability:** `#ffaa00` -> `#ff7800`.
+     - **Uncertainty:** `#3c145a` -> `#e6505a` -> `#ffd23c`.
+     - **Burn perimeter:** `#ffd60a` yellow outline with `#000000` casing.
 
-## Comandos principales
+## Main commands
 
 ```powershell
-# Ver incendios preconfigurados de GeoPulse
+# List preconfigured GeoPulse wildfire presets
+wildfire-stage1 list-aois
+# Or run directly without installing the script entrypoint:
 py scripts/stage1_cli.py list-aois
 
-# Diagnóstico de dependencias, rutas y API STAC
-py scripts/stage1_cli.py doctor
+# Check dependencies, local paths, and STAC API connectivity
+wildfire-stage1 doctor
 
-# Consultar escenas disponibles en Planetary Computer
-py scripts/stage1_cli.py check-native --aoi palisades --start-date 2024-12-01 --end-date 2025-03-31
+# Inspect available Planetary Computer scenes
+wildfire-stage1 check-native --aoi palisades --start-date 2024-12-01 --end-date 2025-03-31
 
-# Procesar y convertir los 3 casos reales de GeoPulse (Palisades, Camp Fire, Martin NV)
-py scripts/stage1_cli.py run-wildfire --aoi all
+# Process and convert the 3 core GeoPulse wildfire cases (Palisades, Camp Fire, Martin NV)
+wildfire-stage1 run-wildfire --aoi all
 
-# Convertir una carpeta de resultados ya generada por geopulse
-py scripts/stage1_cli.py convert-geopulse ../geopulse/outputs/mi_incendio
+# Convert an existing geopulse output folder
+wildfire-stage1 convert-geopulse ../geopulse/outputs/my_wildfire
 
-# Copiar/registrar los casos listos en ../sar-platform cuando quieras verlos en el visor principal
-py scripts/stage1_cli.py publish-platform --include-downloads
+# Export Schema v2 cases + gray8 rasters + GeoTIFFs into sar-Madness
+wildfire-stage1 publish-madness
 ```
 
-## Pruebas automatizadas
+## Automated tests
 
 ```powershell
-py -m pytest -q tests
+py -m pytest -v
 ```

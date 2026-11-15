@@ -93,7 +93,7 @@ def test_download_and_extract_job_blocks_zip_traversal(tmp_path: Path) -> None:
     fake_job.job_id = "job-evil"
     fake_job.download_files.return_value = [zip_path]
 
-    with pytest.raises(ValueError, match="Ruta inválida"):
+    with pytest.raises(ValueError, match="Invalid path inside ZIP"):
         asf_bridge.download_and_extract_job(fake_job, output_dir=tmp_path / "out")
 
 

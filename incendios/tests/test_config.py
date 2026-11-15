@@ -49,7 +49,7 @@ def test_resolve_aoi_presets_geojson_and_custom(tmp_path: Path) -> None:
     assert from_gj == AOI_PRESETS["martin_nv"].bbox
 
     custom_name, custom_bbox = resolve_aoi("-120.5, 38.0, -120.2, 38.3")
-    assert "personalizado" in custom_name
+    assert "custom" in custom_name.lower()
     assert custom_bbox.to_ee_bounds() == [-120.5, 38.0, -120.2, 38.3]
 
 

@@ -1,4 +1,4 @@
-"""Permite ejecutar `py -m nisar_biomass_monitor ...`."""
+"""Allow running `py -m nisar_biomass_monitor ...`."""
 
 import sys
 

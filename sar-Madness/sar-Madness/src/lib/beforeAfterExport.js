@@ -1,4 +1,4 @@
-// Generación y descarga de imágenes PNG (Antes, Después y Comparación lado a lado) desde datos reales.
+// PNG export and download utilities (Before, After, and side-by-side Comparison) from real satellite data.
 import { buildLut, renderFrameCanvas } from './rasterCanvas.js';
 
 export function getBeforeAfterPair(dataset) {
@@ -29,7 +29,7 @@ export async function triggerCanvasPngDownload(canvas, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
-/** Compone una lámina PNG descargable con Antes (izquierda) y Después (derecha), fechas y leyenda real. */
+/** Compose a downloadable side-by-side PNG comparison with Before (left), After (right), dates, and legend. */
 export function buildComparisonCanvas({ caseDef, dataset, variable, beforeFrame, afterFrame, beforeCanvas, afterCanvas }) {
   const panelW = Math.max(460, Math.min(680, Math.max(beforeCanvas.width, afterCanvas.width) * 2));
   const aspect = beforeCanvas.height / Math.max(1, beforeCanvas.width);
@@ -48,11 +48,11 @@ export function buildComparisonCanvas({ caseDef, dataset, variable, beforeFrame,
   out.height = height;
   const ctx = out.getContext('2d');
 
-  // Fondo limpio oscuro de análisis geoespacial
+  // Clean dark geospatial analysis background
   ctx.fillStyle = '#0d111a';
   ctx.fillRect(0, 0, width, height);
 
-  // Cabecera con metadatos reales
+  // Header with real case metadata
   ctx.fillStyle = '#eef2ff';
   ctx.font = 'bold 20px system-ui, -apple-system, Segoe UI, sans-serif';
   ctx.fillText(caseDef.title || caseDef.id, pad, 34);
@@ -62,7 +62,7 @@ export function buildComparisonCanvas({ caseDef, dataset, variable, beforeFrame,
   const varLabel = variable ? `${dataset.name} · ${variable.label}` : dataset.name;
   ctx.fillText(varLabel, pad, 58);
 
-  const badge = 'DATOS SATELITALES REALES';
+  const badge = 'REAL SATELLITE DATA';
   ctx.font = 'bold 11px system-ui, -apple-system, Segoe UI, sans-serif';
   const bw = ctx.measureText(badge).width + 18;
   ctx.fillStyle = '#134e4a';
@@ -89,8 +89,8 @@ export function buildComparisonCanvas({ caseDef, dataset, variable, beforeFrame,
     ctx.strokeRect(x, headerH, panelW, subH + panelH);
   };
 
-  drawPanel(beforeCanvas, pad, 'ANTES', frameShortTitle(beforeFrame, 'Pre'), '#38bdf8');
-  drawPanel(afterCanvas, pad + panelW + gap, 'DESPUÉS', frameShortTitle(afterFrame, 'Post'), '#fb923c');
+  drawPanel(beforeCanvas, pad, 'BEFORE', frameShortTitle(beforeFrame, 'Pre'), '#38bdf8');
+  drawPanel(afterCanvas, pad + panelW + gap, 'AFTER', frameShortTitle(afterFrame, 'Post'), '#fb923c');
 
   const fy = headerH + subH + panelH + 16;
   if (variable?.legend?.colors?.length >= 2) {
@@ -112,7 +112,7 @@ export function buildComparisonCanvas({ caseDef, dataset, variable, beforeFrame,
   } else {
     ctx.fillStyle = '#94a3b8';
     ctx.font = '12px system-ui, -apple-system, Segoe UI, sans-serif';
-    ctx.fillText(`Producto: ${dataset.product || dataset.sensor || 'Observación satelital'} · ${dataset.provider || ''}`, pad, fy + 16);
+    ctx.fillText(`Product: ${dataset.product || dataset.sensor || 'Satellite observation'} · ${dataset.provider || ''}`, pad, fy + 16);
   }
 
   return out;
@@ -145,5 +145,5 @@ export async function downloadSideBySidePng(caseDef, dataset, selectionId) {
     beforeCanvas: rb.canvas,
     afterCanvas: ra.canvas,
   });
-  await triggerCanvasPngDownload(comp, `${caseDef.id}_${dataset.id}_${selectionId}_antes_despues.png`);
+  await triggerCanvasPngDownload(comp, `${caseDef.id}_${dataset.id}_${selectionId}_before_after.png`);
 }

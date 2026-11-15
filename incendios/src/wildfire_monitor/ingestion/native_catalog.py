@@ -40,23 +40,23 @@ NATIVE_CATALOG: dict[SensorKey, NativeDatasetSpec] = {
     "sentinel2_l2a": NativeDatasetSpec(
         key="sentinel2_l2a",
         collection_id="sentinel-2-l2a",
-        sensor_family="Sentinel-2 L2A (Reflectancia superficial)",
+        sensor_family="Sentinel-2 L2A (Surface reflectance)",
         default_bands=S2_BANDS + ("SCL",),
         spatial_resolution_m=10,
         description=(
-            "Óptico multiespectral 10-20 m (B02/B03/B04/B08/B11/B12 + máscara de nubes SCL) "
-            "para índices dNBR, NDVI, MNDWI y severidad Key & Benson."
+            "10-20 m multispectral optical (B02/B03/B04/B08/B11/B12 + SCL cloud mask) "
+            "for dNBR, NDVI, MNDWI, and Key & Benson burn severity."
         ),
     ),
     "sentinel1_rtc": NativeDatasetSpec(
         key="sentinel1_rtc",
         collection_id="sentinel-1-rtc",
-        sensor_family="Sentinel-1 SAR RTC (Sigma/Gamma0 lineal)",
+        sensor_family="Sentinel-1 SAR RTC (Linear Sigma/Gamma0)",
         default_bands=S1_BANDS,
         spatial_resolution_m=10,
         description=(
-            "Radar de apertura sintética banda C corregido por terreno (VV/VH), "
-            "operativo bajo humo denso y nubosidad mediante emparejamiento de órbita."
+            "Terrain-corrected C-band synthetic aperture radar (VV/VH), "
+            "operational through dense smoke and cloud cover via orbit matching."
         ),
     ),
     "cop_dem": NativeDatasetSpec(
@@ -65,7 +65,7 @@ NATIVE_CATALOG: dict[SensorKey, NativeDatasetSpec] = {
         sensor_family="Copernicus DEM GLO-30",
         default_bands=("data",),
         spatial_resolution_m=30,
-        description="Modelo digital de elevación global a 30 m y pendiente topográfica.",
+        description="Global 30 m digital elevation model and topographic slope.",
     ),
 }
 

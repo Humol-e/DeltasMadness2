@@ -4,7 +4,7 @@
     {
       "type": "Feature",
       "properties": {
-        "name": "Zona de retroceso nival y deshielo real",
+        "name": "Real snow retreat & melt zone",
         "area_km2": 26.42,
         "ndsi_drop_threshold": 0.16
       },

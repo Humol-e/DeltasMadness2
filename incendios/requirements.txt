@@ -11,7 +11,7 @@ click>=8.1.0
 rich>=13.0.0
 pytest>=8.0.0
 
-# Opcional: dependencias completas de ../geopulse si se desea inferencia neuronal PyTorch/ONNX con rasterio
+# Optional: full dependencies from ../geopulse if PyTorch/ONNX neural inference with rasterio is desired
 # rasterio>=1.4
 # pystac-client>=0.8
 # planetary-computer>=1.0

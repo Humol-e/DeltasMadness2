@@ -5,7 +5,7 @@
       "type": "Feature",
       "properties": {
         "id": "leno-aoi",
-        "name": "\u00c1rea de estudio LENO (100 m / 1 ha)",
+        "name": "LENO study area (100 m / 1 ha)",
         "area_km2": 405.3
       },
       "geometry": {

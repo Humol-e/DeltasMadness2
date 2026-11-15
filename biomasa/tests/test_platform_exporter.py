@@ -1,4 +1,4 @@
-"""Pruebas unitarias de reproyección, GeoTIFF, GeoJSON y exportación schema v2 a sar-Madness."""
+"""Unit tests for reprojection, GeoTIFF, GeoJSON, and Schema v2 export to sar-Madness."""
 
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ def test_extract_mask_polygons_and_export_schema_v2(tmp_path: Path) -> None:
     assert len(gj["features"]) == 1
     assert gj["features"][0]["properties"]["area_km2"] > 1.0
 
-    # Prueba exportación completa con grilla sintética del tamaño del ROI LENO (mini-site)
+    # Full export test on a synthetic LENO-like ROI grid (mini-site)
     mini_site = LENO_SITE.model_copy(
         update={
             "roi_width_100m": 20,
@@ -117,7 +117,7 @@ def test_extract_mask_polygons_and_export_schema_v2(tmp_path: Path) -> None:
     assert case_doc["schemaVersion"] == 2
     assert case_doc["status"] == "real"
     assert case_doc["simulated"] is False
-    assert case_doc["category"] == "biomasa"
+    assert case_doc["category"] == "biomass"
     assert len(case_doc["view"]["center"]) == 2
     assert all(isinstance(s, str) for s in case_doc["sources"])
     assert len(case_doc["datasets"]) == 5

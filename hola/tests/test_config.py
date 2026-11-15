@@ -31,7 +31,7 @@ def test_resolve_aoi_presets_and_custom() -> None:
     assert khumbu == AOI_PRESETS["khumbu"].bbox
 
     custom_name, custom_bbox = resolve_aoi("85.1, 28.0, 85.4, 28.2")
-    assert "personalizado" in custom_name
+    assert "custom" in custom_name.lower()
     assert custom_bbox.to_ee_bounds() == [85.1, 28.0, 85.4, 28.2]
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import re
 import struct
 import urllib.parse
 import warnings
@@ -70,9 +71,9 @@ WILDFIRE_PRODUCT_LAYERS: tuple[tuple[str, str], ...] = (
     ("dem_elevation.tif", "dem_elevation"),
 )
 
-_DATETIME_PATTERN = __import__("re").compile(r"(20\d{2}|19\d{2})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})")
-_DATE_PATTERN = __import__("re").compile(r"(20\d{2}|19\d{2})-?(\d{2})-?(\d{2})")
-_SANITIZE_ASSET_RE = __import__("re").compile(r"[^A-Za-z0-9_-]+")
+_DATETIME_PATTERN = re.compile(r"(20\d{2}|19\d{2})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})")
+_DATE_PATTERN = re.compile(r"(20\d{2}|19\d{2})-?(\d{2})-?(\d{2})")
+_SANITIZE_ASSET_RE = re.compile(r"[^A-Za-z0-9_-]+")
 
 
 @dataclass(frozen=True)
@@ -1157,7 +1158,7 @@ def acquire_wildfire_scenes_and_physics(
         "features": [
             {
                 "type": "Feature",
-                "properties": {"name": "Área de estudio"},
+                "properties": {"name": "Study area"},
                 "geometry": aoi_geometry,
             }
         ],

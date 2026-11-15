@@ -1,4 +1,4 @@
-"""Interfaz CLI para listar escenas NISAR GCOV e integrar el caso de biomasa en sar-Madness."""
+"""CLI interface to list NISAR GCOV scenes and publish the biomass case to sar-Madness."""
 
 from __future__ import annotations
 
@@ -29,23 +29,23 @@ def _default_madness_root(repo_root: Path) -> Path:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="biomasa-stage1",
-        description="Pipeline NISAR L3 ATBD de biomasa aérea (AGB) e integración con sar-Madness.",
+        prog="biomass-stage1",
+        description="NISAR L3 ATBD aboveground biomass (AGB) pipeline and sar-Madness integration.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("list-scenes", help="Lista fechas NISAR GCOV públicas disponibles para LENO en Wasabi S3.")
+    sub.add_parser("list-scenes", help="List public NISAR GCOV dates available for LENO on Wasabi S3.")
 
     pub = sub.add_parser(
         "publish-madness",
-        help="Descarga/lee GCOV + LULC, ejecuta inversión AGB L3 ATBD y publica en sar-Madness.",
+        help="Download/read GCOV + LULC, run L3 ATBD AGB inversion, and publish to sar-Madness.",
     )
-    pub.add_argument("--pre-dates", nargs="+", default=list(LENO_SITE.pre_dates), help="Fechas YYYYMMDD ventana Antes.")
-    pub.add_argument("--post-dates", nargs="+", default=list(LENO_SITE.post_dates), help="Fechas YYYYMMDD ventana Después.")
-    pub.add_argument("--cache-dir", type=Path, default=None, help="Directorio caché para archivos .h5 y referencias.")
-    pub.add_argument("--madness-root", type=Path, default=None, help="Ruta a sar-Madness/sar-Madness.")
-    pub.add_argument("--config-ini", type=Path, default=None, help="Ruta alternativa a NISAR_Biomass/config/config.ini.")
-    pub.add_argument("--loss-threshold", type=float, default=-40.0, help="Umbral ΔAGB (Mg/ha) para polígonos de pérdida.")
+    pub.add_argument("--pre-dates", nargs="+", default=list(LENO_SITE.pre_dates), help="YYYYMMDD dates for the Before window.")
+    pub.add_argument("--post-dates", nargs="+", default=list(LENO_SITE.post_dates), help="YYYYMMDD dates for the After window.")
+    pub.add_argument("--cache-dir", type=Path, default=None, help="Cache directory for .h5 files and reference layers.")
+    pub.add_argument("--madness-root", type=Path, default=None, help="Path to sar-Madness/sar-Madness.")
+    pub.add_argument("--config-ini", type=Path, default=None, help="Alternate path to NISAR_Biomass/config/config.ini.")
+    pub.add_argument("--loss-threshold", type=float, default=-40.0, help="ΔAGB threshold (Mg/ha) for biomass loss polygons.")
     return parser
 
 
@@ -63,17 +63,17 @@ def run_publish_madness(
     madness = madness_root or _default_madness_root(repo_root)
     params = load_nisar_config(config_ini)
 
-    print(f"[1/5] Consultando catálogo Wasabi S3 ({LENO_SITE.site_code})...")
+    print(f"[1/5] Querying Wasabi S3 catalog ({LENO_SITE.site_code})...")
     remote = list_remote_gcov_scenes(LENO_SITE)
     all_tags = list(dict.fromkeys([*pre_dates, *post_dates]))
 
-    print(f"[2/5] Verificando/descargando {len(all_tags)} escenas GCOV (.h5) en {cache}...")
+    print(f"[2/5] Checking/downloading {len(all_tags)} GCOV (.h5) scene(s) in {cache}...")
     fetched = download_scenes_for_dates(remote, all_tags, cache)
 
-    print("[3/5] Cargando NLCD LULC (30 m -> Albers) y referencia óptica Planet (100 m)...")
+    print("[3/5] Loading NLCD LULC (30 m -> Albers) and Planet optical reference (100 m)...")
     refs = load_leno_reference_layers(LENO_SITE, cache)
 
-    print("[4/5] Agregando bandas HH/HV a 100 m (1 ha) e invirtiendo modelo NISAR L3 ATBD...")
+    print("[4/5] Aggregating HH/HV bands to 100 m (1 ha) and inverting the NISAR L3 ATBD model...")
     pre_scenes = [
         read_nisar_gcov_100m(fetched[d][1], LENO_SITE, date_tag=d, source_url=fetched[d][0].url)
         for d in pre_dates
@@ -98,7 +98,7 @@ def run_publish_madness(
         agb_max_mgha=LENO_SITE.agb_max_mgha,
     )
 
-    print(f"[5/5] Exportando caso {LENO_SITE.case_id} hacia {madness}...")
+    print(f"[5/5] Exporting case {LENO_SITE.case_id} to {madness}...")
     summary = export_biomass_case_to_madness(
         site=LENO_SITE,
         params=params,
@@ -110,9 +110,9 @@ def run_publish_madness(
         madness_root=madness,
         loss_threshold_mgha=loss_threshold,
     )
-    print(f"Publicado: {summary.case_json_path}")
-    print(f"Catálogo : {summary.catalog_path}")
-    print("Métricas :", summary.metrics)
+    print(f"Published: {summary.case_json_path}")
+    print(f"Catalog  : {summary.catalog_path}")
+    print("Metrics  :", summary.metrics)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

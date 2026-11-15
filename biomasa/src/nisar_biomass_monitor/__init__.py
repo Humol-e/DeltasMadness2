@@ -1,4 +1,4 @@
-"""Integración científica del modelo NISAR L3 ATBD de biomasa aérea (AGB) para sar-Madness."""
+"""Scientific integration of the NISAR L3 ATBD aboveground biomass (AGB) model for sar-Madness."""
 
 from .config import (
     LENO_SITE,

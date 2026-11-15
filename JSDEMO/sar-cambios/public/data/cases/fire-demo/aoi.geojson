@@ -1,1 +1,1 @@
-{"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-121.02, 39.5], [-120.7, 39.5], [-120.7, 39.7], [-121.02, 39.7], [-121.02, 39.5]]}, "properties": {"name": "Área de estudio (DEMO)"}}]}
+{"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-121.02, 39.5], [-120.7, 39.5], [-120.7, 39.7], [-121.02, 39.7], [-121.02, 39.5]]}, "properties": {"name": "Study area (DEMO)"}}]}

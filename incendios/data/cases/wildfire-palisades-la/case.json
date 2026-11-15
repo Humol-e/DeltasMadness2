@@ -1,7 +1,7 @@
 {
   "id": "wildfire-palisades-la",
   "title": "Palisades Fire — Los Angeles, CA (2025)",
-  "description": "Incendio urbano-forestal en Pacific Palisades y montañas de Santa Mónica (enero 2025). Combina Sentinel-2 L2A (dNBR/NDVI), Sentinel-1 RTC (retrodispersión VH/VV) y DEM Copernicus 30 m. [Superficie quemada estimada: 70.15 km² de 110.1 km² observados; zona de revisión por incertidumbre: 7.25 km²].",
+  "description": "Wildland-urban interface fire in Pacific Palisades and the Santa Monica Mountains (January 2025). Combines Sentinel-2 L2A (dNBR/NDVI), Sentinel-1 RTC (VH/VV backscatter), and 30 m Copernicus DEM. [Estimated burned area: 70.15 km² of 110.1 km² observed; uncertainty review zone: 7.25 km²].",
   "demo": false,
   "source_origin": "geopulse",
   "view": {
@@ -15,25 +15,25 @@
   },
   "timeline": [
     {
-      "label": "Pre-incendio",
+      "label": "Pre-fire",
       "date": "2025-01-06",
-      "note": "Ventana previa (2024-12-01/2025-01-06). Compuestos Sentinel-2 RGB y Sentinel-1 VV."
+      "note": "Pre-event window (2024-12-01/2025-01-06). Sentinel-2 RGB and Sentinel-1 VV composites."
     },
     {
-      "label": "Post-incendio (GeoPulse)",
+      "label": "Post-fire (GeoPulse)",
       "date": "2025-03-31",
-      "note": "Ventana posterior (2025-02-01/2025-03-31). Probabilidad de quemado y perímetro GeoPulse."
+      "note": "Post-event window (2025-02-01/2025-03-31). Burn probability and GeoPulse perimeter."
     },
     {
-      "label": "Severidad e Incertidumbre",
+      "label": "Severity & Uncertainty",
       "date": "2025-03-31",
-      "note": "Severidad dNBR Key & Benson (2006), probabilidad de cambio multimodal e incertidumbre."
+      "note": "Key & Benson (2006) dNBR severity, multimodal change probability, and uncertainty."
     }
   ],
   "layers": [
     {
       "id": "aoi",
-      "name": "Área de estudio (AOI)",
+      "name": "Study area (AOI)",
       "type": "line",
       "source": {
         "type": "geojson",
@@ -47,18 +47,18 @@
           2
         ]
       },
-      "description": "Polígono límite del incendio configurado en GeoPulse.",
+      "description": "Fire boundary polygon configured in GeoPulse.",
       "popupFields": [
         [
           "name",
-          "Área"
+          "Area"
         ]
       ],
       "visible": true
     },
     {
       "id": "s2_pre",
-      "name": "Sentinel-2 RGB (Pre-incendio)",
+      "name": "Sentinel-2 RGB (Pre-fire)",
       "type": "raster",
       "source": {
         "type": "raster",
@@ -82,11 +82,11 @@
         0
       ],
       "visible": true,
-      "description": "Composición mediana Sentinel-2 L2A previa al incendio (bandas B04/B03/B02, gamma 1.4)."
+      "description": "Pre-fire Sentinel-2 L2A median composite (bands B04/B03/B02, gamma 1.4)."
     },
     {
       "id": "s1_pre",
-      "name": "Sentinel-1 SAR VV (Pre-incendio)",
+      "name": "Sentinel-1 SAR VV (Pre-fire)",
       "type": "raster",
       "source": {
         "type": "raster",
@@ -110,11 +110,11 @@
         0
       ],
       "visible": false,
-      "description": "Retrodispersión SAR banda C (VV en dB, rango -25 a 0 dB) previa al incendio."
+      "description": "Pre-fire C-band SAR backscatter (VV in dB, range -25 to 0 dB)."
     },
     {
       "id": "s2_post",
-      "name": "Sentinel-2 RGB (Post-incendio)",
+      "name": "Sentinel-2 RGB (Post-fire)",
       "type": "raster",
       "source": {
         "type": "raster",
@@ -139,11 +139,11 @@
         2
       ],
       "visible": true,
-      "description": "Composición mediana Sentinel-2 L2A posterior al incendio mostrando cicatriz de quemado."
+      "description": "Post-fire Sentinel-2 L2A median composite showing the burn scar."
     },
     {
       "id": "s1_post",
-      "name": "Sentinel-1 SAR VV (Post-incendio)",
+      "name": "Sentinel-1 SAR VV (Post-fire)",
       "type": "raster",
       "source": {
         "type": "raster",
@@ -168,11 +168,11 @@
         2
       ],
       "visible": false,
-      "description": "Retrodispersión SAR banda C (VV en dB) posterior al incendio."
+      "description": "Post-fire C-band SAR backscatter (VV in dB)."
     },
     {
       "id": "change_probability",
-      "name": "Probabilidad de cambio multimodal",
+      "name": "Multimodal change probability",
       "type": "raster",
       "source": {
         "type": "raster",
@@ -196,24 +196,24 @@
         2
       ],
       "visible": false,
-      "description": "Cambio espectral/retrodispersión combinado entre ventanas pre y post incendio.",
+      "description": "Combined spectral and backscatter change between pre-fire and post-fire windows.",
       "legend": {
-        "title": "Cambio S1/S2",
+        "title": "S1/S2 change",
         "items": [
           {
             "color": "#ffaa00",
-            "label": "Cambio moderado (0.5)"
+            "label": "Moderate change (0.5)"
           },
           {
             "color": "#ff7800",
-            "label": "Cambio fuerte (1.0)"
+            "label": "Strong change (1.0)"
           }
         ]
       }
     },
     {
       "id": "uncertainty",
-      "name": "Incertidumbre (entropía / solo-SAR)",
+      "name": "Uncertainty (entropy / SAR-only)",
       "type": "raster",
       "source": {
         "type": "raster",
@@ -237,28 +237,28 @@
         2
       ],
       "visible": false,
-      "description": "Entropía binaria de la estimación de quemado e incertidumbre en zonas solo-SAR.",
+      "description": "Binary entropy of the burn estimate and uncertainty in SAR-only zones.",
       "legend": {
-        "title": "Incertidumbre",
+        "title": "Uncertainty",
         "items": [
           {
             "color": "#78288c",
-            "label": "Baja–media (0.3)"
+            "label": "Low–moderate (0.3)"
           },
           {
             "color": "#e6505a",
-            "label": "Media–alta (0.7)"
+            "label": "Moderate–high (0.7)"
           },
           {
             "color": "#ffd23c",
-            "label": "Revisión requerida (≥ 0.8)"
+            "label": "Review required (≥ 0.8)"
           }
         ]
       }
     },
     {
       "id": "burn_severity",
-      "name": "Severidad de quemado dNBR (Key & Benson)",
+      "name": "dNBR burn severity (Key & Benson)",
       "type": "raster",
       "source": {
         "type": "raster",
@@ -282,32 +282,32 @@
         2
       ],
       "visible": true,
-      "description": "Clases discretas Key & Benson (2006) por dNBR: baja, moderada-baja, moderada-alta y alta.",
+      "description": "Discrete Key & Benson (2006) dNBR severity classes: low, moderate-low, moderate-high, and high.",
       "legend": {
-        "title": "Severidad dNBR",
+        "title": "dNBR severity",
         "items": [
           {
             "color": "#7fffd4",
-            "label": "Baja (0.10–0.27)"
+            "label": "Low (0.10–0.27)"
           },
           {
             "color": "#ffff00",
-            "label": "Moderada-baja (0.27–0.44)"
+            "label": "Moderate-low (0.27–0.44)"
           },
           {
             "color": "#ff8c00",
-            "label": "Moderada-alta (0.44–0.66)"
+            "label": "Moderate-high (0.44–0.66)"
           },
           {
             "color": "#ff0000",
-            "label": "Alta (> 0.66)"
+            "label": "High (> 0.66)"
           }
         ]
       }
     },
     {
       "id": "burn_probability",
-      "name": "Probabilidad de quemado (GeoPulse)",
+      "name": "Burn probability (GeoPulse)",
       "type": "raster",
       "source": {
         "type": "raster",
@@ -331,24 +331,24 @@
         1
       ],
       "visible": true,
-      "description": "Probabilidad de incendio derivada de dNBR, NDVI de combustible y caída SAR VH.",
+      "description": "Burn probability derived from dNBR, pre-fire fuel NDVI, and SAR VH drop.",
       "legend": {
-        "title": "Probabilidad de quemado",
+        "title": "Burn probability",
         "items": [
           {
             "color": "#eb461e",
-            "label": "Moderada (0.5)"
+            "label": "Moderate (0.5)"
           },
           {
             "color": "#c8140a",
-            "label": "Alta (1.0)"
+            "label": "High (1.0)"
           }
         ]
       }
     },
     {
       "id": "burn-extent-casing",
-      "name": "Perímetro de incendio (contorno)",
+      "name": "Fire perimeter (casing)",
       "type": "line",
       "source": {
         "type": "geojson",
@@ -364,11 +364,11 @@
         2
       ],
       "visible": true,
-      "description": "Sombra base del perímetro de quemado GeoPulse (probabilidad ≥ 0.5)."
+      "description": "Base casing shadow for the GeoPulse burn perimeter (probability ≥ 0.5)."
     },
     {
       "id": "burn-extent-outline",
-      "name": "Perímetro de incendio (GeoPulse)",
+      "name": "Fire perimeter (GeoPulse)",
       "type": "line",
       "source": {
         "type": "geojson",
@@ -384,22 +384,22 @@
       ],
       "visible": true,
       "legend": {
-        "title": "Perímetro de quemado",
+        "title": "Burn perimeter",
         "items": [
           {
             "color": "#ffd60a",
-            "label": "Probabilidad ≥ 0.5"
+            "label": "Probability ≥ 0.5"
           }
         ]
       },
       "popupFields": [
         [
           "area_km2",
-          "Área quemada",
+          "Burned area",
           "km²"
         ]
       ],
-      "description": "Contorno amarillo GeoPulse donde la probabilidad de quemado supera el umbral 0.5."
+      "description": "Yellow GeoPulse outline where burn probability exceeds the 0.5 threshold."
     }
   ]
 }

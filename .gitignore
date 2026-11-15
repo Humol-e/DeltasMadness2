@@ -5,4 +5,3 @@ hola/config/service_account.json
 hola2/
 biomasa/data/cache/
 biomasa/src/*.egg-info/
-.vercel/

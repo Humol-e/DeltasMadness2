@@ -1,7 +1,25 @@
+# Secrets and environment variables
+.env
+**/.env
+.env.local
+.env.*.local
 config/greecreds.json
-HDFView/
 hola/config/service_account.json
-/hola/.env
+
+# Local caches, raw HDFView tools, and temporary directories
+HDFView/
 hola2/
 biomasa/data/cache/
-biomasa/src/*.egg-info/
+*.egg-info/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+**/.pytest_cache/
+
+# Web build artifacts and dependencies
+sar-Madness/sar-Madness/node_modules/
+sar-Madness/sar-Madness/dist/
+
+# OS metadata
+.DS_Store
+Thumbs.db

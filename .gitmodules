@@ -1,0 +1,3 @@
+[submodule "NISAR_Biomass"]
+	path = NISAR_Biomass
+	url = https://github.com/NISAR-Science-Algorithms/NISAR_Biomass

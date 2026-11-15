@@ -5,7 +5,7 @@ Esta guía explica cómo leer las salidas reales de cada módulo de `glacier_mon
 > **Nota importante para Windows CMD (`C:\Users\Rulis>`):**
 > - Cambia primero a la carpeta del proyecto (`cd C:\Users\Rulis\Desktop\hola`) para que las descargas queden en `C:\Users\Rulis\Desktop\hola\data\downloads`.
 > - **No copies comentarios con `#`** en CMD (a diferencia de PowerShell, CMD intenta ejecutar `#` como programa).
-> - **Reemplaza siempre `<...>`** por el nombre real del gránulo; en CMD, los símbolos `<` y `>` provocan `The syntax of the command is incorrect`.
+> - **Reemplaza siempre `<...>`** por el nombre real del gránulo; en CMD, los símbolos `<` y `>` provocan `The syntax of the command is incorrect` .
 
 ---
 

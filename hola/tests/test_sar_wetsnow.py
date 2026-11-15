@@ -303,3 +303,13 @@ def test_publish_from_published_case_reuses_png_inputs_and_keeps_existing_data(t
     first = (case_dir / "case.json").read_text(encoding="utf-8")
     publish_sar_wet_snow_for_case("glacier-x", public)
     assert (case_dir / "case.json").read_text(encoding="utf-8") == first
+
+
+def test_summarize_wet_snow_cross_validates_optical_ndsi_post() -> None:
+    classes = np.full(SHAPE, CLASS_STABLE, dtype=np.uint8)
+    classes[0:10, 0:10] = CLASS_WET  # 100 wet-snow pixels
+    ndsi_post = np.full(SHAPE, 0.05, dtype=np.float32)  # bare / melted optically
+    ndsi_post[0:5, 0:10] = 0.65  # half of the wet snow is still optically snow-covered (subsurface melt)
+    stats = summarize_wet_snow(classes, BBOX, ndsi_post=ndsi_post, snow_ndsi_min=0.28)
+    assert stats["wetSnowInOpticalSnowPct"] == pytest.approx(50.0)
+    assert stats["subsurfaceWetSnowKm2"] == pytest.approx(stats["wetSnowKm2"] * 0.5, rel=0.05)

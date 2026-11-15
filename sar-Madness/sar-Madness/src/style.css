@@ -587,6 +587,19 @@ html, body, #app { margin: 0; width: 100%; height: 100%; background: var(--bg); 
   text-align: center;
 }
 
+.monitoring-series-frames {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.monitoring-frame-btn {
+  padding: 4px 6px;
+  font-size: 0.68rem;
+  text-align: center;
+}
+
 .monitoring-group-label {
   display: block;
   margin-bottom: 6px;

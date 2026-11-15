@@ -256,3 +256,14 @@ def test_publish_sar_burn_for_case_is_idempotent_and_wires_vv(tmp_path: Path) ->
     assert LOG_RBR_RANGE_DB == (-6.0, 3.0)
     assert DELTA_RVI_RANGE == (-0.6, 0.3)
     assert callable(attach_sar_burn_to_case)
+
+    # Check optical burn_prob cross-validation when burn_prob.png & affectedKm2 exist
+    prob = np.zeros(SHAPE, dtype=np.float32)
+    prob[8:22, 26:40] = 0.85
+    (rasters / "burn_prob.png").write_bytes(encode_continuous_png(prob, 0.0, 1.0))
+    case_with_opt = json.loads((case_dir / "case.json").read_text(encoding="utf-8"))
+    case_with_opt["metrics"]["affectedKm2"] = 10.0
+    (case_dir / "case.json").write_text(json.dumps(case_with_opt), encoding="utf-8")
+    res2 = publish_sar_burn_for_case(cid, pub, pol_mode="VV_VH")
+    assert "sarBurnInOpticalPct" in res2.stats
+    assert res2.stats["sarToOpticalAreaPct"] > 0.0

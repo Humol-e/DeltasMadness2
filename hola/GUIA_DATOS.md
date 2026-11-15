@@ -1,5 +1,7 @@
 # Guide to Interpreting and Selecting Glacier Data (Stage 1)
 
+> Also available under [DATA_GUIDE.md](DATA_GUIDE.md). This technical guide is maintained in English for NASA Space Apps global judging.
+
 This guide explains how to read real outputs from every `glacier_monitor` module, how to choose valid scenes, and what final files are saved in local mode (`data/downloads/`).
 
 > **Note for Windows CMD (`C:\path\to\DeltasMadness2>`):**

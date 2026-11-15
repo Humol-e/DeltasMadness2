@@ -17,7 +17,7 @@
     "bearing": 8
   },
   "sources": [
-    "NASA NISAR L2 Simulated L-band GCOV (UAVSAR/ALOS-2 · Public LENO S3 Site)",
+    "NASA NISAR L2 Simulated L-band GCOV (UAVSAR/ALOS-2 · Official NASA EBD ATBD Validation Dataset, 2021–2024)",
     "NISAR L3 AGB ATBD Physical Model (calibrated config.ini · weighted HH/HV dB inversion)",
     "USGS NLCD (LENO_LULC 30 m Albers) & Planet Optical Validation (2022-09-30 → 2023-09-18)"
   ],
@@ -30,14 +30,26 @@
     "agbPostMean": 66.1,
     "agbIntactPre": 83.0,
     "agbIntactPost": 77.3,
+    "agbIntactDeltaMean": -5.7,
     "agbDisturbedPre": 87.3,
     "agbDisturbedPost": 14.1,
+    "agbDisturbedDeltaMean": -73.2,
+    "planetDetectedLossPct": 94.2,
     "biomassLossKm2": 17.53,
     "planetDistKm2": 5.9,
     "carbonLossGg": 50.79,
     "hvPreDb": -11.57,
     "hvPostDb": -11.78,
-    "modelRmseDb": 0.53
+    "modelRmseDb": 0.53,
+    "agbSeriesMeans": {
+      "2021-08-06": 99.0,
+      "2022-09-30": 72.7,
+      "2023-09-29": 66.1,
+      "2024-08-30": 68.2
+    },
+    "seriesSceneCount": 4,
+    "agb2021Mean": 99.0,
+    "agb2024Mean": 68.2
   },
   "datasets": [
     {
@@ -45,7 +57,7 @@
       "name": "NISAR L3 Aboveground Biomass (AGB)",
       "kind": "raster",
       "status": "real",
-      "platform": "NISAR (Simulated UAVSAR/ALOS-2)",
+      "platform": "NISAR L-SAR (Simulated UAVSAR/ALOS-2)",
       "sensor": "L-SAR GCOV",
       "provider": "Wasabi S3 Public / NISAR ATBD",
       "product": "L3 Aboveground Biomass (100 m / 1 ha)",
@@ -95,6 +107,15 @@
       ],
       "frames": [
         {
+          "id": "d20210806",
+          "label": "2021-08-06",
+          "phase": "series",
+          "datetime": "2021-08-06T05:47:57Z",
+          "files": {
+            "agb": "data/cases/biomass-leno-nisar/agb_20210806.png"
+          }
+        },
+        {
           "id": "pre",
           "label": "Before · 2022-09-30",
           "phase": "before",
@@ -111,6 +132,15 @@
           "files": {
             "agb": "data/cases/biomass-leno-nisar/agb_post.png"
           }
+        },
+        {
+          "id": "d20240830",
+          "label": "2024-08-30",
+          "phase": "series",
+          "datetime": "2024-08-30T05:47:58Z",
+          "files": {
+            "agb": "data/cases/biomass-leno-nisar/agb_20240830.png"
+          }
         }
       ]
     },
@@ -119,7 +149,7 @@
       "name": "SAR L-band HV · Canopy Volume",
       "kind": "raster",
       "status": "real",
-      "platform": "NISAR (Simulated)",
+      "platform": "NISAR L-SAR (Simulated)",
       "sensor": "L-SAR GCOV",
       "provider": "Wasabi S3 Public / NISAR ATBD",
       "product": "Gamma0 HV (100 m mean)",
@@ -167,6 +197,15 @@
       ],
       "frames": [
         {
+          "id": "d20210806",
+          "label": "HV 2021-08-06",
+          "phase": "series",
+          "datetime": "2021-08-06T05:47:57Z",
+          "files": {
+            "hv_db": "data/cases/biomass-leno-nisar/hv_20210806.png"
+          }
+        },
+        {
           "id": "pre",
           "label": "HV Before · 2022-09-30",
           "phase": "before",
@@ -183,6 +222,15 @@
           "files": {
             "hv_db": "data/cases/biomass-leno-nisar/hv_post.png"
           }
+        },
+        {
+          "id": "d20240830",
+          "label": "HV 2024-08-30",
+          "phase": "series",
+          "datetime": "2024-08-30T05:47:58Z",
+          "files": {
+            "hv_db": "data/cases/biomass-leno-nisar/hv_20240830.png"
+          }
         }
       ]
     },
@@ -191,7 +239,7 @@
       "name": "SAR L-band HH · Trunk–Ground",
       "kind": "raster",
       "status": "real",
-      "platform": "NISAR (Simulated)",
+      "platform": "NISAR L-SAR (Simulated)",
       "sensor": "L-SAR GCOV",
       "provider": "Wasabi S3 Public / NISAR ATBD",
       "product": "Gamma0 HH (100 m mean)",
@@ -239,6 +287,15 @@
       ],
       "frames": [
         {
+          "id": "d20210806",
+          "label": "HH 2021-08-06",
+          "phase": "series",
+          "datetime": "2021-08-06T05:47:57Z",
+          "files": {
+            "hh_db": "data/cases/biomass-leno-nisar/hh_20210806.png"
+          }
+        },
+        {
           "id": "pre",
           "label": "HH Before · 2022-09-30",
           "phase": "before",
@@ -254,6 +311,15 @@
           "datetime": "2023-09-29T05:47:58Z",
           "files": {
             "hh_db": "data/cases/biomass-leno-nisar/hh_post.png"
+          }
+        },
+        {
+          "id": "d20240830",
+          "label": "HH 2024-08-30",
+          "phase": "series",
+          "datetime": "2024-08-30T05:47:58Z",
+          "files": {
+            "hh_db": "data/cases/biomass-leno-nisar/hh_20240830.png"
           }
         }
       ]
@@ -308,12 +374,30 @@
               "#15803d"
             ],
             "stops": [
-              [-120.0, "#991b1b"],
-              [-60.0, "#ef4444"],
-              [-20.0, "#f97316"],
-              [0.0, "#64748b"],
-              [25.0, "#22c55e"],
-              [60.0, "#15803d"]
+              [
+                -120.0,
+                "#991b1b"
+              ],
+              [
+                -60.0,
+                "#ef4444"
+              ],
+              [
+                -20.0,
+                "#f97316"
+              ],
+              [
+                0.0,
+                "#64748b"
+              ],
+              [
+                25.0,
+                "#22c55e"
+              ],
+              [
+                60.0,
+                "#15803d"
+              ]
             ],
             "nodata_label": "Red = loss · Gray = 0 · Green = gain"
           }

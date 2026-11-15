@@ -9,7 +9,9 @@
     "sarBurnKm2": 30.24,
     "sarHighBurnKm2": 9.22,
     "sarDisturbedKm2": 41.54,
-    "sarMeanDeltaRvi": -0.375
+    "sarMeanDeltaRvi": -0.375,
+    "sarBurnInOpticalPct": 96.4,
+    "sarToOpticalAreaPct": 59.2
   },
   "downloads": [
     {
@@ -966,7 +968,9 @@
         "sarBurnKm2": 30.24,
         "sarHighBurnKm2": 9.22,
         "sarDisturbedKm2": 41.54,
-        "sarMeanDeltaRvi": -0.375
+        "sarMeanDeltaRvi": -0.375,
+        "sarBurnInOpticalPct": 96.4,
+        "sarToOpticalAreaPct": 59.2
       }
     }
   }

@@ -6,7 +6,7 @@ Interactive 3D geospatial viewer (Mapbox GL JS + Vite, vanilla JavaScript) with 
 
 ```bash
 npm install
-cp .env.example .env      # Required: paste your public pk.* token in VITE_MAPBOX_ACCESS_TOKEN (in .gitignore)
+cp .env.example .env      # Optional: paste a public pk.* token in VITE_MAPBOX_ACCESS_TOKEN (falls back to open basemaps automatically)
 npm run validate          # Validate catalog.json and all case files (also runs before build)
 npm run dev               # Start Vite dev server
 npm run build             # Validate catalog and build production bundle in dist/
@@ -20,7 +20,7 @@ src/lib/schema.js            Schema v2 validation, normalization, and JSON-with-
 src/lib/timeline.js          Time axis and latest-frame <= active-date lookup.
 src/lib/rasterCanvas.js      LUT gray8 colorization, RGB composites, pixel values, LRU caching.
 src/lib/beforeAfterExport.js Side-by-side Before/After comparison PNG generator & downloader.
-src/lib/placeSearch.js       Offline case/preset search, WGS84 coordinate parser, and geocoding utility (unit-tested; not yet wired to main UI).
+src/lib/placeSearch.js       Offline case/preset search, WGS84 coordinate parser, and CLI command generator wired to #home-search-input.
 src/lib/registry.js          Catalog and case loader.
 src/lib/i18n.js              English/Spanish interface localization (defaults to English).
 src/main.js, style.css       Interactive UI and controls.
@@ -39,14 +39,14 @@ Six Schema v2 cases are prepackaged under `public/data/cases/`:
 - **Glacier & Snowmelt (`category: "glacier"`):** `glacier-langtang`, `glacier-khumbu` (Sentinel-2 SR NDSI + Sentinel-1 GRD + MODIS MOD10A1/MOD11A1)
 - **NISAR Forest Biomass (`category: "biomass"`):** `biomass-leno-nisar` (Official NASA pre-launch simulated NISAR L2 GCOV from UAVSAR/ALOS-2 processed with the L3 AGB ATBD solver + NLCD + PlanetScope validation)
 
-Each case is validated by `npm run validate` and utility tests pass via `node --test tests/placeSearch.test.mjs`.
+Each case is validated by `npm run validate`, all 22 automated utility/UI/i18n tests pass via `node --test tests/*.test.mjs`, multi-year NISAR GCOV scenes (`2021–2024`) expose individual chronological frames (`d20210806`, `pre`, `post`, `d20240830`), and Cryosphere/Wildfire cases include SAR wet-snow (`sar_wetsnow`) and multi-band SAR burn (`sar_burn`) cross-validation layers.
 
 ## Performance & Error Handling
 
 - One Mapbox source and layer per raster dataset (`updateImage` reuses sources when changing dates).
 - Shared bounded LRU caches in `rasterCanvas.js` reuse decoded `gray8`/`rgba` rasters and colorized canvases across sidebar previews, map display, swipe comparison, and PNG exports.
 - Hillshade DEM requests activate from zoom 5 upward to prevent global tile flooding in globe view.
-- Basemap 429 rate-limits gracefully fall back to Esri World Imagery during runtime once initialized with a Mapbox token.
+- Even without a Mapbox token (or when Mapbox tiles hit HTTP 429 rate limits), the viewer automatically falls back to open Esri World Imagery / OpenStreetMap basemaps.
 
 ## Known Scope Notes
 

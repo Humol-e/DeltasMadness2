@@ -16,6 +16,7 @@ import {
   translateTerm,
 } from './lib/i18n.js';
 import {
+  buildCliCommands,
   findNearestCase,
   geocodePlaces,
   parseCoordinates,
@@ -54,10 +55,9 @@ app.innerHTML = `
       <div id="inspect-pill" class="inspect-pill" hidden></div>
       <div id="token-notice" class="token-notice" hidden>
         <div class="token-card">
-          <strong>Mapbox interactive map has no token configured</strong>
+          <strong>Optional Mapbox token not configured</strong>
           <p class="muted" style="margin-top:6px">
-            Set <code>VITE_MAPBOX_ACCESS_TOKEN</code> in <code>.env</code> and reload to navigate the 3D globe.
-            Without this key, the satellite basemap cannot be loaded.
+            Using open satellite basemaps by default. Set <code>VITE_MAPBOX_ACCESS_TOKEN</code> in <code>.env</code> and reload to unlock Mapbox 3D terrain &amp; geocoding.
           </p>
         </div>
       </div>
@@ -77,9 +77,9 @@ app.innerHTML = `
         <nav aria-label="Main navigation">
           <ul>
             <li><button type="button" class="nav-link active" data-page="home">Home</button></li>
-            <li><button type="button" class="nav-link" data-page="permafrost">Permafrost</button></li>
+            <li><button type="button" class="nav-link" data-page="permafrost">Cryosphere</button></li>
             <li><button type="button" class="nav-link" data-page="wildfires">Wildfires</button></li>
-            <li><button type="button" class="nav-link" data-page="deforestation">Deforestation</button></li>
+            <li><button type="button" class="nav-link" data-page="deforestation">Biomass</button></li>
           </ul>
         </nav>
         <div class="lang-switch" role="group" aria-label="Language selector">
@@ -638,6 +638,7 @@ function renderMonitoringInfo(def) {
       facts = [
         [mCopy.metricLabels.burnedArea, area(metrics.affectedKm2)],
         [mCopy.metricLabels.sarBurnArea, area(metrics.sarBurnKm2)],
+        [mCopy.metricLabels.sarInOptical, metrics.sarBurnInOpticalPct == null ? null : `${formatNumber(metrics.sarBurnInOpticalPct)}%`],
         [mCopy.metricLabels.studyArea, area(metrics.observedKm2)],
         [mCopy.metricLabels.preWindow, metrics.preWindow],
         [mCopy.metricLabels.postWindow, metrics.postWindow],
@@ -649,13 +650,16 @@ function renderMonitoringInfo(def) {
         [mCopy.metricLabels.surfaceTemp, pair(metrics.lstPreC, metrics.lstPostC, ' °C')],
         [mCopy.metricLabels.meltArea, area(metrics.meltAreaKm2)],
         [mCopy.metricLabels.sarWetSnow, area(metrics.sarWetSnowKm2)],
+        [mCopy.metricLabels.sarSubsurfaceSnow, metrics.sarWetInOpticalSnowPct == null ? null : `${formatNumber(metrics.sarWetInOpticalSnowPct)}%`],
       ];
       break;
     case 'deforestation':
       facts = [
         [mCopy.metricLabels.validForestArea, area(metrics.forestAreaKm2)],
         [mCopy.metricLabels.meanAgb, pair(metrics.agbPreMean, metrics.agbPostMean, ' Mg/ha')],
+        [mCopy.metricLabels.seriesAgb, pair(metrics.agb2021Mean, metrics.agb2024Mean, ' Mg/ha')],
         [mCopy.metricLabels.nisarSevereLoss, area(metrics.biomassLossKm2)],
+        [mCopy.metricLabels.planetRecall, metrics.planetDetectedLossPct == null ? null : `${formatNumber(metrics.planetDetectedLossPct)}%`],
         [mCopy.metricLabels.carbonLoss, metrics.carbonLossGg == null ? null : `${formatNumber(metrics.carbonLossGg)} Gg C`],
       ];
       break;
@@ -733,26 +737,26 @@ function renderMonitoringControls(def) {
   const frames = ds?.frames ?? [];
   const pair = getBeforeAfterPair(ds);
   const canSwipe = supportsBeforeAfterSwipe(ds);
-  const frame = canSwipe
+  const frame = (canSwipe && state.mapMode !== 'frame')
     ? (state.mapMode === 'before' ? pair.before : pair.after) ?? pair.before ?? pair.after
     : frames.find((item) => item.id === state.frameId) ?? pair.before ?? pair.after;
   const frameIndex = frame ? Math.max(0, frames.findIndex((item) => item.id === frame.id)) : 0;
   const splitPercent = Math.round(state.split * 100);
   const variable = ds?.variables.find((item) => item.id === state.varId);
   const opacity = ds ? ctl?.dataset(ds.id)?.opacity ?? ds.render.opacity : 0.85;
-  const framePhase = canSwipe
+  const framePhase = (canSwipe && state.mapMode !== 'frame')
     ? (state.mapMode === 'swipe'
         ? mCopy.splitPhase(splitPercent)
         : state.mapMode === 'before' ? mCopy.before : mCopy.after)
     : frame?.phase === 'before' ? mCopy.before
     : frame?.phase === 'after' ? mCopy.after
       : frame?.phase === 'change' ? mCopy.change : mCopy.observation;
-  const frameDescription = canSwipe
+  const frameDescription = (canSwipe && state.mapMode !== 'frame')
     ? (state.mapMode === 'swipe'
         ? `${tFrame(pair.before, mCopy.before)} → ${tFrame(pair.after, mCopy.after)}`
         : tFrame(frame, frame?.datetime))
     : frame ? tFrame(frame, frame.datetime) : null;
-  const timeCaptionLabel = canSwipe
+  const timeCaptionLabel = (canSwipe && state.mapMode !== 'frame')
     ? (state.mapMode === 'swipe' ? mCopy.slideToCompare : tFrame(frame, frame?.datetime || mCopy.noImageSelected))
     : (frame ? tFrame(frame, frame.datetime) : mCopy.noImageSelected);
   const variableMarkup = ds && ds.variables.length > 1
@@ -768,6 +772,15 @@ function renderMonitoringControls(def) {
         <button type="button" class="chip monitoring-compare-btn${state.mapMode === 'before' ? ' active' : ''}" data-compare-mode="before">${esc(mCopy.before)}</button>
         <button type="button" class="chip monitoring-compare-btn${state.mapMode === 'swipe' ? ' active' : ''}" data-compare-mode="swipe">${esc(mCopy.swipe)}</button>
         <button type="button" class="chip monitoring-compare-btn${state.mapMode === 'after' ? ' active' : ''}" data-compare-mode="after">${esc(mCopy.after)}</button>
+      </div>`
+    : '';
+  const seriesFramesMarkup = frames.length > 2
+    ? `<div class="monitoring-series-frames" role="group" aria-label="${esc(mCopy.seriesTitle || mCopy.imageTime)}">
+        ${frames.map((item) => {
+          const isCurrent = state.mapMode !== 'swipe' && frame?.id === item.id;
+          const shortYear = String(item.datetime || item.label).slice(0, 10);
+          return `<button type="button" class="chip monitoring-frame-btn${isCurrent ? ' active' : ''}" data-series-frame="${esc(item.id)}">${esc(shortYear)}</button>`;
+        }).join('')}
       </div>`
     : '';
   const localizedUnit = variable?.unit ? tTerm(variable.unit) : '';
@@ -807,7 +820,7 @@ function renderMonitoringControls(def) {
     ? `<details class="monitoring-geotiffs">
         <summary>${esc(mCopy.geotiffsBtn(geotiffCount))}</summary>
         <div class="monitoring-geotiff-list">
-          ${geotiffs.map((item) => `<a class="monitoring-geotiff-link" href="${esc(resolveUrl(item.url))}" download><span>⬇ ${esc(tTerm(item.label))}</span>${fmtBytes(item.bytes) ? `<span class="muted">${esc(fmtBytes(item.bytes))}</span>` : ''}</a>`).join('')}
+          ${geotiffs.map((item) => `<a class="monitoring-geotiff-link" href="${esc(resolveUrl(item.url))}" download><span>⬇ ${esc(tTerm(item.label))}</span>${fmtBytes(item.sizeBytes ?? item.bytes) ? `<span class="muted">${esc(fmtBytes(item.sizeBytes ?? item.bytes))}</span>` : ''}</a>`).join('')}
         </div>
       </details>`
     : '';
@@ -824,6 +837,7 @@ function renderMonitoringControls(def) {
     <div class="monitoring-control-group">
       <label for="monitoring-time-range">${esc(canSwipe ? mCopy.compareTitle : mCopy.imageTime)}</label>
       ${compareModeMarkup}
+      ${seriesFramesMarkup}
       <input id="monitoring-time-range" type="range" min="0" max="${canSwipe ? 100 : Math.max(0, frames.length - 1)}" step="1" value="${canSwipe ? splitPercent : frameIndex}" ${canSwipe || (ds && frames.length > 1) ? '' : 'disabled'} />
       <div class="monitoring-time-ends"><span>${esc(canSwipe ? mCopy.before : mCopy.initial)}</span><span>${esc(canSwipe ? mCopy.after : mCopy.final)}</span></div>
       <div class="monitoring-time-caption">
@@ -864,6 +878,18 @@ function renderMonitoringControls(def) {
       state.mapMode = mode;
       if (mode === 'before') state.frameId = pair.before?.id ?? null;
       else if (mode === 'after') state.frameId = pair.after?.id ?? null;
+      syncMapToLayer();
+      renderMonitoringControls(def);
+    });
+  });
+
+  panel.querySelectorAll('button[data-series-frame]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const fid = btn.dataset.seriesFrame;
+      state.frameId = fid;
+      if (fid === pair.before?.id) state.mapMode = 'before';
+      else if (fid === pair.after?.id) state.mapMode = 'after';
+      else state.mapMode = 'frame';
       syncMapToLayer();
       renderMonitoringControls(def);
     });
@@ -1589,14 +1615,20 @@ function bindEvents() {
         if (hit.center && ctl?.map) {
           ctl.map.flyTo({ center: hit.center, zoom: hit.bbox ? 8 : 9, duration: 1300, essential: true });
         }
+        const cmds = buildCliCommands(hit);
+        const cliCmd = hit.category === 'glacier' ? cmds.glacierCmd : cmds.wildfireCmd;
+        if (cliCmd && navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(cliCmd).catch(() => {});
+        }
         const nearest = hit.center ? findNearestCase(hit.center, state.cases) : null;
+        const cmdNote = cliCmd ? ` · CLI: ${cliCmd}` : '';
         if (nearest) {
           setStatus(
-            `${heroCopy.searchNearest(tCaseTitle(nearest.item), Math.round(nearest.distanceKm))}${hit.kind === 'preset' ? ` · ${heroCopy.searchPresetNote}` : ''}`,
-            { autoHideMs: 6500 },
+            `${heroCopy.searchNearest(tCaseTitle(nearest.item), Math.round(nearest.distanceKm))}${cmdNote}`,
+            { autoHideMs: 8500 },
           );
-        } else if (hit.kind === 'preset') {
-          setStatus(heroCopy.searchPresetNote, { autoHideMs: 5500 });
+        } else if (cliCmd) {
+          setStatus(`${heroCopy.searchPresetNote}${cmdNote}`, { autoHideMs: 8500 });
         }
       });
     });

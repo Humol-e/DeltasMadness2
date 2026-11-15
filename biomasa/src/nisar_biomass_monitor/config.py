@@ -104,6 +104,7 @@ class SiteDefinition(BaseModel):
     roi_height_100m: int
     pre_dates: tuple[str, ...]
     post_dates: tuple[str, ...]
+    series_dates: tuple[str, ...] = ()
     lulc_key: str
     classification_ref_key: str
     disturbance_ref_key: str
@@ -131,6 +132,7 @@ LENO_SITE = SiteDefinition(
     roi_height_100m=193,
     pre_dates=("20220930",),
     post_dates=("20230929",),
+    series_dates=("20210806", "20220930", "20230929", "20240830"),
     lulc_key="ATBD/ecosystems/disturbance/sites/leno/LENO_LULC.tif",
     classification_ref_key=(
         "ATBD/ecosystems/disturbance/sites/leno/validation_reference/"

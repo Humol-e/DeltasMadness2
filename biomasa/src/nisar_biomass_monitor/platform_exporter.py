@@ -242,6 +242,7 @@ def export_biomass_case_to_madness(
     refs: LenoReferenceLayers,
     madness_root: Path,
     loss_threshold_mgha: float = -40.0,
+    series_scenes: list[tuple[ResampledGcovScene, NisarInversionResult]] | None = None,
 ) -> ExportedCaseSummary:
     """Export WGS84 layers (PNG + GeoTIFF + GeoJSON + case.json v2 + provenance.json)."""
     case_dir = madness_root / "public" / "data" / "cases" / site.case_id
@@ -322,6 +323,114 @@ def export_biomass_case_to_madness(
     _save_rgba_png(_render_nlcd_rgba(nlcd_w), case_dir / "lulc_nlcd.png")
     _save_rgba_png(_render_disturbance_rgba(planet_w), case_dir / "planet_disturbance.png")
 
+    primary_pre_tag = pre_scenes[-1].date_tag
+    primary_post_tag = post_scenes[-1].date_tag
+    ordered_series = sorted(series_scenes or [], key=lambda pair: pair[0].date_tag)
+
+    def _build_series_frames(
+        var_key: str,
+        pre_rel: str,
+        post_rel: str,
+        prefix: str,
+        label_prefix: str,
+        arr_getter: Any,
+        vmin: float,
+        vmax: float,
+    ) -> list[dict[str, Any]]:
+        if not ordered_series:
+            return [
+                {
+                    "id": "pre",
+                    "label": f"{label_prefix}Before · {pre_scenes[0].acquisition_iso[:10] if len(pre_scenes) == 1 else f'{pre_scenes[0].acquisition_iso[:10]} → {pre_scenes[-1].acquisition_iso[:10]}'}",
+                    "phase": "before",
+                    "datetime": pre_scenes[-1].acquisition_iso,
+                    "files": {var_key: pre_rel},
+                },
+                {
+                    "id": "post",
+                    "label": f"{label_prefix}After · {post_scenes[-1].acquisition_iso[:10]}",
+                    "phase": "after",
+                    "datetime": post_scenes[-1].acquisition_iso,
+                    "files": {var_key: post_rel},
+                },
+            ]
+        frames_out: list[dict[str, Any]] = []
+        for sc, inv in ordered_series:
+            d_str = sc.acquisition_iso[:10]
+            if sc.date_tag == primary_pre_tag:
+                frames_out.append(
+                    {
+                        "id": "pre",
+                        "label": f"{label_prefix}Before · {d_str}",
+                        "phase": "before",
+                        "datetime": sc.acquisition_iso,
+                        "files": {var_key: pre_rel},
+                    }
+                )
+            elif sc.date_tag == primary_post_tag:
+                frames_out.append(
+                    {
+                        "id": "post",
+                        "label": f"{label_prefix}After · {d_str}",
+                        "phase": "after",
+                        "datetime": sc.acquisition_iso,
+                        "files": {var_key: post_rel},
+                    }
+                )
+            else:
+                fname = f"{prefix}_{sc.date_tag}.png"
+                w_arr, _ = reproject_utm_to_wgs84_grid(
+                    arr_getter(inv),
+                    site.roi_bounds_utm,
+                    site.epsg,
+                    width=w_out,
+                    height=h_out,
+                    bounds_wgs84=bounds_wgs84,
+                    remap=utm_remap,
+                )
+                _save_gray8_png(encode_gray8_png(w_arr, vmin=vmin, vmax=vmax), case_dir / fname)
+                frames_out.append(
+                    {
+                        "id": f"d{sc.date_tag}",
+                        "label": f"{label_prefix}{d_str}",
+                        "phase": "series",
+                        "datetime": sc.acquisition_iso,
+                        "files": {var_key: f"data/cases/{site.case_id}/{fname}"},
+                    }
+                )
+        return frames_out
+
+    agb_frames = _build_series_frames(
+        "agb",
+        f"data/cases/{site.case_id}/agb_pre.png",
+        f"data/cases/{site.case_id}/agb_post.png",
+        "agb",
+        "",
+        lambda inv: inv.agb_mgha,
+        0.0,
+        220.0,
+    )
+    hv_frames = _build_series_frames(
+        "hv_db",
+        f"data/cases/{site.case_id}/hv_pre.png",
+        f"data/cases/{site.case_id}/hv_post.png",
+        "hv",
+        "HV ",
+        lambda inv: inv.hv_db,
+        -22.0,
+        -6.0,
+    )
+    hh_frames = _build_series_frames(
+        "hh_db",
+        f"data/cases/{site.case_id}/hh_pre.png",
+        f"data/cases/{site.case_id}/hh_post.png",
+        "hh",
+        "HH ",
+        lambda inv: inv.hh_db,
+        -16.0,
+        0.0,
+    )
+
     # GeoJSON vectors
     aoi_gj = build_aoi_geojson(site)
     (case_dir / "aoi.geojson").write_text(json.dumps(aoi_gj, indent=2), encoding="utf-8")
@@ -389,8 +498,15 @@ def export_biomass_case_to_madness(
         "agbPostMean": _safe_masked_mean(post_inv.agb_mgha, ok_both, 1),
         "agbIntactPre": _safe_masked_mean(pre_inv.agb_mgha, intact_px, 1),
         "agbIntactPost": _safe_masked_mean(post_inv.agb_mgha, intact_px, 1),
+        "agbIntactDeltaMean": _safe_masked_mean(delta_agb_utm, intact_px, 1),
         "agbDisturbedPre": _safe_masked_mean(pre_inv.agb_mgha, dist_px, 1),
         "agbDisturbedPost": _safe_masked_mean(post_inv.agb_mgha, dist_px, 1),
+        "agbDisturbedDeltaMean": _safe_masked_mean(delta_agb_utm, dist_px, 1),
+        "planetDetectedLossPct": (
+            round(float(np.sum(dist_px & (delta_agb_utm <= -15.0))) / float(np.sum(dist_px)) * 100.0, 1)
+            if np.any(dist_px)
+            else 0.0
+        ),
         "biomassLossKm2": round(float(np.sum(loss_px)) * cell_km2, 2),
         "planetDistKm2": round(float(np.sum(refs.planet_disturbance == 1)) * cell_km2, 2),
         # 1 pixel at 100 m = 1 ha -> sum(ΔAGB Mg/ha) over loss / 1000 = Gg (kt) biomass, * 0.47 = Gg C
@@ -399,6 +515,18 @@ def export_biomass_case_to_madness(
         "hvPostDb": _safe_masked_mean(post_inv.hv_db, ok_both, 2),
         "modelRmseDb": _safe_masked_mean(pre_inv.rmse_db, ok_both, 2),
     }
+    if ordered_series:
+        series_means = {
+            sc.acquisition_iso[:10]: _safe_masked_mean(inv.agb_mgha, ok_both, 1)
+            for sc, inv in ordered_series
+        }
+        metrics["agbSeriesMeans"] = series_means
+        metrics["seriesSceneCount"] = len(ordered_series)
+        for sc, inv in ordered_series:
+            if sc.date_tag.startswith("2021"):
+                metrics["agb2021Mean"] = _safe_masked_mean(inv.agb_mgha, ok_both, 1)
+            elif sc.date_tag.startswith("2024"):
+                metrics["agb2024Mean"] = _safe_masked_mean(inv.agb_mgha, ok_both, 1)
 
     center_lon = round((extent[0] + extent[2]) / 2.0, 5)
     center_lat = round((extent[1] + extent[3]) / 2.0, 5)
@@ -424,7 +552,7 @@ def export_biomass_case_to_madness(
             "bearing": 8,
         },
         "sources": [
-            "NASA NISAR L2 Simulated L-band GCOV (UAVSAR/ALOS-2 · Public LENO S3 Site)",
+            "NASA NISAR L2 Simulated L-band GCOV (UAVSAR/ALOS-2 · Official NASA EBD ATBD Validation Dataset, 2021–2024)",
             "NISAR L3 AGB ATBD Physical Model (calibrated config.ini · weighted HH/HV dB inversion)",
             "USGS NLCD (LENO_LULC 30 m Albers) & Planet Optical Validation (2022-09-30 → 2023-09-18)",
         ],
@@ -435,7 +563,7 @@ def export_biomass_case_to_madness(
                 "name": "NISAR L3 Aboveground Biomass (AGB)",
                 "kind": "raster",
                 "status": "real",
-                "platform": "NISAR (Simulated UAVSAR/ALOS-2)",
+                "platform": "NISAR L-SAR (Simulated UAVSAR/ALOS-2)",
                 "sensor": "L-SAR GCOV",
                 "provider": "Wasabi S3 Public / NISAR ATBD",
                 "product": "L3 Aboveground Biomass (100 m / 1 ha)",
@@ -461,29 +589,14 @@ def export_biomass_case_to_madness(
                         },
                     }
                 ],
-                "frames": [
-                    {
-                        "id": "pre",
-                        "label": f"Before · {pre_start}",
-                        "phase": "before",
-                        "datetime": pre_dt,
-                        "files": {"agb": f"data/cases/{site.case_id}/agb_pre.png"},
-                    },
-                    {
-                        "id": "post",
-                        "label": f"After · {post_end}",
-                        "phase": "after",
-                        "datetime": post_dt,
-                        "files": {"agb": f"data/cases/{site.case_id}/agb_post.png"},
-                    },
-                ],
+                "frames": agb_frames,
             },
             {
                 "id": "nisar_hv",
                 "name": "SAR L-band HV · Canopy Volume",
                 "kind": "raster",
                 "status": "real",
-                "platform": "NISAR (Simulated)",
+                "platform": "NISAR L-SAR (Simulated)",
                 "sensor": "L-SAR GCOV",
                 "provider": "Wasabi S3 Public / NISAR ATBD",
                 "product": "Gamma0 HV (100 m mean)",
@@ -508,29 +621,14 @@ def export_biomass_case_to_madness(
                         },
                     }
                 ],
-                "frames": [
-                    {
-                        "id": "pre",
-                        "label": f"HV Before · {pre_start}",
-                        "phase": "before",
-                        "datetime": pre_dt,
-                        "files": {"hv_db": f"data/cases/{site.case_id}/hv_pre.png"},
-                    },
-                    {
-                        "id": "post",
-                        "label": f"HV After · {post_end}",
-                        "phase": "after",
-                        "datetime": post_dt,
-                        "files": {"hv_db": f"data/cases/{site.case_id}/hv_post.png"},
-                    },
-                ],
+                "frames": hv_frames,
             },
             {
                 "id": "nisar_hh",
                 "name": "SAR L-band HH · Trunk–Ground",
                 "kind": "raster",
                 "status": "real",
-                "platform": "NISAR (Simulated)",
+                "platform": "NISAR L-SAR (Simulated)",
                 "sensor": "L-SAR GCOV",
                 "provider": "Wasabi S3 Public / NISAR ATBD",
                 "product": "Gamma0 HH (100 m mean)",
@@ -555,22 +653,7 @@ def export_biomass_case_to_madness(
                         },
                     }
                 ],
-                "frames": [
-                    {
-                        "id": "pre",
-                        "label": f"HH Before · {pre_start}",
-                        "phase": "before",
-                        "datetime": pre_dt,
-                        "files": {"hh_db": f"data/cases/{site.case_id}/hh_pre.png"},
-                    },
-                    {
-                        "id": "post",
-                        "label": f"HH After · {post_end}",
-                        "phase": "after",
-                        "datetime": post_dt,
-                        "files": {"hh_db": f"data/cases/{site.case_id}/hh_post.png"},
-                    },
-                ],
+                "frames": hh_frames,
             },
             {
                 "id": "agb_change",
@@ -729,6 +812,10 @@ def export_biomass_case_to_madness(
         "nisarConfig": params.model_dump(),
         "preScenes": [{"dateTag": s.date_tag, "iso": s.acquisition_iso, "url": s.source_url} for s in pre_scenes],
         "postScenes": [{"dateTag": s.date_tag, "iso": s.acquisition_iso, "url": s.source_url} for s in post_scenes],
+        "seriesScenes": [
+            {"dateTag": sc.date_tag, "iso": sc.acquisition_iso, "url": sc.source_url}
+            for sc, _ in ordered_series
+        ],
         "metrics": metrics,
         "vectorCounts": {
             "nisarLossPolygons": len(nisar_loss_gj["features"]),

@@ -1,5 +1,6 @@
 // PNG export and download utilities (Before, After, and side-by-side Comparison) from real satellite data.
 import { buildLut, renderFrameCanvas } from './rasterCanvas.js';
+import { DEFAULT_LANG, getLocalizedCaseTitle, getUiCopy, localizeFrameLabel, translateTerm } from './i18n.js';
 
 export function getBeforeAfterPair(dataset) {
   const frames = dataset?.frames ?? [];
@@ -11,9 +12,9 @@ export function getBeforeAfterPair(dataset) {
   return { hasPair: false, before: null, after: frames[0] ?? null };
 }
 
-export function frameShortTitle(frame, fallback) {
+export function frameShortTitle(frame, fallback, lang = DEFAULT_LANG) {
   if (!frame) return fallback;
-  return frame.label || String(frame.datetime || fallback).slice(0, 10);
+  return localizeFrameLabel(frame.label, lang) || String(frame.datetime || fallback).slice(0, 10);
 }
 
 export async function triggerCanvasPngDownload(canvas, filename) {
@@ -30,7 +31,17 @@ export async function triggerCanvasPngDownload(canvas, filename) {
 }
 
 /** Compose a downloadable side-by-side PNG comparison with Before (left), After (right), dates, and legend. */
-export function buildComparisonCanvas({ caseDef, dataset, variable, beforeFrame, afterFrame, beforeCanvas, afterCanvas }) {
+export function buildComparisonCanvas({
+  caseDef,
+  dataset,
+  variable,
+  beforeFrame,
+  afterFrame,
+  beforeCanvas,
+  afterCanvas,
+  lang = DEFAULT_LANG,
+}) {
+  const copy = getUiCopy(lang).export;
   const panelW = Math.max(460, Math.min(680, Math.max(beforeCanvas.width, afterCanvas.width) * 2));
   const aspect = beforeCanvas.height / Math.max(1, beforeCanvas.width);
   const panelH = Math.max(220, Math.min(540, Math.round(panelW * aspect)));
@@ -55,14 +66,16 @@ export function buildComparisonCanvas({ caseDef, dataset, variable, beforeFrame,
   // Header with real case metadata
   ctx.fillStyle = '#eef2ff';
   ctx.font = 'bold 20px system-ui, -apple-system, Segoe UI, sans-serif';
-  ctx.fillText(caseDef.title || caseDef.id, pad, 34);
+  ctx.fillText(getLocalizedCaseTitle(caseDef, lang) || caseDef.id, pad, 34);
 
   ctx.fillStyle = '#93c5fd';
   ctx.font = '14px system-ui, -apple-system, Segoe UI, sans-serif';
-  const varLabel = variable ? `${dataset.name} · ${variable.label}` : dataset.name;
+  const dsName = translateTerm(dataset.name, lang);
+  const varName = variable ? translateTerm(variable.label, lang) : '';
+  const varLabel = varName ? `${dsName} · ${varName}` : dsName;
   ctx.fillText(varLabel, pad, 58);
 
-  const badge = 'REAL SATELLITE DATA';
+  const badge = copy.badge;
   ctx.font = 'bold 11px system-ui, -apple-system, Segoe UI, sans-serif';
   const bw = ctx.measureText(badge).width + 18;
   ctx.fillStyle = '#134e4a';
@@ -77,9 +90,10 @@ export function buildComparisonCanvas({ caseDef, dataset, variable, beforeFrame,
     ctx.fillStyle = accent;
     ctx.font = 'bold 13px system-ui, -apple-system, Segoe UI, sans-serif';
     ctx.fillText(tag, x + 10, headerH + 22);
+    const subtitleOffset = Math.max(78, Math.ceil(ctx.measureText(tag).width) + 14);
     ctx.fillStyle = '#cbd5e1';
     ctx.font = '13px system-ui, -apple-system, Segoe UI, sans-serif';
-    ctx.fillText(subtitle, x + 88, headerH + 22);
+    ctx.fillText(subtitle, x + 10 + subtitleOffset, headerH + 22);
 
     ctx.imageSmoothingEnabled = canvas.width < 260 ? false : true;
     ctx.drawImage(canvas, x, yImg, panelW, panelH);
@@ -89,8 +103,8 @@ export function buildComparisonCanvas({ caseDef, dataset, variable, beforeFrame,
     ctx.strokeRect(x, headerH, panelW, subH + panelH);
   };
 
-  drawPanel(beforeCanvas, pad, 'BEFORE', frameShortTitle(beforeFrame, 'Pre'), '#38bdf8');
-  drawPanel(afterCanvas, pad + panelW + gap, 'AFTER', frameShortTitle(afterFrame, 'Post'), '#fb923c');
+  drawPanel(beforeCanvas, pad, copy.beforeTag, frameShortTitle(beforeFrame, copy.preFallback, lang), '#38bdf8');
+  drawPanel(afterCanvas, pad + panelW + gap, copy.afterTag, frameShortTitle(afterFrame, copy.postFallback, lang), '#fb923c');
 
   const fy = headerH + subH + panelH + 16;
   if (variable?.legend?.colors?.length >= 2) {
@@ -106,13 +120,15 @@ export function buildComparisonCanvas({ caseDef, dataset, variable, beforeFrame,
     ctx.strokeRect(pad, fy, barW, barH);
     ctx.fillStyle = '#cbd5e1';
     ctx.font = '12px system-ui, -apple-system, Segoe UI, sans-serif';
-    const unit = variable.unit ? ` ${variable.unit}` : '';
+    const localizedUnit = variable.unit ? translateTerm(variable.unit, lang) : '';
+    const unit = localizedUnit ? ` ${localizedUnit}` : '';
     ctx.fillText(`${variable.legend.min}${unit}`, pad, fy + 28);
     ctx.fillText(`${variable.legend.max}${unit}`, pad + barW - ctx.measureText(`${variable.legend.max}${unit}`).width, fy + 28);
   } else {
     ctx.fillStyle = '#94a3b8';
     ctx.font = '12px system-ui, -apple-system, Segoe UI, sans-serif';
-    ctx.fillText(`Product: ${dataset.product || dataset.sensor || 'Satellite observation'} · ${dataset.provider || ''}`, pad, fy + 16);
+    const product = translateTerm(dataset.product || dataset.sensor, lang) || copy.satelliteObservation;
+    ctx.fillText(`${copy.productPrefix} ${product} · ${dataset.provider || ''}`, pad, fy + 16);
   }
 
   return out;
@@ -123,7 +139,7 @@ export async function downloadSingleRenderedPng(caseId, dataset, frame, selectio
   await triggerCanvasPngDownload(canvas, `${caseId}_${dataset.id}_${selectionId}_${tag}.png`);
 }
 
-export async function downloadSideBySidePng(caseDef, dataset, selectionId) {
+export async function downloadSideBySidePng(caseDef, dataset, selectionId, lang = DEFAULT_LANG) {
   const { hasPair, before, after } = getBeforeAfterPair(dataset);
   if (!hasPair || !before || !after) {
     const only = after || before;
@@ -144,6 +160,7 @@ export async function downloadSideBySidePng(caseDef, dataset, selectionId) {
     afterFrame: after,
     beforeCanvas: rb.canvas,
     afterCanvas: ra.canvas,
+    lang,
   });
   await triggerCanvasPngDownload(comp, `${caseDef.id}_${dataset.id}_${selectionId}_before_after.png`);
 }

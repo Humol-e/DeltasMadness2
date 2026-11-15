@@ -8,6 +8,13 @@ import {
   frameShortTitle,
   getBeforeAfterPair,
 } from './lib/beforeAfterExport.js';
+import {
+  DEFAULT_LANG,
+  getLocalizedCaseDescription,
+  getLocalizedCaseTitle,
+  getUiCopy,
+  translateTerm,
+} from './lib/i18n.js';
 import { MapController } from './lib/mapController.js';
 
 const esc = (s) =>
@@ -61,14 +68,32 @@ app.innerHTML = `
         <img src="/images/delta-logo.png" alt="Delta logo" class="logo-mark" />
         <span>DELTA</span>
       </a>
-      <nav aria-label="Main navigation">
-        <ul>
-          <li><button type="button" class="nav-link active" data-page="home">Home</button></li>
-          <li><button type="button" class="nav-link" data-page="permafrost">Permafrost</button></li>
-          <li><button type="button" class="nav-link" data-page="wildfires">Wildfires</button></li>
-          <li><button type="button" class="nav-link" data-page="deforestation">Deforestation</button></li>
-        </ul>
-      </nav>
+      <div class="header-right">
+        <nav aria-label="Main navigation">
+          <ul>
+            <li><button type="button" class="nav-link active" data-page="home">Home</button></li>
+            <li><button type="button" class="nav-link" data-page="permafrost">Permafrost</button></li>
+            <li><button type="button" class="nav-link" data-page="wildfires">Wildfires</button></li>
+            <li><button type="button" class="nav-link" data-page="deforestation">Deforestation</button></li>
+          </ul>
+        </nav>
+        <div class="lang-switch" role="group" aria-label="Language selector">
+          <button
+            type="button"
+            class="lang-btn is-active"
+            data-lang="en"
+            aria-pressed="true"
+            aria-label="English"
+          ><span class="lang-full">English</span><span class="lang-short">EN</span></button>
+          <button
+            type="button"
+            class="lang-btn"
+            data-lang="es"
+            aria-pressed="false"
+            aria-label="Español"
+          ><span class="lang-full">Español</span><span class="lang-short">ES</span></button>
+        </div>
+      </div>
     </header>
 
     <main class="view-container">
@@ -229,6 +254,7 @@ app.innerHTML = `
 
 const el = (id) => document.querySelector(id);
 const state = {
+  lang: DEFAULT_LANG,
   cases: [],
   active: null,
   currentPage: 'home',
@@ -243,11 +269,14 @@ const state = {
   previews: { before: null, after: null },
 };
 
+const copy = () => getUiCopy(state.lang);
+
 const token = (import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '').trim();
 const ctl = token
   ? new MapController({
       container: el('#map'),
       token,
+      lang: state.lang,
       onStatus: (level, msg) => setStatus(msg, { level }),
     })
   : null;
@@ -281,25 +310,6 @@ const categoryForCase = (def) => {
   return 'permafrost';
 };
 
-const pageContent = {
-  home: {
-    title: 'Earth Radar',
-    description: 'When Earth changes irreversibly, every second of anticipation saves ecosystems.',
-  },
-  permafrost: {
-    title: 'Below Zero',
-    description: 'Permafrost and glacial thaw releases methane and accelerates climate change.',
-  },
-  wildfires: {
-    title: 'In Flames',
-    description: 'Wildfires transform ecosystems and leave scars visible from space.',
-  },
-  deforestation: {
-    title: 'Deforestation',
-    description: 'Monitoring forest cover changes and aboveground biomass loss.',
-  },
-};
-
 const caseImageFiles = {
   'wildfire-camp-paradise': 'paradise-california.jpg',
   'wildfire-martin-nv': 'martin-nevada.jpg',
@@ -309,11 +319,10 @@ const caseImageFiles = {
   'biomass-leno-nisar': 'lenoir-landing-alabama.jpg',
 };
 
-const categoryLabels = {
-  wildfires: 'Wildfire',
-  permafrost: 'Glacier Melt',
-  deforestation: 'Forest Change',
-};
+const tCaseTitle = (def) => getLocalizedCaseTitle(def, state.lang);
+const tCaseDesc = (def) => getLocalizedCaseDescription(def, state.lang);
+const tTerm = (text) => translateTerm(text, state.lang);
+const tFrame = (frame, fallback) => frameShortTitle(frame, fallback, state.lang);
 
 function getCaseCardImageUrl(def) {
   if (caseImageFiles[def.id]) return `/images/cases/${caseImageFiles[def.id]}`;
@@ -323,7 +332,163 @@ function getCaseCardImageUrl(def) {
   return file ? resolveUrl(file) : null;
 }
 
+function renderDataGuideModal() {
+  const modal = el('#data-guide-modal');
+  if (!modal) return;
+  const highlighted = new Set(
+    [...modal.querySelectorAll('.data-guide-card.is-highlighted')].map((card) => card.dataset.guideCategory),
+  );
+  const guide = copy().dataGuide;
+  modal.innerHTML = `
+    <div class="data-guide-head">
+      <div>
+        <span class="data-guide-eyebrow">${esc(guide.eyebrow)}</span>
+        <h2 id="data-guide-title">${esc(guide.title)}</h2>
+        <p>${esc(guide.intro)}</p>
+      </div>
+      <button type="button" id="data-guide-close" class="data-guide-close">${esc(guide.close)}</button>
+    </div>
+    <div class="data-guide-body">
+      ${guide.cards.map((card) => `
+        <article class="data-guide-card${highlighted.has(card.category) ? ' is-highlighted' : ''}" data-guide-category="${esc(card.category)}">
+          <span class="data-guide-card-tag">${esc(card.tag)}</span>
+          <h3>${esc(card.heading)}</h3>
+          <ul class="data-guide-list">
+            ${card.items.map(([lead, body]) => `<li><strong>${esc(lead)}</strong> ${esc(body)}</li>`).join('')}
+          </ul>
+          <p class="data-guide-takeaway"><strong>${esc(card.takeawayLabel)}</strong> ${esc(card.takeawayBody)}</p>
+        </article>`).join('')}
+    </div>`;
+  modal.querySelector('#data-guide-close')?.addEventListener('click', () => modal.close());
+}
+
+function renderCaseSelect(cases = state.cases) {
+  const select = el('#case-select');
+  if (!select) return;
+  const previous = state.active?.id ?? select.value;
+  const wildfires = cases.filter((c) => categoryForCase(c) === 'wildfires');
+  const biomass = cases.filter((c) => categoryForCase(c) === 'deforestation');
+  const permafrost = cases.filter((c) => categoryForCase(c) === 'permafrost');
+  const sideCopy = copy().side;
+  const groups = [
+    [sideCopy.groups.wildfires, wildfires],
+    [sideCopy.groups.permafrost, permafrost],
+    [sideCopy.groups.deforestation, biomass],
+  ].filter(([, list]) => list.length);
+
+  select.innerHTML = groups
+    .map(
+      ([label, list]) =>
+        `<optgroup label="${esc(label)}">${list.map((c) => `<option value="${esc(c.id)}">${esc(tCaseTitle(c))}</option>`).join('')}</optgroup>`,
+    )
+    .join('');
+  if (previous) select.value = previous;
+}
+
+function applyStaticTranslations() {
+  const c = copy();
+  document.documentElement.lang = c.meta.htmlLang;
+  document.title = c.meta.title;
+
+  const logo = el('.logo');
+  if (logo) logo.setAttribute('aria-label', c.meta.logoAria);
+  const logoImg = el('.logo-mark');
+  if (logoImg) logoImg.alt = c.meta.logoAlt;
+
+  const nav = el('.site-header nav');
+  if (nav) nav.setAttribute('aria-label', c.meta.navAria);
+  document.querySelectorAll('.nav-link[data-page]').forEach((btn) => {
+    const label = c.nav[btn.dataset.page];
+    if (label) btn.textContent = label;
+  });
+
+  const langSwitch = el('.lang-switch');
+  if (langSwitch) langSwitch.setAttribute('aria-label', c.meta.langSwitchAria);
+  document.querySelectorAll('.lang-btn[data-lang]').forEach((btn) => {
+    const active = btn.dataset.lang === state.lang;
+    btn.classList.toggle('is-active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
+
+  const tokenHeading = el('#token-notice strong');
+  if (tokenHeading) tokenHeading.textContent = c.token.heading;
+  const tokenBody = el('#token-notice p');
+  if (tokenBody) tokenBody.innerHTML = c.token.bodyHtml;
+
+  const eyebrow = el('.text-content .eyebrow');
+  if (eyebrow) eyebrow.textContent = c.hero.eyebrow;
+  const heroGuideBtn = el('#hero-data-guide-btn');
+  if (heroGuideBtn) heroGuideBtn.textContent = c.hero.dataGuideBtn;
+
+  const homeCasesSec = el('#home-cases');
+  if (homeCasesSec) homeCasesSec.setAttribute('aria-label', c.hero.homeCasesAria);
+  const homeCasesHeading = el('#home-cases h2');
+  if (homeCasesHeading) homeCasesHeading.textContent = c.hero.homeCasesTitle;
+
+  const indicators = el('#case-indicators');
+  if (indicators) indicators.setAttribute('aria-label', c.hero.indicatorsAria);
+  const detailPanel = el('#case-detail-panel');
+  if (detailPanel) detailPanel.setAttribute('aria-label', c.hero.detailAria);
+
+  const mobileBar = el('#mobile-monitoring-bar');
+  if (mobileBar) {
+    mobileBar.setAttribute('aria-label', c.mobileTabs.aria);
+    mobileBar.querySelectorAll('[data-mobile-pane]').forEach((tab) => {
+      const label = c.mobileTabs[tab.dataset.mobilePane];
+      if (label) tab.textContent = label;
+    });
+  }
+  const controlsPanel = el('#monitoring-controls');
+  if (controlsPanel) controlsPanel.setAttribute('aria-label', c.monitoring.controlsAria);
+
+  const modalClose = el('#modal-close');
+  if (modalClose) modalClose.textContent = c.modal.close;
+  const modalDlBefore = el('#modal-dl-before');
+  if (modalDlBefore) modalDlBefore.textContent = c.modal.dlBefore;
+  const modalDlAfter = el('#modal-dl-after');
+  if (modalDlAfter) modalDlAfter.textContent = c.modal.dlAfter;
+  const modalDlComp = el('#modal-dl-comp');
+  if (modalDlComp) modalDlComp.textContent = c.modal.dlComp;
+
+  // Legacy aside labels (kept in sync even while hidden)
+  const sideHeader = el('.side .hdr h1');
+  if (sideHeader) sideHeader.textContent = c.side.title;
+  const sidePill = el('.side .pill-real');
+  if (sidePill) sidePill.textContent = c.side.pillReal;
+  const caseSelectLabel = el('label[for="case-select"]');
+  if (caseSelectLabel) caseSelectLabel.textContent = c.side.studySite;
+  const layerHeading = el('#layer-sec .sec-title');
+  if (layerHeading) layerHeading.textContent = c.side.layerAndVar;
+  const opacityLabel = el('#layer-sec .range-row span');
+  if (opacityLabel) opacityLabel.textContent = c.side.mapOpacity;
+  const baHeading = el('#ba-sec .sec-title');
+  if (baHeading) baHeading.textContent = c.side.baTitle;
+  const btnDlComp = el('#btn-dl-comp');
+  if (btnDlComp) btnDlComp.textContent = c.side.dlCompBtn;
+  const btnOpenModal = el('#btn-open-modal');
+  if (btnOpenModal) btnOpenModal.textContent = c.side.expandBtn;
+  const btnViewBefore = el('#btn-view-before');
+  if (btnViewBefore) btnViewBefore.textContent = c.side.viewBefore;
+  const btnViewAfter = el('#btn-view-after');
+  if (btnViewAfter) btnViewAfter.textContent = c.side.viewAfter;
+  const btnViewSwipe = el('#btn-view-swipe');
+  if (btnViewSwipe) btnViewSwipe.textContent = c.side.viewSwipe;
+  const swipeLabel = el('#swipe-slider-row span');
+  if (swipeLabel) swipeLabel.textContent = c.side.splitLabel;
+  const vecHeading = el('#vectors-sec .sec-title');
+  if (vecHeading) vecHeading.textContent = c.side.vectorsTitle;
+  const dlHeading = el('#downloads-sec .sec-title');
+  if (dlHeading) dlHeading.textContent = c.side.downloadsTitle;
+  const worldBtn = el('#world-btn');
+  if (worldBtn) worldBtn.textContent = c.side.worldBtn;
+  const terrainBtn = el('#terrain-btn');
+  if (terrainBtn) terrainBtn.textContent = ctl?.mode === 'flat' ? c.side.terrainOff : c.side.terrainOn;
+
+  renderDataGuideModal();
+}
+
 function renderHomeCases(cases) {
+  const c = copy();
   const grid = el('#home-case-grid');
   const orderedCases = cases
     .map((def, index) => ({
@@ -334,17 +499,38 @@ function renderHomeCases(cases) {
     .sort((a, b) => b.latest - a.latest || a.index - b.index);
   homeCasePriority = orderedCases.map(({ def }) => def.id);
 
+  const existing = new Map(
+    [...grid.querySelectorAll('.home-case-card')].map((card) => [card.dataset.caseId, card]),
+  );
+  if (existing.size === orderedCases.length && orderedCases.every(({ def }) => existing.has(def.id))) {
+    orderedCases.forEach(({ def }) => {
+      const card = existing.get(def.id);
+      const title = tCaseTitle(def);
+      card.setAttribute('aria-label', c.cards.openEvent(title));
+      const img = card.querySelector('.home-case-image img');
+      if (img) img.alt = title;
+      const placeholder = card.querySelector('.home-case-placeholder');
+      if (placeholder) placeholder.textContent = c.cards.imagePending;
+      const typeEl = card.querySelector('.home-case-type');
+      if (typeEl) typeEl.textContent = c.categories[categoryForCase(def)];
+      const titleEl = card.querySelector('.home-case-copy strong');
+      if (titleEl) titleEl.textContent = title;
+    });
+    return;
+  }
+
   grid.innerHTML = orderedCases
     .map(({ def }) => {
       const image = getCaseCardImageUrl(def);
-      const title = esc(def.title);
-      return `<button type="button" class="home-case-card" data-case-id="${esc(def.id)}" aria-label="Open event: ${title}" hidden>
+      const rawTitle = tCaseTitle(def);
+      const title = esc(rawTitle);
+      return `<button type="button" class="home-case-card" data-case-id="${esc(def.id)}" aria-label="${esc(c.cards.openEvent(rawTitle))}" hidden>
         <div class="home-case-image${image ? '' : ' is-missing'}">
           ${image ? `<img src="${esc(image)}" alt="${title}" loading="lazy" />` : ''}
-          <span class="home-case-placeholder" aria-hidden="true">Image pending</span>
+          <span class="home-case-placeholder" aria-hidden="true">${esc(c.cards.imagePending)}</span>
         </div>
         <div class="home-case-copy">
-          <span class="home-case-type">${esc(categoryLabels[categoryForCase(def)])}</span>
+          <span class="home-case-type">${esc(c.categories[categoryForCase(def)])}</span>
           <strong>${title}</strong>
         </div>
       </button>`;
@@ -362,12 +548,13 @@ function renderHomeCases(cases) {
 }
 
 function renderCaseIndicators(cases, selectedCaseId) {
+  const c = copy();
   const indicators = el('#case-indicators');
   indicators.innerHTML = cases
     .map((def) => {
       const selected = def.id === selectedCaseId;
       return `<li>
-        <button type="button" class="case-indicator${selected ? ' is-selected' : ''}" data-case-id="${esc(def.id)}" aria-label="Select ${esc(def.title)}" aria-pressed="${selected}">
+        <button type="button" class="case-indicator${selected ? ' is-selected' : ''}" data-case-id="${esc(def.id)}" aria-label="${esc(c.cards.selectEvent(tCaseTitle(def)))}" aria-pressed="${selected}">
           <span class="case-indicator-arrow" aria-hidden="true"></span>
         </button>
       </li>`;
@@ -377,19 +564,36 @@ function renderCaseIndicators(cases, selectedCaseId) {
 }
 
 function renderCaseDetail(def) {
+  const c = copy();
   const panel = el('#case-detail-panel');
+  const rawTitle = tCaseTitle(def);
+  const typeText = c.categories[categoryForCase(def)];
+  const descText = tCaseDesc(def) || c.cards.descriptionFallback;
+  if (panel.dataset.caseId === def.id && panel.querySelector('.case-detail-copy')) {
+    const img = panel.querySelector('.case-detail-image img');
+    if (img) img.alt = rawTitle;
+    const placeholder = panel.querySelector('.case-detail-placeholder');
+    if (placeholder) placeholder.textContent = c.cards.imageUnavailable;
+    panel.querySelector('.case-detail-type').textContent = typeText;
+    panel.querySelector('.case-detail-copy h2').textContent = rawTitle;
+    panel.querySelector('.case-detail-copy p').textContent = descText;
+    panel.querySelector('.case-monitoring-button').textContent = c.cards.monitoringBtn;
+    return;
+  }
+
+  panel.dataset.caseId = def.id;
   const imageUrl = getCaseCardImageUrl(def);
-  const title = esc(def.title);
+  const title = esc(rawTitle);
   panel.innerHTML = `
     <div class="case-detail-image${imageUrl ? '' : ' is-missing'}">
       ${imageUrl ? `<img src="${esc(imageUrl)}" alt="${title}" loading="lazy" />` : ''}
-      <span class="case-detail-placeholder">Image unavailable</span>
+      <span class="case-detail-placeholder">${esc(c.cards.imageUnavailable)}</span>
     </div>
     <div class="case-detail-copy">
-      <span class="case-detail-type">${esc(categoryLabels[categoryForCase(def)])}</span>
+      <span class="case-detail-type">${esc(typeText)}</span>
       <h2>${title}</h2>
-      <p>${esc(def.description || 'Event information unavailable.')}</p>
-      <button type="button" class="case-monitoring-button">Satellite Monitoring</button>
+      <p>${esc(descText)}</p>
+      <button type="button" class="case-monitoring-button">${esc(c.cards.monitoringBtn)}</button>
     </div>`;
   const image = panel.querySelector('img');
   image?.addEventListener('error', () => {
@@ -399,9 +603,11 @@ function renderCaseDetail(def) {
 }
 
 function renderMonitoringInfo(def) {
+  const c = copy();
+  const mCopy = c.monitoring;
   const card = el('#monitoring-info-card');
   const metrics = def.metrics ?? {};
-  const formatNumber = (value) => Number(value).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  const formatNumber = (value) => Number(value).toLocaleString(state.lang === 'es' ? 'es-MX' : 'en-US', { maximumFractionDigits: 2 });
   const area = (value) => value == null ? null : `${formatNumber(value)} km²`;
   const pair = (before, after, unit = '') => before == null || after == null
     ? null
@@ -411,25 +617,25 @@ function renderMonitoringInfo(def) {
   switch (categoryForCase(def)) {
     case 'wildfires':
       facts = [
-        ['Burned area', area(metrics.affectedKm2)],
-        ['Study area', area(metrics.observedKm2)],
-        ['Pre-window', metrics.preWindow],
-        ['Post-window', metrics.postWindow],
+        [mCopy.metricLabels.burnedArea, area(metrics.affectedKm2)],
+        [mCopy.metricLabels.studyArea, area(metrics.observedKm2)],
+        [mCopy.metricLabels.preWindow, metrics.preWindow],
+        [mCopy.metricLabels.postWindow, metrics.postWindow],
       ];
       break;
     case 'permafrost':
       facts = [
-        ['Snow cover', pair(metrics.snowPrePct, metrics.snowPostPct, '%')],
-        ['Surface temp.', pair(metrics.lstPreC, metrics.lstPostC, ' °C')],
-        ['Melt area', area(metrics.meltAreaKm2)],
+        [mCopy.metricLabels.snowCover, pair(metrics.snowPrePct, metrics.snowPostPct, '%')],
+        [mCopy.metricLabels.surfaceTemp, pair(metrics.lstPreC, metrics.lstPostC, ' °C')],
+        [mCopy.metricLabels.meltArea, area(metrics.meltAreaKm2)],
       ];
       break;
     case 'deforestation':
       facts = [
-        ['Valid forest area', area(metrics.forestAreaKm2)],
-        ['Mean AGB', pair(metrics.agbPreMean, metrics.agbPostMean, ' Mg/ha')],
-        ['NISAR severe loss', area(metrics.biomassLossKm2)],
-        ['Carbon loss', metrics.carbonLossGg == null ? null : `${formatNumber(metrics.carbonLossGg)} Gg C`],
+        [mCopy.metricLabels.validForestArea, area(metrics.forestAreaKm2)],
+        [mCopy.metricLabels.meanAgb, pair(metrics.agbPreMean, metrics.agbPostMean, ' Mg/ha')],
+        [mCopy.metricLabels.nisarSevereLoss, area(metrics.biomassLossKm2)],
+        [mCopy.metricLabels.carbonLoss, metrics.carbonLossGg == null ? null : `${formatNumber(metrics.carbonLossGg)} Gg C`],
       ];
       break;
     default:
@@ -445,29 +651,29 @@ function renderMonitoringInfo(def) {
             <dd>${esc(value)}</dd>
           </div>`).join('')}
       </dl>`
-    : '<p class="monitoring-info-empty">No metrics available for this event.</p>';
+    : `<p class="monitoring-info-empty">${esc(mCopy.noMetrics)}</p>`;
   const datasetChoices = (def.datasets ?? []).map((dataset) => `
     <button
       type="button"
       class="chip monitoring-satellite-option${dataset.id === state.datasetId ? ' active' : ''}"
       data-monitor-ds="${esc(dataset.id)}"
       aria-pressed="${dataset.id === state.datasetId}"
-    >${esc(dataset.name)}</button>`).join('');
+    >${esc(tTerm(dataset.name))}</button>`).join('');
   card.innerHTML = `
-    <span class="monitoring-info-type">${esc(categoryLabels[categoryForCase(def)])}</span>
-    <h2 id="monitoring-info-title">${esc(def.title)}</h2>
+    <span class="monitoring-info-type">${esc(c.categories[categoryForCase(def)])}</span>
+    <h2 id="monitoring-info-title">${esc(tCaseTitle(def))}</h2>
     <section class="monitoring-info-section" aria-labelledby="monitoring-facts-heading">
-      <h3 id="monitoring-facts-heading">Key Metrics</h3>
+      <h3 id="monitoring-facts-heading">${esc(mCopy.keyMetrics)}</h3>
       ${factsMarkup}
     </section>
     <section class="monitoring-info-section monitoring-satellite-picker" aria-labelledby="monitoring-satellite-heading">
-      <h3 id="monitoring-satellite-heading">Select Satellite</h3>
-      <div class="monitoring-satellite-options" role="group" aria-label="Satellite sources">
+      <h3 id="monitoring-satellite-heading">${esc(mCopy.selectSatellite)}</h3>
+      <div class="monitoring-satellite-options" role="group" aria-label="${esc(mCopy.sourcesAria)}">
         ${datasetChoices}
       </div>
-      ${state.datasetId ? '' : '<p class="monitoring-satellite-hint">Choose a source to display its imagery on the map.</p>'}
+      ${state.datasetId ? '' : `<p class="monitoring-satellite-hint">${esc(mCopy.sourceHint)}</p>`}
     </section>
-    <button id="monitoring-data-guide-btn" type="button" class="data-guide-button data-guide-button--monitoring">How we could use this data</button>`;
+    <button id="monitoring-data-guide-btn" type="button" class="data-guide-button data-guide-button--monitoring">${esc(c.hero.dataGuideBtn)}</button>`;
   card.querySelectorAll('button[data-monitor-ds]').forEach((button) => {
     button.addEventListener('click', () => selectDataset(button.dataset.monitorDs));
   });
@@ -475,6 +681,7 @@ function renderMonitoringInfo(def) {
 }
 
 function renderMonitoringControls(def) {
+  const mCopy = copy().monitoring;
   const panel = el('#monitoring-controls');
   const ds = activeDataset();
   const frames = ds?.frames ?? [];
@@ -485,71 +692,72 @@ function renderMonitoringControls(def) {
   const splitPercent = Math.round(state.split * 100);
   const variable = ds?.variables.find((item) => item.id === state.varId);
   const opacity = ds ? ctl?.dataset(ds.id)?.opacity ?? ds.render.opacity : 0.85;
-  const framePhase = canSwipe ? `${splitPercent}% Before · ${100 - splitPercent}% After`
-    : frame?.phase === 'before' ? 'Before'
-    : frame?.phase === 'after' ? 'After'
-      : frame?.phase === 'change' ? 'Change' : 'Observation';
+  const framePhase = canSwipe ? mCopy.splitPhase(splitPercent)
+    : frame?.phase === 'before' ? mCopy.before
+    : frame?.phase === 'after' ? mCopy.after
+      : frame?.phase === 'change' ? mCopy.change : mCopy.observation;
   const frameDescription = canSwipe
-    ? `${frameShortTitle(pair.before, 'Before')} → ${frameShortTitle(pair.after, 'After')}`
-    : frame ? frameShortTitle(frame, frame.datetime) : null;
+    ? `${tFrame(pair.before, mCopy.before)} → ${tFrame(pair.after, mCopy.after)}`
+    : frame ? tFrame(frame, frame.datetime) : null;
   const variableMarkup = ds && ds.variables.length > 1
     ? `<div class="monitoring-control-group">
-        <label for="monitoring-variable-select">Data type</label>
+        <label for="monitoring-variable-select">${esc(mCopy.dataType)}</label>
         <select id="monitoring-variable-select">
-          ${ds.variables.map((item) => `<option value="${esc(item.id)}" ${item.id === state.varId ? 'selected' : ''}>${esc(item.label)}</option>`).join('')}
+          ${ds.variables.map((item) => `<option value="${esc(item.id)}" ${item.id === state.varId ? 'selected' : ''}>${esc(tTerm(item.label))}</option>`).join('')}
         </select>
       </div>`
     : '';
+  const localizedUnit = variable?.unit ? tTerm(variable.unit) : '';
   const details = ds ? [
-    ['Source', ds.name],
-    [ds.sensor ? 'Sensor' : 'Platform', ds.sensor || ds.platform],
-    ['Provider', ds.provider],
-    ['Data', variable?.label],
-    [canSwipe ? 'Comparison' : 'Date', frameDescription],
-    ['Phase', frame ? framePhase : null],
-    ['Unit', variable?.unit],
+    [mCopy.source, tTerm(ds.name)],
+    [ds.sensor ? mCopy.sensor : mCopy.platform, ds.sensor || tTerm(ds.platform)],
+    [mCopy.provider, ds.provider],
+    [mCopy.data, tTerm(variable?.label)],
+    [canSwipe ? mCopy.comparison : mCopy.date, frameDescription],
+    [mCopy.phase, frame ? framePhase : null],
+    [mCopy.unit, localizedUnit],
   ].filter(([, value]) => value) : [];
   const detailsMarkup = details.length
     ? `<dl class="monitoring-display-details">
         ${details.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}
       </dl>`
-    : '<p class="monitoring-control-hint">Select a satellite to enable controls.</p>';
+    : `<p class="monitoring-control-hint">${esc(mCopy.selectSatelliteHint)}</p>`;
   const legendMarkup = variable?.legend?.colors?.length
     ? `<div class="monitoring-display-legend">
         <div class="monitoring-display-legend-ramp" style="background:linear-gradient(90deg, ${variable.legend.colors.join(', ')})"></div>
-        <div><span>${esc(variable.legend.min)}${variable.unit ? ` ${esc(variable.unit)}` : ''}</span><span>${esc(variable.legend.max)}${variable.unit ? ` ${esc(variable.unit)}` : ''}</span></div>
+        <div><span>${esc(variable.legend.min)}${localizedUnit ? ` ${esc(localizedUnit)}` : ''}</span><span>${esc(variable.legend.max)}${localizedUnit ? ` ${esc(localizedUnit)}` : ''}</span></div>
       </div>`
     : '';
   const geotiffCount = (def.downloads ?? []).filter((item) => item.datasetId === ds?.id && item.format === 'geotiff').length;
 
   panel.innerHTML = `
     <header class="monitoring-controls-header">
-      <span>Visualization</span>
-      <h2>Image Controls</h2>
+      <span>${esc(mCopy.visualization)}</span>
+      <h2>${esc(mCopy.imageControls)}</h2>
     </header>
     <div class="monitoring-control-group">
-      <label for="monitoring-opacity-range">Opacity <output id="monitoring-opacity-output">${Math.round(opacity * 100)}%</output></label>
+      <label for="monitoring-opacity-range">${esc(mCopy.opacity)} <output id="monitoring-opacity-output">${Math.round(opacity * 100)}%</output></label>
       <input id="monitoring-opacity-range" type="range" min="0" max="1" step="0.05" value="${opacity}" ${ds ? '' : 'disabled'} />
     </div>
     <div class="monitoring-control-group">
-      <label for="monitoring-time-range">${canSwipe ? 'Compare Before / After' : 'Image Time'}</label>
+      <label for="monitoring-time-range">${esc(canSwipe ? mCopy.compareTitle : mCopy.imageTime)}</label>
       <input id="monitoring-time-range" type="range" min="0" max="${canSwipe ? 100 : Math.max(0, frames.length - 1)}" step="1" value="${canSwipe ? splitPercent : frameIndex}" ${canSwipe || (ds && frames.length > 1) ? '' : 'disabled'} />
-      <div class="monitoring-time-ends"><span>${canSwipe ? 'Before' : 'Initial'}</span><span>${canSwipe ? 'After' : 'Final'}</span></div>
+      <div class="monitoring-time-ends"><span>${esc(canSwipe ? mCopy.before : mCopy.initial)}</span><span>${esc(canSwipe ? mCopy.after : mCopy.final)}</span></div>
       <div class="monitoring-time-caption">
         <span id="monitoring-time-phase">${esc(framePhase)}</span>
-        <strong id="monitoring-time-label">${esc(canSwipe ? 'Slide to compare' : frame ? frameShortTitle(frame, frame.datetime) : 'No image selected')}</strong>
+        <strong id="monitoring-time-label">${esc(canSwipe ? mCopy.slideToCompare : frame ? tFrame(frame, frame.datetime) : mCopy.noImageSelected)}</strong>
       </div>
     </div>
     ${variableMarkup}
     <section class="monitoring-display-info" aria-labelledby="monitoring-display-heading">
-      <h3 id="monitoring-display-heading">Currently Displaying</h3>
+      <h3 id="monitoring-display-heading">${esc(mCopy.currentlyDisplaying)}</h3>
       ${detailsMarkup}
       ${legendMarkup}
     </section>
     <button id="monitoring-download-button" class="monitoring-download-button" type="button" ${ds ? '' : 'disabled'}>
-      Download PNG + GeoTIFF
+      ${esc(mCopy.downloadBtn)}
     </button>
-    <p class="monitoring-download-hint">${ds ? `${geotiffCount} GeoTIFF(s) available for this source; a comparison PNG will be added.` : 'Select a source before downloading.'}</p>`;
+    <p class="monitoring-download-hint">${esc(ds ? mCopy.downloadHintCount(geotiffCount) : mCopy.downloadHintNoSource)}</p>`;
 
   const opacityRange = el('#monitoring-opacity-range');
   opacityRange.addEventListener('input', (event) => {
@@ -562,19 +770,20 @@ function renderMonitoringControls(def) {
 
   const timeRange = el('#monitoring-time-range');
   timeRange.addEventListener('input', () => {
+    const currentCopy = copy().monitoring;
     if (canSwipe) {
       state.split = Number(timeRange.value) / 100;
       state.mapMode = 'swipe';
       const percent = Math.round(state.split * 100);
-      el('#monitoring-time-phase').textContent = `${percent}% Before · ${100 - percent}% After`;
-      el('#monitoring-time-label').textContent = 'Slide to compare';
+      el('#monitoring-time-phase').textContent = currentCopy.splitPhase(percent);
+      el('#monitoring-time-label').textContent = currentCopy.slideToCompare;
       ctl?.setSwipeSplit(state.split);
       return;
     }
     const selectedFrame = frames[Number(timeRange.value)];
     if (!selectedFrame) return;
     state.frameId = selectedFrame.id;
-    el('#monitoring-time-label').textContent = frameShortTitle(selectedFrame, selectedFrame.datetime);
+    el('#monitoring-time-label').textContent = tFrame(selectedFrame, selectedFrame.datetime);
   });
   timeRange.addEventListener('change', () => {
     if (canSwipe) {
@@ -629,11 +838,12 @@ function selectCaseIndicator(caseId) {
 }
 
 function syncMonitoringModeToggle() {
+  const mCopy = copy().monitoring;
   const toggle = el('#monitoring-mode-toggle');
   const is3d = ctl?.mode === 'terrain';
   toggle.textContent = is3d ? '3D' : '2D';
   toggle.setAttribute('aria-pressed', String(is3d));
-  toggle.setAttribute('aria-label', `Switch to ${is3d ? '2D' : '3D'} view`);
+  toggle.setAttribute('aria-label', is3d ? mCopy.mode2dAria : mCopy.mode3dAria);
 }
 
 function setMobileMonitoringPane(pane = 'info') {
@@ -727,7 +937,7 @@ function resetHomeCaseCardPosition(card) {
 }
 
 function setPage(page, { caseId } = {}) {
-  const content = pageContent[page];
+  const content = copy().pages[page];
   if (!content) return;
   const transitionId = beginPageTransition(content);
   state.currentPage = page;
@@ -810,21 +1020,22 @@ function renderCaseMetrics(def) {
   const m = def.metrics;
   const box = el('#case-metrics');
   if (!m) { box.innerHTML = ''; return; }
+  const labels = copy().monitoring.metricLabels;
   const items = [];
-  if (m.preWindow) items.push(['Pre Window', m.preWindow]);
-  if (m.postWindow) items.push(['Post Window', m.postWindow]);
-  if (m.affectedKm2 != null) items.push(['Detected Burned Area', `${m.affectedKm2} km²`]);
-  if (m.observedKm2 != null) items.push(['Observed Area', `${m.observedKm2} km²`]);
-  if (m.snowPrePct != null && m.snowPostPct != null) items.push(['MODIS Snow (Before → After)', `${m.snowPrePct}% → ${m.snowPostPct}%`]);
-  if (m.lstPreC != null && m.lstPostC != null) items.push(['Surface Temp.', `${m.lstPreC}°C → ${m.lstPostC}°C`]);
-  if (m.meltAreaKm2 != null) items.push(['Snow Retreat (ΔNDSI)', `${m.meltAreaKm2} km²`]);
-  if (m.forestAreaKm2 != null) items.push(['Valid Forest Area', `${m.forestAreaKm2} km²`]);
-  if (m.agbPreMean != null && m.agbPostMean != null) items.push(['Mean AGB (Before → After)', `${m.agbPreMean} → ${m.agbPostMean} Mg/ha`]);
-  if (m.agbDisturbedPre != null && m.agbDisturbedPost != null) items.push(['Disturbed AGB', `${m.agbDisturbedPre} → ${m.agbDisturbedPost} Mg/ha`]);
-  if (m.biomassLossKm2 != null) items.push(['NISAR Severe Loss (≤−40)', `${m.biomassLossKm2} km²`]);
-  if (m.planetDistKm2 != null) items.push(['Planet Disturbance Ref.', `${m.planetDistKm2} km²`]);
-  if (m.carbonLossGg != null) items.push(['Carbon Loss (0.47·ΔAGB)', `${m.carbonLossGg} Gg C`]);
-  if (m.hvPreDb != null && m.hvPostDb != null) items.push(['L-Band HV (Before → After)', `${m.hvPreDb} → ${m.hvPostDb} dB`]);
+  if (m.preWindow) items.push([labels.preWindow, m.preWindow]);
+  if (m.postWindow) items.push([labels.postWindow, m.postWindow]);
+  if (m.affectedKm2 != null) items.push([labels.burnedArea, `${m.affectedKm2} km²`]);
+  if (m.observedKm2 != null) items.push([labels.studyArea, `${m.observedKm2} km²`]);
+  if (m.snowPrePct != null && m.snowPostPct != null) items.push([labels.snowCover, `${m.snowPrePct}% → ${m.snowPostPct}%`]);
+  if (m.lstPreC != null && m.lstPostC != null) items.push([labels.surfaceTemp, `${m.lstPreC}°C → ${m.lstPostC}°C`]);
+  if (m.meltAreaKm2 != null) items.push([labels.meltArea, `${m.meltAreaKm2} km²`]);
+  if (m.forestAreaKm2 != null) items.push([labels.validForestArea, `${m.forestAreaKm2} km²`]);
+  if (m.agbPreMean != null && m.agbPostMean != null) items.push([labels.meanAgb, `${m.agbPreMean} → ${m.agbPostMean} Mg/ha`]);
+  if (m.agbDisturbedPre != null && m.agbDisturbedPost != null) items.push([labels.meanAgb, `${m.agbDisturbedPre} → ${m.agbDisturbedPost} Mg/ha`]);
+  if (m.biomassLossKm2 != null) items.push([labels.nisarSevereLoss, `${m.biomassLossKm2} km²`]);
+  if (m.planetDistKm2 != null) items.push(['Planet Ref.', `${m.planetDistKm2} km²`]);
+  if (m.carbonLossGg != null) items.push([labels.carbonLoss, `${m.carbonLossGg} Gg C`]);
+  if (m.hvPreDb != null && m.hvPostDb != null) items.push(['L-Band HV', `${m.hvPreDb} → ${m.hvPostDb} dB`]);
   box.innerHTML = items.map(([k, v]) => `<div class="metric"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('');
 }
 
@@ -834,14 +1045,14 @@ function renderLegend(ds, varId) {
   if (!v?.legend?.colors?.length) { wrap.hidden = true; return; }
   wrap.hidden = false;
   el('#legend-ramp').style.background = `linear-gradient(90deg, ${v.legend.colors.join(', ')})`;
-  const unit = v.unit ? ` ${v.unit}` : '';
+  const unit = v.unit ? ` ${tTerm(v.unit)}` : '';
   el('#legend-min').textContent = `${v.legend.min}${unit}`;
   el('#legend-max').textContent = `${v.legend.max}${unit}`;
 }
 
 function renderDatasetControls(def) {
   el('#dataset-chips').innerHTML = def.datasets
-    .map((d) => `<button type="button" class="chip${d.id === state.datasetId ? ' active' : ''}" data-ds="${esc(d.id)}">${esc(d.name)}</button>`)
+    .map((d) => `<button type="button" class="chip${d.id === state.datasetId ? ' active' : ''}" data-ds="${esc(d.id)}">${esc(tTerm(d.name))}</button>`)
     .join('');
 
   el('#dataset-chips').querySelectorAll('button').forEach((btn) => {
@@ -853,7 +1064,7 @@ function renderDatasetControls(def) {
   if (ds && ds.variables.length > 1) {
     varBox.hidden = false;
     varBox.innerHTML = ds.variables
-      .map((v) => `<button type="button" class="chip${v.id === state.varId ? ' active' : ''}" data-v="${esc(v.id)}">${esc(v.label)}</button>`)
+      .map((v) => `<button type="button" class="chip${v.id === state.varId ? ' active' : ''}" data-v="${esc(v.id)}">${esc(tTerm(v.label))}</button>`)
       .join('');
     varBox.querySelectorAll('button').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -884,7 +1095,7 @@ function renderVectors(def) {
     .map(
       (v) => `<label class="check">
         <input type="checkbox" data-vec="${esc(v.id)}" ${v.defaultVisible !== false ? 'checked' : ''} />
-        <span>${esc(v.name || v.id)}</span>
+        <span>${esc(tTerm(v.name) || v.id)}</span>
       </label>`,
     )
     .join('');
@@ -894,6 +1105,7 @@ function renderVectors(def) {
 }
 
 function renderDownloads(def) {
+  const sideCopy = copy().side;
   const sec = el('#downloads-sec');
   const box = el('#downloads-list');
   const all = def.downloads ?? [];
@@ -905,18 +1117,19 @@ function renderDownloads(def) {
   const shown = primary.length ? primary : all;
   const linkHtml = (dl) =>
     `<a class="dl-item" href="${esc(resolveUrl(dl.url))}" download>
-      <span>⬇ ${esc(dl.label)}</span>
+      <span>⬇ ${esc(tTerm(dl.label))}</span>
       <span class="dl-size">${esc(fmtBytes(dl.sizeBytes))}</span>
     </a>`;
 
   let html = shown.map(linkHtml).join('');
   if (primary.length && others.length) {
-    html += `<details class="dl-more"><summary>View other ${others.length} real GeoTIFFs for this event</summary><div class="dl-list">${others.map(linkHtml).join('')}</div></details>`;
+    html += `<details class="dl-more"><summary>${esc(sideCopy.moreGeotiffs(others.length))}</summary><div class="dl-list">${others.map(linkHtml).join('')}</div></details>`;
   }
   box.innerHTML = html;
 }
 
 async function renderBeforeAfterPreviews(def, ds, varId) {
+  const c = copy();
   const seq = ++state.renderSeq;
   const grid = el('#ba-grid');
   const { hasPair, before, after } = getBeforeAfterPair(ds);
@@ -936,8 +1149,8 @@ async function renderBeforeAfterPreviews(def, ds, varId) {
       before: { frame: before, url: rb.url },
       after: { frame: after, url: ra.url },
     };
-    cards.push({ tag: 'BEFORE', cls: 'ba-tag-before', date: frameShortTitle(before, 'Before'), url: rb.url, phase: 'before', frame: before });
-    cards.push({ tag: 'AFTER', cls: 'ba-tag-after', date: frameShortTitle(after, 'After'), url: ra.url, phase: 'after', frame: after });
+    cards.push({ tag: c.export.beforeTag, cls: 'ba-tag-before', date: tFrame(before, c.monitoring.before), url: rb.url, phase: 'before', frame: before });
+    cards.push({ tag: c.export.afterTag, cls: 'ba-tag-after', date: tFrame(after, c.monitoring.after), url: ra.url, phase: 'after', frame: after });
   } else {
     grid.className = 'ba-grid single';
     const only = after || before;
@@ -945,16 +1158,16 @@ async function renderBeforeAfterPreviews(def, ds, varId) {
     const rendered = await renderFrameCanvas(ds, only, varId);
     if (seq !== state.renderSeq || !state.active) return;
     state.previews = { before: null, after: { frame: only, url: rendered.url } };
-    cards.push({ tag: 'REAL OBSERVATION', cls: 'ba-tag-after', date: frameShortTitle(only, 'Result'), url: rendered.url, phase: 'real', frame: only });
+    cards.push({ tag: c.side.realObsTag, cls: 'ba-tag-after', date: tFrame(only, c.side.resultFallback), url: rendered.url, phase: 'real', frame: only });
   }
 
   grid.innerHTML = cards
     .map(
-      (c, i) => `<div class="ba-card">
-        <div class="ba-card-head"><span class="${c.cls}">${c.tag}</span></div>
-        <div class="ba-date" title="${esc(c.date)}">${esc(c.date)}</div>
-        <img class="ba-thumb" src="${c.url}" alt="${esc(c.tag)}" />
-        <button type="button" class="btn btn-sm" data-dl-idx="${i}">⬇ Download ${c.tag} (.png)</button>
+      (item, i) => `<div class="ba-card">
+        <div class="ba-card-head"><span class="${item.cls}">${esc(item.tag)}</span></div>
+        <div class="ba-date" title="${esc(item.date)}">${esc(item.date)}</div>
+        <img class="ba-thumb" src="${item.url}" alt="${esc(item.tag)}" />
+        <button type="button" class="btn btn-sm" data-dl-idx="${i}">${esc(c.side.downloadTagBtn(item.tag))}</button>
       </div>`,
     )
     .join('');
@@ -970,6 +1183,7 @@ async function downloadMonitoringData() {
   const ds = activeDataset();
   const variableId = state.varId ?? ds?.variables[0]?.id;
   if (!def || !ds || !variableId) return;
+  const exportCopy = copy().export;
 
   const geotiffs = (def.downloads ?? []).filter((item) => item.datasetId === ds.id && item.format === 'geotiff');
   geotiffs.forEach((item) => {
@@ -982,16 +1196,16 @@ async function downloadMonitoringData() {
   });
 
   try {
-    await downloadSideBySidePng(def, ds, variableId);
+    await downloadSideBySidePng(def, ds, variableId, state.lang);
   } catch (error) {
-    setStatus(`Failed to generate PNG: ${error.message}`);
+    setStatus(exportCopy.failedPng(error.message));
     return;
   }
 
   setStatus(
     geotiffs.length
-      ? `Download started: comparison PNG and ${geotiffs.length} GeoTIFF(s).`
-      : 'Comparison PNG downloaded; no GeoTIFF available for this source.',
+      ? exportCopy.downloadWithTif(geotiffs.length)
+      : exportCopy.downloadOnlyPng,
     { autoHideMs: 4500 },
   );
 }
@@ -1092,10 +1306,10 @@ async function selectCase(caseId, { globeOverview = false } = {}) {
     ctl?.setCases([def]);
   }
   el('#case-select').value = def.id;
-  el('#case-desc').textContent = def.description || '';
+  el('#case-desc').textContent = tCaseDesc(def);
   el('#world-btn').hidden = !ctl;
   el('#terrain-btn').hidden = !ctl;
-  el('#terrain-btn').textContent = '🏔 3D Terrain: ON';
+  el('#terrain-btn').textContent = copy().side.terrainOn;
   history.replaceState(null, '', `#${def.id}`);
   renderCaseMetrics(def);
 
@@ -1111,29 +1325,30 @@ async function selectCase(caseId, { globeOverview = false } = {}) {
 }
 
 function openComparisonModal() {
+  const c = copy();
   const def = state.active;
   const ds = activeDataset();
   if (!def || !ds) return;
   const { hasPair, before, after } = getBeforeAfterPair(ds);
   const v = ds.variables.find((x) => x.id === state.varId);
-  el('#modal-title').textContent = `${def.title} · ${ds.name}${v ? ` (${v.label})` : ''}`;
+  el('#modal-title').textContent = `${tCaseTitle(def)} · ${tTerm(ds.name)}${v ? ` (${tTerm(v.label)})` : ''}`;
 
   const modalGrid = el('#modal-grid');
   const cards = [];
   if (hasPair && state.previews.before && state.previews.after) {
     modalGrid.className = 'modal-grid';
-    cards.push({ title: `BEFORE · ${frameShortTitle(before, 'Pre')}`, url: state.previews.before.url });
-    cards.push({ title: `AFTER · ${frameShortTitle(after, 'Post')}`, url: state.previews.after.url });
+    cards.push({ title: `${c.modal.beforePrefix}${tFrame(before, c.export.preFallback)}`, url: state.previews.before.url });
+    cards.push({ title: `${c.modal.afterPrefix}${tFrame(after, c.export.postFallback)}`, url: state.previews.after.url });
     el('#modal-dl-before').hidden = false;
     el('#modal-dl-comp').hidden = false;
   } else if (state.previews.after) {
     modalGrid.className = 'modal-grid single';
-    cards.push({ title: frameShortTitle(after, 'Real observation'), url: state.previews.after.url });
+    cards.push({ title: tFrame(after, c.modal.realObs), url: state.previews.after.url });
     el('#modal-dl-before').hidden = true;
     el('#modal-dl-comp').hidden = true;
   }
   modalGrid.innerHTML = cards
-    .map((c) => `<div class="modal-card"><div class="ba-card-head"><span>${esc(c.title)}</span></div><img src="${c.url}" alt="${esc(c.title)}" /></div>`)
+    .map((item) => `<div class="modal-card"><div class="ba-card-head"><span>${esc(item.title)}</span></div><img src="${item.url}" alt="${esc(item.title)}" /></div>`)
     .join('');
 
   el('#compare-modal').showModal();
@@ -1156,9 +1371,65 @@ function openDataGuideModal() {
   if (body) body.scrollTop = 0;
 }
 
+let refreshInspectPoint = null;
+
+function setLanguage(nextLang) {
+  const normalized = nextLang === 'es' ? 'es' : DEFAULT_LANG;
+  if (normalized === state.lang) return;
+  state.lang = normalized;
+  applyStaticTranslations();
+
+  const c = copy();
+  const pageCopy = c.pages[state.currentPage];
+  if (pageCopy) {
+    el('#hero-title').textContent = pageCopy.title;
+    el('#hero-description').textContent = pageCopy.description;
+  }
+
+  ctl?.setLanguage(state.lang);
+
+  if (state.cases.length) {
+    renderCaseSelect(state.cases);
+    renderHomeCases(state.cases);
+  } else {
+    el('#case-desc').textContent = c.modal.noDataCases;
+  }
+
+  if (state.active) {
+    const def = state.active;
+    if (state.currentPage !== 'home') {
+      const categoryCases = state.cases.filter((item) => categoryForCase(item) === state.currentPage);
+      el('#case-indicators')?.querySelectorAll('button[data-case-id]').forEach((btn) => {
+        const match = categoryCases.find((item) => item.id === btn.dataset.caseId);
+        if (match) btn.setAttribute('aria-label', c.cards.selectEvent(tCaseTitle(match)));
+      });
+      renderCaseDetail(def);
+    }
+    el('#case-desc').textContent = tCaseDesc(def);
+    renderCaseMetrics(def);
+    renderDatasetControls(def);
+    renderVectors(def);
+    renderDownloads(def);
+    renderMonitoringInfo(def);
+    renderMonitoringControls(def);
+    syncMonitoringModeToggle();
+    const previewDataset = activeDataset()
+      ?? (def.datasets.find((d) => getBeforeAfterPair(d).hasPair) ?? def.datasets[0]);
+    const previewVar = activeDataset() ? state.varId : previewDataset?.variables[0]?.id;
+    if (previewDataset) renderBeforeAfterPreviews(def, previewDataset, previewVar);
+    if (el('#compare-modal')?.open) openComparisonModal();
+    if (!el('#inspect-pill').hidden && state.lastInspectLngLat && refreshInspectPoint) {
+      refreshInspectPoint(state.lastInspectLngLat);
+    }
+  }
+}
+
 function bindEvents() {
   document.querySelectorAll('[data-page]').forEach((link) => {
     link.addEventListener('click', () => setPage(link.dataset.page));
+  });
+  document.querySelectorAll('.lang-btn[data-lang]').forEach((btn) => {
+    btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
   });
   el('#home-case-grid').addEventListener('click', (event) => {
     const card = event.target.closest('button[data-case-id]');
@@ -1212,7 +1483,8 @@ function bindEvents() {
     const next = ctl.mode === 'terrain' ? 'flat' : 'terrain';
     ctl.setMode(next);
     ctl.setHillshade(next === 'terrain');
-    el('#terrain-btn').textContent = next === 'terrain' ? '🏔 3D Terrain: ON' : '🏔 3D Terrain: OFF';
+    const sideCopy = copy().side;
+    el('#terrain-btn').textContent = next === 'terrain' ? sideCopy.terrainOn : sideCopy.terrainOff;
   });
 
   el('#opacity-range').addEventListener('input', (e) => {
@@ -1246,11 +1518,10 @@ function bindEvents() {
 
   el('#btn-dl-comp').addEventListener('click', () => {
     const ds = activeDataset();
-    if (state.active && ds) downloadSideBySidePng(state.active, ds, state.varId);
+    if (state.active && ds) downloadSideBySidePng(state.active, ds, state.varId, state.lang);
   });
   el('#btn-open-modal').addEventListener('click', openComparisonModal);
   el('#hero-data-guide-btn').addEventListener('click', openDataGuideModal);
-  el('#data-guide-close').addEventListener('click', () => el('#data-guide-modal').close());
   el('#data-guide-modal').addEventListener('click', (e) => {
     if (e.target === el('#data-guide-modal')) el('#data-guide-modal').close();
   });
@@ -1272,13 +1543,14 @@ function bindEvents() {
   });
   el('#modal-dl-comp').addEventListener('click', () => {
     const ds = activeDataset();
-    if (state.active && ds) downloadSideBySidePng(state.active, ds, state.varId);
+    if (state.active && ds) downloadSideBySidePng(state.active, ds, state.varId, state.lang);
   });
 
   if (ctl) {
     ctl.onCasePick = openCase;
     ctl.onWorldClick = () => setPage('home');
     const samplePoint = (lngLat, { hideOnMiss = true } = {}) => {
+      state.lastInspectLngLat = lngLat;
       const hSeq = ++state.hoverSeq;
       ctl.sampleAt(lngLat).then((hits) => {
         if (hSeq !== state.hoverSeq || !state.active || !el('.view').classList.contains('is-monitoring')) return;
@@ -1288,13 +1560,15 @@ function bindEvents() {
           return;
         }
         const h = hits[0];
+        const noDataText = copy().inspect.noData;
         const lines = h.values
-          ? h.values.map((v) => `${esc(v.label)}: <strong>${v.value == null ? 'no data' : `${v.value.toFixed(2)} ${esc(v.unit || '')}`}</strong>`)
-          : [`${esc(h.name)}`];
+          ? h.values.map((v) => `${esc(tTerm(v.label))}: <strong>${v.value == null ? esc(noDataText) : `${v.value.toFixed(2)} ${esc(tTerm(v.unit) || '')}`}</strong>`)
+          : [`${esc(tTerm(h.name))}`];
         pill.hidden = false;
         pill.innerHTML = `<div class="muted">${lngLat.lng.toFixed(4)}, ${lngLat.lat.toFixed(4)}</div>${lines.join('<br>')}`;
       });
     };
+    refreshInspectPoint = (lngLat) => samplePoint(lngLat, { hideOnMiss: false });
     let hoverTick = 0;
     ctl.map.on('mousemove', (e) => {
       const now = performance.now();
@@ -1308,37 +1582,25 @@ function bindEvents() {
     });
     ctl.map.on('mouseout', () => {
       state.hoverSeq++;
+      state.lastInspectLngLat = null;
       el('#inspect-pill').hidden = true;
     });
   }
 }
 
 async function boot() {
+  applyStaticTranslations();
   bindEvents();
   const { cases, problems } = await loadCatalog('data/catalog.json');
   state.cases = cases;
   renderHomeCases(cases);
-  if (problems.length) setStatus(`Warning: ${problems[0]}`);
+  if (problems.length) setStatus(`${copy().modal.warningPrefix}${problems[0]}`);
   if (!cases.length) {
-    el('#case-desc').textContent = 'No real-data cases available in data/catalog.json.';
+    el('#case-desc').textContent = copy().modal.noDataCases;
     return;
   }
 
-  const wildfires = cases.filter((c) => categoryForCase(c) === 'wildfires');
-  const biomass = cases.filter((c) => categoryForCase(c) === 'deforestation');
-  const permafrost = cases.filter((c) => categoryForCase(c) === 'permafrost');
-  const groups = [
-    ['Real Wildfire Events', wildfires],
-    ['Real Glacier & Snowmelt', permafrost],
-    ['NISAR Forest Biomass (L-Band)', biomass],
-  ].filter(([, list]) => list.length);
-
-  el('#case-select').innerHTML = groups
-    .map(
-      ([label, list]) =>
-        `<optgroup label="${esc(label)}">${list.map((c) => `<option value="${esc(c.id)}">${esc(c.title)}</option>`).join('')}</optgroup>`,
-    )
-    .join('');
+  renderCaseSelect(cases);
 
   history.replaceState(null, '', `${location.pathname}${location.search}`);
   ctl?.setCases(cases);

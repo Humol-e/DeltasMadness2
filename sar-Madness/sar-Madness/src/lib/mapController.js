@@ -2,6 +2,7 @@ import mapboxgl from 'mapbox-gl';
 import { frameAt, vectorCutoff } from './timeline.js';
 import { resolveUrl } from './registry.js';
 import { loadGray, grayToValue, renderFrameCanvas } from './rasterCanvas.js';
+import { DEFAULT_LANG, getLocalizedCaseTitle, getUiCopy } from './i18n.js';
 
 export const BASEMAPS = {
   satellite: { label: 'Satellite', style: 'mapbox://styles/mapbox/satellite-streets-v12' },
@@ -68,8 +69,9 @@ function getMonitoringZoom(def) {
 }
 
 export class MapController {
-  constructor({ container, token, onStatus }) {
+  constructor({ container, token, onStatus, lang = DEFAULT_LANG }) {
     mapboxgl.accessToken = token;
+    this.lang = lang;
     this.onStatus = onStatus || (() => {});
     this.onFeature = () => {};
     this.onCasePick = () => {};
@@ -205,24 +207,25 @@ export class MapController {
   #onError(e) {
     const err = e?.error || {};
     if (err.name === 'AbortError') return;
+    const msgCopy = getUiCopy(this.lang).mapErrors;
     const status = err.status;
     const sourceId = e?.sourceId || '';
-    const detail = redact(err.message) || 'no details';
+    const detail = redact(err.message) || msgCopy.noDetails;
     const key = `${sourceId}|${status}|${detail}`;
     const now = Date.now();
     if (now - (this.errSeen.get(key) || 0) < 15000) return; // avoid flooding the UI with duplicate errors
     this.errSeen.set(key, now);
-    const http = status === 429 ? 'HTTP 429: server rate-limited requests; wait a moment and retry'
+    const http = status === 429 ? msgCopy.rateLimited
       : status ? `HTTP ${status}` : detail;
 
     if (sourceId.startsWith('ds:')) {
       if (status === 404) return; // out-of-bounds tiles are expected
       const st = this.datasets.get(sourceId.split(':')[1]);
-      if (st) this.#emit(st, 'error', `Failed to load: ${http}`);
+      if (st) this.#emit(st, 'error', msgCopy.failedToLoad(http));
       return;
     }
     if (sourceId === DEM_SOURCE) {
-      this.onStatus('warn', `Terrain (DEM) unavailable: ${http}.`, 'retry-base');
+      this.onStatus('warn', msgCopy.demUnavailable(http), 'retry-base');
       return;
     }
     if (sourceId === 'mapbox-satellite' && status === 429) {
@@ -230,7 +233,7 @@ export class MapController {
       if (this.map.getLayer('satellite')) this.map.setLayoutProperty('satellite', 'visibility', 'none');
       return;
     }
-    this.onStatus('error', `Basemap: ${http}${sourceId ? ` (source ${sourceId})` : ''}.`, status === 429 ? 'retry-base' : null);
+    this.onStatus('error', msgCopy.basemapError(http, sourceId), status === 429 ? 'retry-base' : null);
   }
 
   // ───────────── Globe orbit and interaction guards ─────────────
@@ -354,8 +357,17 @@ export class MapController {
   #worldData() {
     return {
       type: 'FeatureCollection',
-      features: this.cases.map((c) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: c.view.center }, properties: { id: c.id, title: c.title } })),
+      features: this.cases.map((c) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: c.view.center },
+        properties: { id: c.id, title: getLocalizedCaseTitle(c, this.lang) },
+      })),
     };
+  }
+
+  setLanguage(lang) {
+    this.lang = lang || DEFAULT_LANG;
+    this.map.getSource(WORLD_SOURCE)?.setData(this.#worldData());
   }
 
   #reportVisibleCases() {
@@ -614,8 +626,9 @@ export class MapController {
     const frame = this.time == null ? null : frameAt(st.def, this.time);
     st.frame = frame;
     if (!frame) { this.#hideDataset(st); return this.#emit(st, 'none'); }
+    const msgCopy = getUiCopy(this.lang).mapErrors;
     const missing = this.#missingVariable(st, frame);
-    if (missing) { this.#hideDataset(st); return this.#emit(st, 'novar', `Variable ${missing} is missing in this frame`); }
+    if (missing) { this.#hideDataset(st); return this.#emit(st, 'novar', msgCopy.missingVariable(missing)); }
     if (!st.visible || this.swipe?.st === st) { this.#hideDataset(st); return this.#emit(st, 'ok'); }
     try {
       if (st.def.source.type === 'image') {
@@ -627,7 +640,7 @@ export class MapController {
       }
       if (req === st.req) this.#emit(st, 'ok');
     } catch (err) {
-      if (req === st.req) { this.#hideDataset(st); this.#emit(st, 'error', `Failed to load: ${err.message}`); }
+      if (req === st.req) { this.#hideDataset(st); this.#emit(st, 'error', msgCopy.failedToLoad(err.message)); }
     }
   }
 

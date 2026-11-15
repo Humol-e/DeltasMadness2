@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wildfire-monitor"
+version = "0.1.0"
+description = "Ingesta y adaptación de datos GeoPulse de incendios forestales (Planetary Computer STAC -> formato compatible con sar-platform)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26.0",
+    "scipy>=1.11.0",
+    "pillow>=10.0.0",
+    "contourpy>=1.2.0",
+    "shapely>=2.0.0",
+    "pyyaml>=6.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.10.0",
+    "python-dotenv>=1.0.0",
+    "click>=8.1.0",
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+geopulse = [
+    "rasterio>=1.4",
+    "pystac-client>=0.8",
+    "planetary-computer>=1.0",
+    "torch>=2.4",
+]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[project.scripts]
+incendios-stage1 = "wildfire_monitor.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

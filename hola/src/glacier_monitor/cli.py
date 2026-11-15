@@ -629,5 +629,56 @@ def asf_ingest_cmd(
         )
 
 
+@main.command("publish-madness")
+@click.option(
+    "--aoi",
+    "aois",
+    multiple=True,
+    help="Preset de glaciar ('langtang', 'khumbu') o bbox; por defecto publica langtang y khumbu.",
+)
+@click.option("--pre-start", default="2026-01-01", show_default=True, help="Inicio ventana Antes (YYYY-MM-DD).")
+@click.option("--pre-end", default="2026-02-28", show_default=True, help="Fin ventana Antes (YYYY-MM-DD).")
+@click.option("--post-start", default="2026-05-15", show_default=True, help="Inicio ventana Después (YYYY-MM-DD).")
+@click.option("--post-end", default="2026-08-31", show_default=True, help="Fin ventana Después (YYYY-MM-DD).")
+@click.option("--max-dim", default=420, show_default=True, type=int, help="Lado máximo en píxeles.")
+@click.option(
+    "--target-dir",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=None,
+    help="Directorio public/ de sar-Madness destino.",
+)
+def publish_madness_cmd(
+    aois: tuple[str, ...],
+    pre_start: str,
+    pre_end: str,
+    post_start: str,
+    post_end: str,
+    max_dim: int,
+    target_dir: Path | None,
+) -> None:
+    """Exporta datos reales de deshielo (GeoTIFFs + PNGs Antes/Después) a sar-Madness."""
+    from glacier_monitor.ingestion.platform_exporter import export_deshielo_case_to_madness
+
+    settings = Settings()
+    selected = list(aois) if aois else list(AOI_PRESETS.keys())
+    for aoi_spec in selected:
+        with console.status(f"[bold cyan]Descargando GEE real y exportando {aoi_spec}...[/bold cyan]"):
+            res = export_deshielo_case_to_madness(
+                aoi_spec,
+                settings=settings,
+                pre_start=pre_start,
+                pre_end=pre_end,
+                post_start=post_start,
+                post_end=post_end,
+                max_dim=max_dim,
+                target_public_dir=target_dir,
+            )
+        console.print(
+            f"[green]Publicado {res.case_id}[/green] | GeoTIFFs={res.geotiff_count} | "
+            f"PNGs={res.png_count} | Nieve {res.snow_pre_pct}% -> {res.snow_post_pct}% | "
+            f"Temp {res.lst_pre_c}°C -> {res.lst_post_c}°C | Deshielo={res.melt_area_km2} km²"
+        )
+
+
 if __name__ == "__main__":
     main()

@@ -1,7 +1,7 @@
 import mapboxgl from 'mapbox-gl';
 import { frameAt, vectorCutoff } from './timeline.js';
 import { resolveUrl } from './registry.js';
-import { loadGray, colorizeGray, composeRgb, grayToValue } from './rasterCanvas.js';
+import { loadGray, loadRgbaCanvas, colorizeGray, composeRgb, grayToValue } from './rasterCanvas.js';
 
 export const BASEMAPS = {
   satellite: { label: 'Satélite', style: 'mapbox://styles/mapbox/satellite-streets-v12' },
@@ -56,7 +56,7 @@ export class MapController {
     this.map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
     this.map.addControl(new mapboxgl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
-    this.ready = new Promise((res) => this.map.once('load', res));
+    this.ready = new Promise((res) => { if (this.map.isStyleLoaded()) res(); else this.map.once('style.load', res); });
     this.map.on('style.load', () => this.#applyAll());
     this.map.on('error', (e) => this.#onError(e));
     this.map.on('click', (e) => this.#click(e));
@@ -91,6 +91,11 @@ export class MapController {
       this.onStatus('warn', `Relieve (DEM) no disponible: ${http}.`, 'retry-base');
       return;
     }
+    if (sourceId === 'mapbox-satellite' && status === 429) {
+      if (this.map.getLayer('esri-fallback')) this.map.setLayoutProperty('esri-fallback', 'visibility', 'visible');
+      if (this.map.getLayer('satellite')) this.map.setLayoutProperty('satellite', 'visibility', 'none');
+      return;
+    }
     this.onStatus('error', `Mapa base: ${http}${sourceId ? ` (fuente ${sourceId})` : ''}.`, status === 429 ? 'retry-base' : null);
   }
 
@@ -103,13 +108,21 @@ export class MapController {
     this.#renderSwipe();
     this.#applyMode();
     this.#applyVectorTime();
+
     this.#updateRasters();
   }
 
   #addTerrainBase() {
     const m = this.map;
     if (!m.getSource(DEM_SOURCE)) {
-      m.addSource(DEM_SOURCE, { type: 'raster-dem', url: 'mapbox://mapbox.mapbox-terrain-dem-v1', tileSize: 512, maxzoom: 14 });
+      m.addSource(DEM_SOURCE, { type: 'raster-dem', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], encoding: 'terrarium', tileSize: 256, maxzoom: 14 });
+    }
+    if (!m.getSource('esri-fallback')) {
+      m.addSource('esri-fallback', { type: 'raster', tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 19, attribution: '© Esri, Maxar' });
+    }
+    if (!m.getLayer('esri-fallback')) {
+      const before = m.getLayer('satellite') ? 'satellite' : undefined;
+      m.addLayer({ id: 'esri-fallback', type: 'raster', source: 'esri-fallback', layout: { visibility: 'visible' } }, before);
     }
     // Sombreado: TERRENO BASE, no es dato SAR. minzoom evita pedir teselas DEM de todo el planeta en la vista de globo.
     if (!m.getLayer(HILLSHADE_LAYER)) {
@@ -186,7 +199,10 @@ export class MapController {
     });
     this.#addVectors();
     this.#applyVectorTime();
+
     this.#updateRasters();
+    this.mode = 'terrain';
+    this.#applyMode();
     this.flyToCase();
   }
 
@@ -294,9 +310,9 @@ export class MapController {
     const key = `${st.def.id}|${frame.id}|${sel}`;
     if (!this.cache.has(key)) {
       const d = st.def;
-      const nodata = d.source.nodata ?? 0;
+      const nodata = d.source.nodata === undefined ? 0 : d.source.nodata;
       const job = (async () => {
-        if (d.source.encoding === 'rgba') return { canvas: null, url: resolveUrl(frame.files[sel]) };
+        if (d.source.encoding === 'rgba') { const url = resolveUrl(frame.files[sel]); return { canvas: await loadRgbaCanvas(url), url }; }
         const comp = d.composites.find((c) => c.id === sel);
         let canvas;
         if (comp) {
@@ -484,7 +500,7 @@ export class MapController {
             const g = await loadGray(resolveUrl(file));
             const px = Math.min(g.w - 1, Math.floor(((lng - w) / (e - w)) * g.w));
             const py = Math.min(g.h - 1, Math.floor(((n - lat) / (n - s)) * g.h));
-            value = grayToValue(g.g[py * g.w + px], v.legend, d.source.nodata ?? 0);
+            value = grayToValue(g.g[py * g.w + px], v.legend, d.source.nodata === undefined ? 0 : d.source.nodata);
           } catch { value = null; }
         }
         values.push({ label: v.label, unit: v.unit, value });

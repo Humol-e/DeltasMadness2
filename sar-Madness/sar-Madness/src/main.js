@@ -113,7 +113,7 @@ app.innerHTML = `
         <div class="hero-group">
           <div class="text-content">
             <p class="eyebrow">Satellite monitoring</p>
-            <h1 id="hero-title">Earth Radar</h1>
+            <h1 id="hero-title">DELTA'S SAR</h1>
             <p id="hero-description">When Earth changes irreversibly, every second of anticipation saves ecosystems.</p>
             <button id="hero-data-guide-btn" type="button" class="data-guide-button">How we could use this data</button>
           </div>

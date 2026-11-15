@@ -15,6 +15,7 @@ For a step-by-step guide on interpreting each command's output and choosing InSA
 - `src/glacier_monitor/ingestion/asf_bridge.py`: ASF catalog search (`asf_search` for `SENTINEL1`, `NISAR`, `UAVSAR`), ASF HyP3 job submission/status (`hyp3_sdk`), `.zip` extraction to GeoTIFFs, and optional adapter for `gee-community/sar-asf-to-gee`.
 - `src/glacier_monitor/ingestion/gee_uploader.py`: Upload GeoTIFFs to Google Cloud Storage and register them as GEE Assets (`ee.data.startIngestion` + equivalent `earthengine upload image` command generation).
 - `src/glacier_monitor/ingestion/pipeline.py` & `scripts/stage1_cli.py`: Full orchestration and CLI interface.
+- `src/glacier_monitor/ingestion/sar_wetsnow.py`: SAR wet-snow product. Multitemporal backscatter-ratio classifier (dry-snow reference vs. melt window, wet snow when both `VV` and `VH` drop by ≤ -2 dB inside the optical snow mask), PNG/GeoTIFF/GeoJSON writers and the schema-v2 dataset/vector definitions. Used automatically by `publish-madness` and, without GEE, by `sar-wetsnow`.
 
 ## Quick Setup
 
@@ -28,6 +29,15 @@ For a step-by-step guide on interpreting each command's output and choosing InSA
    ```
 
 ## Stage 1 Commands
+
+```powershell
+# Derive the SAR wet-snow layer (Sentinel-1 VV/VH ratio) from the glacier cases already published in sar-Madness.
+# Offline: reads each case's own Before/After PNGs, so no GEE/Earthdata credentials are needed.
+py scripts/stage1_cli.py sar-wetsnow                       # langtang + khumbu
+py scripts/stage1_cli.py sar-wetsnow --case glacier-khumbu --threshold-db -3
+```
+
+Interpretation: class `3` = wet snow (`VV` and `VH` both ≤ threshold), `2` = possible wet snow (one channel), `1` = stable snow. Values are qualitative: inputs are non-terrain-flattened `S1_GRD` median composites.
 
 ```powershell
 # Verify configuration, credentials, and connectivity (GEE, GCS, ASF, HyP3)

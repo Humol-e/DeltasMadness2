@@ -677,7 +677,46 @@ def publish_madness_cmd(
             console.print(
                 f"[green]Published {res.case_id}[/green] | GeoTIFFs={res.geotiff_count} | "
                 f"PNGs={res.png_count} | Snow {res.snow_pre_pct}% -> {res.snow_post_pct}% | "
-                f"Temp {res.lst_pre_c}°C -> {res.lst_post_c}°C | Melt={res.melt_area_km2} km²"
+                f"Temp {res.lst_pre_c}°C -> {res.lst_post_c}°C | Melt={res.melt_area_km2} km² | "
+                f"SAR wet snow={res.sar_wet_snow_km2} km²"
+            )
+
+
+@main.command("sar-wetsnow")
+@click.option(
+    "--case",
+    "case_ids",
+    multiple=True,
+    help="Published glacier case id (e.g. glacier-khumbu); processes every published glacier preset by default.",
+)
+@click.option(
+    "--threshold-db",
+    default=-2.0,
+    show_default=True,
+    type=float,
+    help="Backscatter-ratio threshold in dB (negative); -2 dB for Sentinel-1.",
+)
+@click.option(
+    "--target-dir",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=None,
+    help="sar-Madness public/ directory containing data/cases/.",
+)
+def sar_wetsnow_cmd(case_ids: tuple[str, ...], threshold_db: float, target_dir: Path | None) -> None:
+    """Derive the SAR wet-snow layer from already published glacier cases (no GEE required)."""
+    from glacier_monitor.ingestion.platform_exporter import GLACIER_CASE_META
+    from glacier_monitor.ingestion.sar_wetsnow import default_public_dir, publish_sar_wet_snow_for_case
+
+    with _cli_error_boundary():
+        public_dir = (target_dir or default_public_dir()).resolve()
+        selected = list(case_ids) if case_ids else [meta.case_id for meta in GLACIER_CASE_META.values()]
+        for case_id in selected:
+            res = publish_sar_wet_snow_for_case(case_id, public_dir, threshold_db=threshold_db)
+            s = res.stats
+            console.print(
+                f"[green]SAR wet snow {res.case_id}[/green] | threshold {res.threshold_db:g} dB | "
+                f"wet={s['wetSnowKm2']} km² ({s['wetSnowPct']}% of {s['snowReferenceKm2']} km² snow) | "
+                f"possible={s['possibleWetKm2']} km² | GeoTIFFs={res.geotiff_count}"
             )
 
 

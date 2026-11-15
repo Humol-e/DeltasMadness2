@@ -19,7 +19,8 @@
   "sources": [
     "Google Earth Engine · COPERNICUS/S2_SR_HARMONIZED (26 pre / 31 post)",
     "Google Earth Engine · COPERNICUS/S1_GRD IW (14 pre / 27 post)",
-    "Google Earth Engine · MODIS/061/MOD10A1 and MOD11A1 (58 pre / 108 post)"
+    "Google Earth Engine · MODIS/061/MOD10A1 and MOD11A1 (58 pre / 108 post)",
+    "Derived · Sentinel-1 VV/VH backscatter ratio vs dry-snow reference (threshold -2 dB, snow mask NDSI ≥ 0.28)"
   ],
   "metrics": {
     "preWindow": "2026-01-01..2026-02-28",
@@ -28,7 +29,10 @@
     "snowPostPct": 13.7,
     "lstPreC": -6.9,
     "lstPostC": 6.6,
-    "meltAreaKm2": 92.6
+    "meltAreaKm2": 92.6,
+    "sarWetSnowKm2": 73.34,
+    "sarPossibleWetKm2": 72.55,
+    "sarWetSnowPct": 43.3
   },
   "datasets": [
     {
@@ -239,6 +243,178 @@
       ]
     },
     {
+      "id": "sar_wetsnow",
+      "name": "SAR Wet Snow · Sentinel-1 ΔdB",
+      "kind": "raster",
+      "status": "real",
+      "platform": "Sentinel-1",
+      "sensor": "C-SAR IW VV+VH",
+      "provider": "Derived from Google Earth Engine COPERNICUS/S1_GRD + Sentinel-2 NDSI",
+      "product": "Multitemporal backscatter ratio, wet snow when ΔVV and ΔVH ≤ −2 dB",
+      "attribution": "ESA Copernicus Sentinel-1/2 · method after Nagler & Rott (2000), Nagler et al. (2016)",
+      "extent": [
+        85.5,
+        28.18,
+        85.74,
+        28.3
+      ],
+      "source": {
+        "type": "image",
+        "encoding": "gray8",
+        "nodata": 0
+      },
+      "render": {
+        "opacity": 0.9,
+        "resampling": "nearest"
+      },
+      "defaultVisible": false,
+      "variables": [
+        {
+          "id": "wet_class",
+          "label": "Wet-snow class (VV+VH ratio)",
+          "quantity": "snow_wetness_class",
+          "polarization": "VV+VH",
+          "unit": "class 0–3",
+          "legend": {
+            "min": 0,
+            "max": 3,
+            "colors": [
+              "#cbd5e1",
+              "#22d3ee",
+              "#2563eb"
+            ],
+            "discrete": {
+              "1": "#cbd5e199",
+              "2": "#22d3eecc",
+              "3": "#2563ebf0"
+            },
+            "nodata_label": "1 Stable snow · 2 Possible wet · 3 Wet snow"
+          }
+        },
+        {
+          "id": "ratio_vv",
+          "label": "VV ratio (After − Before)",
+          "quantity": "backscatter_ratio",
+          "polarization": "VV",
+          "unit": "dB",
+          "legend": {
+            "min": -10.0,
+            "max": 5.0,
+            "colors": [
+              "#312e81",
+              "#2563eb",
+              "#22d3ee",
+              "#94a3b8",
+              "#fbbf24",
+              "#f97316"
+            ],
+            "stops": [
+              [
+                -10.0,
+                "#312e81f2"
+              ],
+              [
+                -6.0,
+                "#2563ebe6"
+              ],
+              [
+                -3.0,
+                "#22d3eecc"
+              ],
+              [
+                -2.0,
+                "#67e8f9a0"
+              ],
+              [
+                -0.8,
+                "#94a3b800"
+              ],
+              [
+                0.8,
+                "#94a3b800"
+              ],
+              [
+                2.0,
+                "#fbbf2499"
+              ],
+              [
+                5.0,
+                "#f97316e6"
+              ]
+            ],
+            "nodata_label": "Blue = backscatter drop (wet snow) · Transparent ≈ 0 dB · Orange = increase"
+          }
+        },
+        {
+          "id": "ratio_vh",
+          "label": "VH ratio (After − Before)",
+          "quantity": "backscatter_ratio",
+          "polarization": "VH",
+          "unit": "dB",
+          "legend": {
+            "min": -10.0,
+            "max": 5.0,
+            "colors": [
+              "#312e81",
+              "#2563eb",
+              "#22d3ee",
+              "#94a3b8",
+              "#fbbf24",
+              "#f97316"
+            ],
+            "stops": [
+              [
+                -10.0,
+                "#312e81f2"
+              ],
+              [
+                -6.0,
+                "#2563ebe6"
+              ],
+              [
+                -3.0,
+                "#22d3eecc"
+              ],
+              [
+                -2.0,
+                "#67e8f9a0"
+              ],
+              [
+                -0.8,
+                "#94a3b800"
+              ],
+              [
+                0.8,
+                "#94a3b800"
+              ],
+              [
+                2.0,
+                "#fbbf2499"
+              ],
+              [
+                5.0,
+                "#f97316e6"
+              ]
+            ],
+            "nodata_label": "Blue = backscatter drop (wet snow) · Transparent ≈ 0 dB · Orange = increase"
+          }
+        }
+      ],
+      "frames": [
+        {
+          "id": "wetsnow-change",
+          "datetime": "2026-08-31T00:00:00Z",
+          "label": "Change 2026-01-01 → 2026-08-31",
+          "phase": "change",
+          "files": {
+            "wet_class": "data/cases/glacier-langtang/sar_wetsnow_class.png",
+            "ratio_vv": "data/cases/glacier-langtang/sar_wetsnow_ratio_vv.png",
+            "ratio_vh": "data/cases/glacier-langtang/sar_wetsnow_ratio_vh.png"
+          }
+        }
+      ]
+    },
+    {
       "id": "modis_cryo",
       "name": "MODIS Snow Cover & Surface Temp (LST)",
       "kind": "raster",
@@ -369,12 +545,30 @@
               "#ef4444"
             ],
             "stops": [
-              [0.0, "#0f172a00"],
-              [4.0, "#1e3a8a55"],
-              [16.0, "#3b82f6b8"],
-              [35.0, "#facc15e0"],
-              [55.0, "#f97316f0"],
-              [80.0, "#ef4444ff"]
+              [
+                0.0,
+                "#0f172a00"
+              ],
+              [
+                4.0,
+                "#1e3a8a55"
+              ],
+              [
+                16.0,
+                "#3b82f6b8"
+              ],
+              [
+                35.0,
+                "#facc15e0"
+              ],
+              [
+                55.0,
+                "#f97316f0"
+              ],
+              [
+                80.0,
+                "#ef4444ff"
+              ]
             ],
             "nodata_label": "Transparent = 0% loss"
           }
@@ -442,6 +636,38 @@
         [
           "area_km2",
           "Melt area",
+          "km²"
+        ]
+      ]
+    },
+    {
+      "id": "sar-wetsnow-extent",
+      "name": "SAR Wet Snow Zone",
+      "type": "line",
+      "status": "real",
+      "simulated": false,
+      "defaultVisible": false,
+      "source": {
+        "type": "geojson",
+        "data": "data/cases/glacier-langtang/sar_wetsnow_extent.geojson"
+      },
+      "paint": {
+        "line-color": "#6366f1",
+        "line-width": 1.6
+      },
+      "legend": {
+        "title": "SAR wet snow",
+        "items": [
+          {
+            "color": "#6366f1",
+            "label": "ΔVV and ΔVH ≤ −2 dB"
+          }
+        ]
+      },
+      "popupFields": [
+        [
+          "area_km2",
+          "Wet snow area",
           "km²"
         ]
       ]
@@ -546,6 +772,33 @@
       "format": "geotiff",
       "url": "data/cases/glacier-langtang/geotiffs/glacier-langtang_melt_snow_loss.tif",
       "sizeBytes": 226526
+    },
+    {
+      "id": "wetsnow-class-tif",
+      "label": "SAR Wet Snow Class (.tif)",
+      "datasetId": "sar_wetsnow",
+      "phase": "change",
+      "format": "geotiff",
+      "url": "data/cases/glacier-langtang/geotiffs/glacier-langtang_sar_wetsnow_class.tif",
+      "sizeBytes": 15454
+    },
+    {
+      "id": "wetsnow-ratio-vv-tif",
+      "label": "SAR Backscatter Ratio VV dB (.tif)",
+      "datasetId": "sar_wetsnow",
+      "phase": "change",
+      "format": "geotiff",
+      "url": "data/cases/glacier-langtang/geotiffs/glacier-langtang_sar_wetsnow_ratio_vv.tif",
+      "sizeBytes": 113540
+    },
+    {
+      "id": "wetsnow-ratio-vh-tif",
+      "label": "SAR Backscatter Ratio VH dB (.tif)",
+      "datasetId": "sar_wetsnow",
+      "phase": "change",
+      "format": "geotiff",
+      "url": "data/cases/glacier-langtang/geotiffs/glacier-langtang_sar_wetsnow_ratio_vh.tif",
+      "sizeBytes": 120232
     }
   ]
 }

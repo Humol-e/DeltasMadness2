@@ -1,65 +1,68 @@
-# Monitoreo Glaciar (GEE + ASF HyP3) — Etapa 1
+# Glacier Monitoring (GEE + ASF HyP3) — Stage 1
 
-Implementación de la **Etapa 1: Ingesta directa en Google Earth Engine (Catálogo nativo + Puente ASF)**, preparada para conectarse con las etapas siguientes (motor de análisis SAR/DEM, backend ligero FastAPI/Flask y frontend 3D).
+Implementation of **Stage 1: Direct Google Earth Engine Ingestion (Native Catalog + ASF Bridge)**, ready to connect with downstream stages (SAR/DEM analysis engine, lightweight FastAPI/Flask backend, and 3D frontend).
 
-Para una guía paso a paso sobre cómo leer las salidas de cada comando y elegir pares InSAR o series OPERA-S1, consulta [GUIA_DATOS.md](GUIA_DATOS.md).
+For a step-by-step guide on interpreting each command's output and choosing InSAR pairs or OPERA-S1 time series, see [GUIA_DATOS.md](GUIA_DATOS.md).
 
-## Estructura actual (Etapa 1)
+## Current Structure (Stage 1)
 
-- `src/glacier_monitor/config.py`: Configuración vía `.env` (`Settings`), bounding boxes y presets de glaciares (`langtang`, `khumbu`).
-- `src/glacier_monitor/gee_auth.py`: Inicialización de Google Earth Engine y Google Cloud Storage mediante Service Account JSON o credenciales por defecto (ADC / `earthengine authenticate`).
-- `src/glacier_monitor/ingestion/native_catalog.py`: Conectores y verificación de disponibilidad/frescura para:
+- `src/glacier_monitor/config.py`: `.env` configuration (`Settings`), bounding boxes, and glacier AOI presets (`langtang`, `khumbu`).
+- `src/glacier_monitor/gee_auth.py`: Google Earth Engine and Google Cloud Storage initialization via Service Account JSON or default credentials (ADC / `earthengine authenticate`).
+- `src/glacier_monitor/ingestion/native_catalog.py`: Connectors and availability/freshness checks for:
   - `COPERNICUS/S1_GRD` (Sentinel-1 SAR GRD)
-  - `MODIS/061/MOD10A1` (Cobertura de nieve diaria 500m)
-  - `MODIS/061/MOD11A1` (Temperatura superficial diaria 1km)
-- `src/glacier_monitor/ingestion/asf_bridge.py`: Búsqueda en catálogo ASF (`asf_search` para `SENTINEL1`, `NISAR`, `UAVSAR`), envío/consulta de jobs en ASF HyP3 (`hyp3_sdk`), descompresión de `.zip` a GeoTIFFs y adaptador opcional para `gee-community/sar-asf-to-gee`.
-- `src/glacier_monitor/ingestion/gee_uploader.py`: Subida de GeoTIFFs a Google Cloud Storage y registro como Assets en GEE (`ee.data.startIngestion` + generación de comando equivalente `earthengine upload image`).
-- `src/glacier_monitor/ingestion/pipeline.py` & `scripts/stage1_cli.py`: Orquestación completa e interfaz CLI.
+  - `MODIS/061/MOD10A1` (Daily snow cover 500m)
+  - `MODIS/061/MOD11A1` (Daily land surface temperature 1km)
+- `src/glacier_monitor/ingestion/asf_bridge.py`: ASF catalog search (`asf_search` for `SENTINEL1`, `NISAR`, `UAVSAR`), ASF HyP3 job submission/status (`hyp3_sdk`), `.zip` extraction to GeoTIFFs, and optional adapter for `gee-community/sar-asf-to-gee`.
+- `src/glacier_monitor/ingestion/gee_uploader.py`: Upload GeoTIFFs to Google Cloud Storage and register them as GEE Assets (`ee.data.startIngestion` + equivalent `earthengine upload image` command generation).
+- `src/glacier_monitor/ingestion/pipeline.py` & `scripts/stage1_cli.py`: Full orchestration and CLI interface.
 
-## Configuración rápida
+## Quick Setup
 
-1. Copia `.env.example` a `.env` y completa tus datos de Google Cloud / GEE y NASA Earthdata:
+1. Copy `.env.example` to `.env` and fill in your Google Cloud / GEE and NASA Earthdata credentials:
    ```powershell
    Copy-Item .env.example .env
    ```
-2. (Opcional) Si quieres usar el paquete comunitario `gee-community/sar-asf-to-gee` con `--use-community-bridge`:
+2. (Optional) If you want to use the community `gee-community/sar-asf-to-gee` package with `--use-community-bridge`:
    ```powershell
    pip install git+https://github.com/gee-community/sar-asf-to-gee.git
    ```
 
-## Comandos de Etapa 1
+## Stage 1 Commands
 
 ```powershell
-# Verificar configuración, credenciales y conectividad (GEE, GCS, ASF, HyP3)
+# Verify configuration, credentials, and connectivity (GEE, GCS, ASF, HyP3)
 py -m glacier_monitor doctor
 
-# Listar glaciares/valles preconfigurados
+# List preconfigured glaciers/valleys
 py scripts/stage1_cli.py list-aois
 
-# 1A. Verificar actualización y bandas disponibles en el catálogo nativo de GEE
+# 1A. Check availability and available bands in GEE's native catalog
 py scripts/stage1_cli.py check-native --aoi langtang --start 2026-09-01 --end 2026-10-15
 
-# 1B. Buscar gránulos en NASA ASF (sentinel1, nisar, nisar_science, uavsar, opera_s1)
+# 1B. Search granules in NASA ASF (sentinel1, nisar, nisar_science, uavsar, opera_s1)
 py scripts/stage1_cli.py asf-search --dataset sentinel1 --aoi langtang --start 2026-09-01 --end 2026-10-15 --processing-level SLC
 
-# 1B (Local sin GCS). Descargar GeoTIFFs directos de ASF (ej. OPERA-S1)
+# 1B (Local without GCS). Download direct ASF GeoTIFFs (e.g. OPERA-S1)
 py -m glacier_monitor asf-download --granule <GRANULE_NAME> --suffix _VV.tif --suffix _VH.tif
 
-# 1B. Enviar un job InSAR a ASF HyP3 y consultar estado
+# 1B. Submit an InSAR job to ASF HyP3 and check status
 py scripts/stage1_cli.py hyp3-submit --job-type insar --name langtang-insar --granule <GRANULE_1> --granule <GRANULE_2>
 py -m glacier_monitor hyp3-status --name langtang-insar
 
-# 1B (Local sin GCS). Descargar GeoTIFFs de HyP3 e indexarlos en data/downloads/catalog.json
+# 1B (Local without GCS). Download HyP3 GeoTIFFs and index them in data/downloads/catalog.json
 py -m glacier_monitor hyp3-download --job-name langtang-insar --suffix _unw_phase.tif --suffix _coh.tif
 
-# 1B (Opcional con GCS). Simular (--dry-run) o ejecutar ingesta de job HyP3 -> GCS -> GEE
+# 1B (Optional with GCS). Dry-run (--dry-run) or ingest a HyP3 job -> GCS -> GEE
 py scripts/stage1_cli.py asf-ingest --job-name langtang-insar --suffix _unw_phase.tif --suffix _coh.tif --dry-run
 
-# 1B (Opcional con GCS). Subir un GeoTIFF local (NISAR / UAVSAR / HyP3) -> GCS -> GEE Asset
-py scripts/stage1_cli.py asf-ingest --local-file ruta/al/producto.tif --sensor NISAR --wait
+# 1B (Optional with GCS). Upload a local GeoTIFF (NISAR / UAVSAR / HyP3) -> GCS -> GEE Asset
+py scripts/stage1_cli.py asf-ingest --local-file path/to/product.tif --sensor NISAR --wait
+
+# Export real glacier melt cases to sar-Madness
+py -m glacier_monitor publish-madness
 ```
 
-## Pruebas
+## Tests
 
 ```powershell
 py -m pytest -v

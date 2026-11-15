@@ -3,10 +3,10 @@
   "id": "biomass-leno-nisar",
   "status": "real",
   "simulated": false,
-  "category": "biomasa",
-  "title": "Biomasa Forestal NISAR L3 — Lenoir Landing (LENO)",
-  "region": "Alabama (Río Tombigbee / Sitio NEON LENO) · Estados Unidos",
-  "description": "Estimación de Biomasa Aérea (AGB) en Banda L (GCOV) y perturbación forestal 2021–2024. Inversión física L3 ATBD sobre GCOV Banda L (20 m → 100 m / 1 ha) con cobertura NLCD y validación óptica PlanetScope 2022–2023.",
+  "category": "biomass",
+  "title": "NISAR L3 Forest Biomass — Lenoir Landing (LENO · Butler, AL)",
+  "region": "Alabama (Butler · NEON LENO Validation Grid, 33 km N of Lenoir Landing Park) · United States",
+  "description": "L-band (GCOV) Aboveground Biomass (AGB) & Forest Disturbance 2021–2024 over NASA's Butler, AL validation grid (~33 km N of Lenoir Landing Park). Physical L3 ATBD inversion on L-band GCOV (20 m → 100 m / 1 ha) with NLCD land cover and PlanetScope 2022–2023 optical validation.",
   "view": {
     "center": [
       -88.18015,
@@ -17,9 +17,9 @@
     "bearing": 8
   },
   "sources": [
-    "NASA NISAR L2 Simulated GCOV Banda L (UAVSAR/ALOS-2 · Sitio LENO S3 Público)",
-    "Modelo Físico NISAR L3 AGB ATBD (config.ini calibrado · inversión dB ponderada HH/HV)",
-    "USGS NLCD (LENO_LULC 30 m Albers) y Validación Óptica Planet (2022-09-30 → 2023-09-18)"
+    "NASA NISAR L2 Simulated L-band GCOV (UAVSAR/ALOS-2 · Public LENO S3 Site)",
+    "NISAR L3 AGB ATBD Physical Model (calibrated config.ini · weighted HH/HV dB inversion)",
+    "USGS NLCD (LENO_LULC 30 m Albers) & Planet Optical Validation (2022-09-30 → 2023-09-18)"
   ],
   "metrics": {
     "preWindow": "2022-09-30",
@@ -42,10 +42,10 @@
   "datasets": [
     {
       "id": "nisar_agb",
-      "name": "Biomasa Aérea NISAR L3 (AGB)",
+      "name": "NISAR L3 Aboveground Biomass (AGB)",
       "kind": "raster",
       "status": "real",
-      "platform": "NISAR (Simulado UAVSAR/ALOS-2)",
+      "platform": "NISAR (Simulated UAVSAR/ALOS-2)",
       "sensor": "L-SAR GCOV",
       "provider": "Wasabi S3 Public / NISAR ATBD",
       "product": "L3 Aboveground Biomass (100 m / 1 ha)",
@@ -74,7 +74,7 @@
       "variables": [
         {
           "id": "agb",
-          "label": "Biomasa Aérea (AGB)",
+          "label": "Aboveground Biomass (AGB)",
           "quantity": "aboveground_biomass",
           "polarization": "HH+HV",
           "unit": "Mg/ha",
@@ -89,14 +89,14 @@
               "#eab308",
               "#fef08a"
             ],
-            "nodata_label": "Transparente = agua / urbano / sin cobertura"
+            "nodata_label": "Transparent = water / urban / no data"
           }
         }
       ],
       "frames": [
         {
           "id": "pre",
-          "label": "Antes · 2022-09-30",
+          "label": "Before · 2022-09-30",
           "phase": "before",
           "datetime": "2022-09-30T05:47:58Z",
           "files": {
@@ -105,7 +105,7 @@
         },
         {
           "id": "post",
-          "label": "Después · 2023-09-29",
+          "label": "After · 2023-09-29",
           "phase": "after",
           "datetime": "2023-09-29T05:47:58Z",
           "files": {
@@ -116,13 +116,13 @@
     },
     {
       "id": "nisar_hv",
-      "name": "SAR Banda L HV · Volumen Dosel",
+      "name": "SAR L-band HV · Canopy Volume",
       "kind": "raster",
       "status": "real",
-      "platform": "NISAR (Simulado)",
+      "platform": "NISAR (Simulated)",
       "sensor": "L-SAR GCOV",
       "provider": "Wasabi S3 Public / NISAR ATBD",
-      "product": "Gamma0 HV (100 m promedio)",
+      "product": "Gamma0 HV (100 m mean)",
       "attribution": "NASA NISAR ATBD",
       "extent": [
         -88.292601,
@@ -168,7 +168,7 @@
       "frames": [
         {
           "id": "pre",
-          "label": "HV Antes · 2022-09-30",
+          "label": "HV Before · 2022-09-30",
           "phase": "before",
           "datetime": "2022-09-30T05:47:58Z",
           "files": {
@@ -177,7 +177,7 @@
         },
         {
           "id": "post",
-          "label": "HV Después · 2023-09-29",
+          "label": "HV After · 2023-09-29",
           "phase": "after",
           "datetime": "2023-09-29T05:47:58Z",
           "files": {
@@ -188,13 +188,13 @@
     },
     {
       "id": "nisar_hh",
-      "name": "SAR Banda L HH · Tronco–Suelo",
+      "name": "SAR L-band HH · Trunk–Ground",
       "kind": "raster",
       "status": "real",
-      "platform": "NISAR (Simulado)",
+      "platform": "NISAR (Simulated)",
       "sensor": "L-SAR GCOV",
       "provider": "Wasabi S3 Public / NISAR ATBD",
-      "product": "Gamma0 HH (100 m promedio)",
+      "product": "Gamma0 HH (100 m mean)",
       "attribution": "NASA NISAR ATBD",
       "extent": [
         -88.292601,
@@ -240,7 +240,7 @@
       "frames": [
         {
           "id": "pre",
-          "label": "HH Antes · 2022-09-30",
+          "label": "HH Before · 2022-09-30",
           "phase": "before",
           "datetime": "2022-09-30T05:47:58Z",
           "files": {
@@ -249,7 +249,7 @@
         },
         {
           "id": "post",
-          "label": "HH Después · 2023-09-29",
+          "label": "HH After · 2023-09-29",
           "phase": "after",
           "datetime": "2023-09-29T05:47:58Z",
           "files": {
@@ -260,13 +260,13 @@
     },
     {
       "id": "agb_change",
-      "name": "Cambio Neto de Biomasa (ΔAGB)",
+      "name": "Net Biomass Change (ΔAGB)",
       "kind": "raster",
       "status": "real",
-      "platform": "NISAR (Simulado)",
+      "platform": "NISAR (Simulated)",
       "sensor": "L-SAR L3 Diff",
       "provider": "NISAR_Biomass L3 Pipeline",
-      "product": "ΔAGB = Post − Antes (Mg/ha)",
+      "product": "ΔAGB = After − Before (Mg/ha)",
       "attribution": "DeltasMadness2 / NISAR_Biomass",
       "extent": [
         -88.292601,
@@ -292,7 +292,7 @@
       "variables": [
         {
           "id": "delta_agb",
-          "label": "ΔAGB (Post − Antes)",
+          "label": "ΔAGB (After − Before)",
           "quantity": "biomass_change",
           "polarization": "HH+HV",
           "unit": "Mg/ha",
@@ -307,7 +307,7 @@
               "#22c55e",
               "#15803d"
             ],
-            "nodata_label": "Rojo = pérdida severa · Verde = ganancia"
+            "nodata_label": "Red = severe loss · Green = gain"
           }
         }
       ],
@@ -325,13 +325,13 @@
     },
     {
       "id": "lulc_fnf",
-      "name": "Cobertura NLCD & Referencia Planet",
+      "name": "NLCD Land Cover & Planet Reference",
       "kind": "raster",
       "status": "real",
       "platform": "USGS NLCD / PlanetScope",
       "sensor": "Multispectral",
       "provider": "Wasabi S3 Public / NEON LENO",
-      "product": "LENO LULC + Validación de Perturbación",
+      "product": "LENO LULC + Disturbance Validation",
       "attribution": "USGS / Planet Labs Validation",
       "extent": [
         -88.292601,
@@ -356,16 +356,16 @@
       "variables": [
         {
           "id": "lulc_dist",
-          "label": "Cobertura NLCD / Perturbación Planet",
+          "label": "NLCD Land Cover / Planet Disturbance",
           "quantity": "land_cover",
           "polarization": null,
-          "unit": "clase"
+          "unit": "class"
         }
       ],
       "frames": [
         {
           "id": "pre",
-          "label": "Antes · Cobertura NLCD LENO",
+          "label": "Before · LENO NLCD Land Cover",
           "phase": "before",
           "datetime": "2022-09-30T05:47:58Z",
           "files": {
@@ -374,7 +374,7 @@
         },
         {
           "id": "post",
-          "label": "Después · Perturbación Referencia Planet",
+          "label": "After · Planet Reference Disturbance",
           "phase": "after",
           "datetime": "2023-09-18T00:00:00Z",
           "files": {
@@ -387,7 +387,7 @@
   "vectors": [
     {
       "id": "aoi",
-      "name": "Área de estudio LENO (405.30 km²)",
+      "name": "LENO Study Area (405.30 km²)",
       "status": "real",
       "simulated": false,
       "type": "line",
@@ -407,7 +407,7 @@
     },
     {
       "id": "biomass_loss_nisar",
-      "name": "Pérdida Severa NISAR (ΔAGB ≤ −40 Mg/ha)",
+      "name": "NISAR Severe Loss (ΔAGB ≤ −40 Mg/ha)",
       "status": "real",
       "simulated": false,
       "type": "fill",
@@ -422,7 +422,7 @@
         "fill-outline-color": "#fdba74"
       },
       "legend": {
-        "title": "Detección NISAR L3",
+        "title": "NISAR L3 Detection",
         "items": [
           {
             "color": "#f97316",
@@ -433,19 +433,19 @@
       "popupFields": [
         [
           "area_km2",
-          "Área de pérdida",
+          "Loss area",
           "km²"
         ],
         [
           "area_ha",
-          "Superficie",
+          "Surface",
           "ha"
         ]
       ]
     },
     {
       "id": "planet_disturbance_vec",
-      "name": "Validación Óptica Planet (2022–2023)",
+      "name": "Planet Optical Validation (2022–2023)",
       "status": "real",
       "simulated": false,
       "type": "fill",
@@ -460,23 +460,23 @@
         "fill-outline-color": "#ffe4e6"
       },
       "legend": {
-        "title": "Referencia Óptica Planet",
+        "title": "Planet Optical Reference",
         "items": [
           {
             "color": "#f43f5e",
-            "label": "Perturbación confirmada"
+            "label": "Confirmed disturbance"
           }
         ]
       },
       "popupFields": [
         [
           "area_km2",
-          "Área perturbada",
+          "Disturbed area",
           "km²"
         ],
         [
           "area_ha",
-          "Superficie",
+          "Surface",
           "ha"
         ]
       ]
@@ -485,7 +485,7 @@
   "downloads": [
     {
       "id": "agb-pre",
-      "label": "Biomasa Aérea Pre NISAR (Mg/ha) — EPSG:4326",
+      "label": "NISAR Aboveground Biomass Pre (Mg/ha) — EPSG:4326",
       "datasetId": "nisar_agb",
       "phase": "before",
       "format": "geotiff",
@@ -494,7 +494,7 @@
     },
     {
       "id": "agb-post",
-      "label": "Biomasa Aérea Post NISAR (Mg/ha) — EPSG:4326",
+      "label": "NISAR Aboveground Biomass Post (Mg/ha) — EPSG:4326",
       "datasetId": "nisar_agb",
       "phase": "after",
       "format": "geotiff",
@@ -503,7 +503,7 @@
     },
     {
       "id": "agb-delta",
-      "label": "Cambio de Biomasa ΔAGB (Mg/ha) — EPSG:4326",
+      "label": "Biomass Change ΔAGB (Mg/ha) — EPSG:4326",
       "datasetId": "agb_change",
       "phase": "change",
       "format": "geotiff",
@@ -512,7 +512,7 @@
     },
     {
       "id": "hv-pre",
-      "label": "SAR Banda L HV Pre (dB) — EPSG:4326",
+      "label": "SAR L-band HV Pre (dB) — EPSG:4326",
       "datasetId": "nisar_hv",
       "phase": "before",
       "format": "geotiff",
@@ -521,7 +521,7 @@
     },
     {
       "id": "hv-post",
-      "label": "SAR Banda L HV Post (dB) — EPSG:4326",
+      "label": "SAR L-band HV Post (dB) — EPSG:4326",
       "datasetId": "nisar_hv",
       "phase": "after",
       "format": "geotiff",
@@ -530,7 +530,7 @@
     },
     {
       "id": "hh-pre",
-      "label": "SAR Banda L HH Pre (dB) — EPSG:4326",
+      "label": "SAR L-band HH Pre (dB) — EPSG:4326",
       "datasetId": "nisar_hh",
       "phase": "before",
       "format": "geotiff",
@@ -539,7 +539,7 @@
     },
     {
       "id": "hh-post",
-      "label": "SAR Banda L HH Post (dB) — EPSG:4326",
+      "label": "SAR L-band HH Post (dB) — EPSG:4326",
       "datasetId": "nisar_hh",
       "phase": "after",
       "format": "geotiff",
@@ -548,7 +548,7 @@
     },
     {
       "id": "nlcd-lulc",
-      "label": "Cobertura NLCD LENO (clases uint8) — EPSG:4326",
+      "label": "LENO NLCD Land Cover (uint8 classes) — EPSG:4326",
       "datasetId": "lulc_fnf",
       "phase": "before",
       "format": "geotiff",

@@ -1,9 +1,9 @@
-// Esquema versionado de casos (v2). Sin dependencias del navegador: lo usan la app y scripts/validate-catalog.mjs.
+// Versioned case schema (v2). Browser-independent: shared by the viewer app and scripts/validate-catalog.mjs.
 export const SCHEMA_VERSION = 2;
 const ID_RE = /^[A-Za-z0-9_-]+$/;
 const FRAME_RE = /^[A-Za-z0-9_.-]+$/;
 
-/** JSON con comentarios // y /* *\/ (los respeta dentro de cadenas). */
+/** Parse JSON with // and /* *\/ comments (preserved inside strings). */
 export function parseJsonc(text) {
   let out = '';
   let i = 0;
@@ -35,109 +35,109 @@ export function parseJsonc(text) {
 export const toMs = (s) => (typeof s === 'string' ? Date.parse(s) : NaN);
 const isNum = (x) => typeof x === 'number' && Number.isFinite(x);
 
-/** Devuelve { errors, warnings }. Los errores impiden cargar el caso. */
+/** Return { errors, warnings }. Errors prevent the case from loading. */
 export function validateCase(def) {
   const errors = [];
   const warnings = [];
   const err = (m) => errors.push(m);
   const warn = (m) => warnings.push(m);
-  if (!def || typeof def !== 'object') return { errors: ['El caso no es un objeto'], warnings };
+  if (!def || typeof def !== 'object') return { errors: ['Case definition must be an object'], warnings };
 
-  if (def.schemaVersion !== SCHEMA_VERSION) err(`schemaVersion debe ser ${SCHEMA_VERSION} (recibido: ${def.schemaVersion ?? 'ausente'})`);
-  if (!def.id || !ID_RE.test(def.id)) err('"id" requerido (letras, números, _ o -)');
-  if (!def.title) err('Falta "title"');
-  if (!def.view || !Array.isArray(def.view.center) || def.view.center.length !== 2) err('Falta "view.center" [lon, lat]');
-  if (def.status !== 'real' || def.simulated === true) err('Solo se permiten casos con datos reales (status: "real", simulated != true)');
+  if (def.schemaVersion !== SCHEMA_VERSION) err(`schemaVersion must be ${SCHEMA_VERSION} (got: ${def.schemaVersion ?? 'missing'})`);
+  if (!def.id || !ID_RE.test(def.id)) err('"id" is required (letters, numbers, _ or -)');
+  if (!def.title) err('Missing "title"');
+  if (!def.view || !Array.isArray(def.view.center) || def.view.center.length !== 2) err('Missing "view.center" [lon, lat]');
+  if (def.status !== 'real' || def.simulated === true) err('Only real-data cases are allowed (status: "real", simulated != true)');
 
   const datasets = def.datasets ?? [];
   const vectors = def.vectors ?? [];
-  if (!datasets.length && !vectors.length) err('El caso necesita al menos un dataset o un vector');
+  if (!datasets.length && !vectors.length) err('Case requires at least one dataset or one vector');
   const ids = new Set();
 
   datasets.forEach((d, i) => {
     const tag = `dataset "${d?.id ?? `#${i}`}"`;
-    if (!d.id || !ID_RE.test(d.id)) return err(`dataset #${i}: "id" requerido (letras, números, _ o -)`);
-    if (ids.has(d.id)) err(`${tag}: id duplicado`);
+    if (!d.id || !ID_RE.test(d.id)) return err(`dataset #${i}: "id" is required (letters, numbers, _ or -)`);
+    if (ids.has(d.id)) err(`${tag}: duplicate id`);
     ids.add(d.id);
-    if (d.kind && d.kind !== 'raster') err(`${tag}: solo se soporta kind "raster"`);
-    if (d.status !== 'real') err(`${tag}: solo se permiten datasets con status "real"`);
+    if (d.kind && d.kind !== 'raster') err(`${tag}: only kind "raster" is supported`);
+    if (d.status !== 'real') err(`${tag}: only datasets with status "real" are allowed`);
     const type = d.source?.type;
-    if (!['image', 'tiles'].includes(type)) err(`${tag}: source.type debe ser "image" o "tiles"`);
+    if (!['image', 'tiles'].includes(type)) err(`${tag}: source.type must be "image" or "tiles"`);
     const encoding = d.source?.encoding ?? (type === 'tiles' ? 'rgba' : 'gray8');
-    if (!['gray8', 'rgba'].includes(encoding)) err(`${tag}: source.encoding debe ser gray8 o rgba`);
+    if (!['gray8', 'rgba'].includes(encoding)) err(`${tag}: source.encoding must be gray8 or rgba`);
     if (type === 'image' || d.extent) {
       const e = d.extent;
-      if (!Array.isArray(e) || e.length !== 4 || !e.every(isNum) || e[0] >= e[2] || e[1] >= e[3]) err(`${tag}: "extent" debe ser [oeste, sur, este, norte]`);
+      if (!Array.isArray(e) || e.length !== 4 || !e.every(isNum) || e[0] >= e[2] || e[1] >= e[3]) err(`${tag}: "extent" must be [west, south, east, north]`);
     }
     const vars = d.variables;
-    if (!Array.isArray(vars) || !vars.length) return err(`${tag}: necesita al menos una variable`);
+    if (!Array.isArray(vars) || !vars.length) return err(`${tag}: requires at least one variable`);
     const vids = new Set();
     vars.forEach((v) => {
-      if (!v.id || !ID_RE.test(v.id)) err(`${tag}: variable con "id" inválido`);
-      if (vids.has(v.id)) err(`${tag}: variable "${v.id}" duplicada`);
+      if (!v.id || !ID_RE.test(v.id)) err(`${tag}: variable has an invalid "id"`);
+      if (vids.has(v.id)) err(`${tag}: duplicate variable "${v.id}"`);
       vids.add(v.id);
-      if (!v.label) warn(`${tag}/${v.id}: sin "label"`);
-      if (v.unit == null) warn(`${tag}/${v.id}: unidad pendiente (unit = null)`);
+      if (!v.label) warn(`${tag}/${v.id}: missing "label"`);
+      if (v.unit == null) warn(`${tag}/${v.id}: unit pending (unit = null)`);
       if (encoding === 'gray8') {
         const lg = v.legend;
         if (!lg || !isNum(lg.min) || !isNum(lg.max) || lg.min >= lg.max || !Array.isArray(lg.colors) || lg.colors.length < 2) {
-          err(`${tag}/${v.id}: con gray8 la leyenda requiere min < max y colors (>= 2)`);
+          err(`${tag}/${v.id}: gray8 legend requires min < max and colors (>= 2)`);
         }
       }
     });
     (d.composites ?? []).forEach((c) => {
-      if (!c.id || !ID_RE.test(c.id)) err(`${tag}: composite con "id" inválido`);
-      if (vids.has(c.id)) err(`${tag}: composite "${c.id}" repite el id de una variable`);
+      if (!c.id || !ID_RE.test(c.id)) err(`${tag}: composite has an invalid "id"`);
+      if (vids.has(c.id)) err(`${tag}: composite "${c.id}" collides with a variable id`);
       const chans = Object.entries(c.channels ?? {}).filter(([, v]) => v);
-      if (!chans.length) err(`${tag}/${c.id}: "channels" vacío`);
+      if (!chans.length) err(`${tag}/${c.id}: empty "channels"`);
       chans.forEach(([ch, v]) => {
-        if (!['r', 'g', 'b'].includes(ch)) err(`${tag}/${c.id}: canal "${ch}" inválido`);
-        if (!vids.has(v)) err(`${tag}/${c.id}: el canal ${ch} usa la variable inexistente "${v}"`);
+        if (!['r', 'g', 'b'].includes(ch)) err(`${tag}/${c.id}: invalid channel "${ch}"`);
+        if (!vids.has(v)) err(`${tag}/${c.id}: channel ${ch} references missing variable "${v}"`);
       });
-      if (type !== 'image' || encoding !== 'gray8') warn(`${tag}/${c.id}: los compuestos RGB solo funcionan con source.type "image" y encoding "gray8"; se ignorará`);
+      if (type !== 'image' || encoding !== 'gray8') warn(`${tag}/${c.id}: RGB composites only work with source.type "image" and encoding "gray8"; ignoring`);
     });
-    if (!Array.isArray(d.frames) || !d.frames.length) warn(`${tag}: sin frames`);
+    if (!Array.isArray(d.frames) || !d.frames.length) warn(`${tag}: no frames`);
     const fids = new Set();
     (d.frames ?? []).forEach((f, k) => {
-      if (Number.isNaN(toMs(f.datetime))) return err(`${tag}: frame #${k} sin "datetime" ISO 8601 válido`);
+      if (Number.isNaN(toMs(f.datetime))) return err(`${tag}: frame #${k} missing valid ISO 8601 "datetime"`);
       const fid = f.id ?? String(f.datetime).replace(/[^A-Za-z0-9_.-]/g, '-');
-      if (!FRAME_RE.test(fid)) err(`${tag}: frame "${fid}" con id inválido`);
-      if (fids.has(fid)) err(`${tag}: frame "${fid}" duplicado`);
+      if (!FRAME_RE.test(fid)) err(`${tag}: frame "${fid}" has an invalid id`);
+      if (fids.has(fid)) err(`${tag}: duplicate frame "${fid}"`);
       fids.add(fid);
       const files = f.files ?? {};
-      if (!Object.keys(files).length) err(`${tag}/${fid}: "files" vacío`);
+      if (!Object.keys(files).length) err(`${tag}/${fid}: empty "files"`);
       Object.entries(files).forEach(([k2, url]) => {
-        if (!vids.has(k2)) err(`${tag}/${fid}: files.${k2} no coincide con ninguna variable`);
-        if (typeof url !== 'string' || !url) err(`${tag}/${fid}: files.${k2} debe ser una ruta o URL`);
+        if (!vids.has(k2)) err(`${tag}/${fid}: files.${k2} matches no declared variable`);
+        if (typeof url !== 'string' || !url) err(`${tag}/${fid}: files.${k2} must be a path or URL`);
       });
     });
   });
 
   vectors.forEach((v, i) => {
     const tag = `vector "${v?.id ?? `#${i}`}"`;
-    if (!v.id || !ID_RE.test(v.id)) return err(`vector #${i}: "id" requerido (letras, números, _ o -)`);
-    if (ids.has(v.id)) err(`${tag}: id duplicado`);
+    if (!v.id || !ID_RE.test(v.id)) return err(`vector #${i}: "id" is required (letters, numbers, _ or -)`);
+    if (ids.has(v.id)) err(`${tag}: duplicate id`);
     ids.add(v.id);
-    if (!['fill', 'line', 'circle'].includes(v.type)) err(`${tag}: type debe ser fill, line o circle`);
-    if (!v.source?.data) err(`${tag}: falta "source.data" (ruta GeoJSON u objeto inline)`);
-    if (v.time && (!v.time.property || !['asof', 'cumulative'].includes(v.time.mode))) err(`${tag}: time requiere "property" y mode "asof" | "cumulative"`);
-    if (v.indicator && !v.indicator.simulated && !v.indicator.validation) warn(`${tag}: indicador no simulado sin "validation" definida`);
+    if (!['fill', 'line', 'circle'].includes(v.type)) err(`${tag}: type must be fill, line, or circle`);
+    if (!v.source?.data) err(`${tag}: missing "source.data" (GeoJSON path or inline object)`);
+    if (v.time && (!v.time.property || !['asof', 'cumulative'].includes(v.time.mode))) err(`${tag}: time requires "property" and mode "asof" | "cumulative"`);
+    if (v.indicator && !v.indicator.simulated && !v.indicator.validation) warn(`${tag}: non-simulated indicator without "validation" defined`);
   });
   vectors.forEach((v) => {
-    if (v.status && v.status !== 'real') errors.push(`vector "${v.id}": debe tener status "real"`);
-    if (v.simulated === true) errors.push(`vector "${v.id}": no se permiten vectores simulados`);
+    if (v.status && v.status !== 'real') errors.push(`vector "${v.id}": must have status "real"`);
+    if (v.simulated === true) errors.push(`vector "${v.id}": simulated vectors are not allowed`);
   });
 
   (def.downloads ?? []).forEach((dl, i) => {
     const tag = `download "${dl?.id ?? `#${i}`}"`;
-    if (!dl?.id || !dl?.label || typeof dl?.url !== 'string' || !dl.url) errors.push(`${tag}: requiere id, label y url`);
-    if (dl?.format && !['geotiff', 'png', 'geojson'].includes(dl.format)) errors.push(`${tag}: format inválido (${dl.format})`);
+    if (!dl?.id || !dl?.label || typeof dl?.url !== 'string' || !dl.url) errors.push(`${tag}: requires id, label, and url`);
+    if (dl?.format && !['geotiff', 'png', 'geojson'].includes(dl.format)) errors.push(`${tag}: invalid format (${dl.format})`);
   });
 
   return { errors, warnings };
 }
 
-/** Rellena valores por defecto seguros y ordena frames cronológicamente. */
+/** Populate safe defaults and sort frames chronologically. */
 export function normalizeCase(def) {
   def.status ??= 'real';
   def.downloads ??= [];

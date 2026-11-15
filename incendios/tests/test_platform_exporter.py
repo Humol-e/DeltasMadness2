@@ -58,7 +58,7 @@ def test_export_wildfire_case_and_xyz_tiles_compatible_with_sar_platform(tmp_pat
     exported = pe.export_wildfire_case(
         case_id="wildfire-palisades-la",
         title="Palisades Fire — Los Angeles, CA (2025)",
-        description="Incendio real GeoPulse.",
+        description="Real GeoPulse wildfire.",
         bbox=bbox,
         before_window="2024-12-01/2025-01-06",
         after_window="2025-02-01/2025-03-31",
@@ -182,7 +182,7 @@ def test_publish_cases_to_sar_madness_v2_creates_valid_schema_v2(tmp_path: Path)
     assert c2["wildfire"]["kind"] == "geopulse-real"
     assert "suggestedIgnitions" not in c2["wildfire"]
     assert c2["simulated"] is False
-    assert c2["category"] == "incendio"
+    assert c2["category"] == "wildfire"
     assert all(ds["id"] != "dem" for ds in c2["datasets"])
     assert len(c2["downloads"]) == 9
     assert all((target_data / dl["url"].removeprefix("data/")).exists() for dl in c2["downloads"])

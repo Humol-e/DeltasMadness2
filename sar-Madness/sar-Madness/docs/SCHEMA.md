@@ -1,51 +1,51 @@
-# Esquema de casos v2 (`schemaVersion: 2`)
+# Case Schema v2 (`schemaVersion: 2`)
 
-`public/data/catalog.json` lista los casos: `{ "schemaVersion": 2, "cases": ["data/cases/<id>/case.json"] }`.
-Cada caso se valida al cargar (y con `npm run validate`). Un caso inválido se omite con un mensaje; el resto sigue funcionando.
-Todos los JSON admiten comentarios `//` y `/* */`. Plantilla vacía: `docs/case.template.json`. Ejemplo comentado: `docs/case.example.jsonc`.
+`public/data/catalog.json` lists the published cases: `{ "schemaVersion": 2, "cases": ["data/cases/<id>/case.json"] }`.
+Each case is validated when loaded (and by `npm run validate`). Invalid cases are skipped with an error message while valid cases remain active.
+JSON files support `//` and `/* */` comments. Empty template: `docs/case.template.json`. Commented example: `docs/case.example.jsonc`.
 
-## Caso
-| Campo | Req. | Descripción |
+## Case
+| Field | Req. | Description |
 |---|---|---|
-| `schemaVersion` | sí | Debe ser `2`. |
-| `id`, `title` | sí | `id`: letras, números, `_`, `-`. |
-| `status` | no | `demo` (por defecto) o `real`. Nada se muestra como real si no se declara. |
-| `view` | sí | `center [lon,lat]`, `zoom`, `pitch`, `bearing`. |
-| `datasets[]` | * | Rásteres. |
-| `vectors[]` | * | GeoJSON. (*) Al menos uno de los dos. |
+| `schemaVersion` | yes | Must be `2`. |
+| `id`, `title` | yes | `id`: letters, numbers, `_`, `-`. |
+| `status` | yes | Must be `"real"` (`simulated` must not be `true`). |
+| `view` | yes | `center [lon,lat]`, `zoom`, `pitch`, `bearing`. |
+| `datasets[]` | * | Rasters. |
+| `vectors[]` | * | GeoJSON overlays. (*) At least one of `datasets` or `vectors` is required. |
 
-## Dataset ráster
-| Campo | Req. | Descripción |
+## Raster Dataset
+| Field | Req. | Description |
 |---|---|---|
-| `id`, `name` | sí | `id` sin `:` ni espacios. |
-| `status` | no | `demo` (por defecto) / `real`. |
-| `platform`, `sensor`, `provider`, `product`, `attribution` | no | `null` = pendiente. |
-| `variables[]` | sí | `id`, `label`, `quantity`, `polarization`, `unit`, `legend`. Cada dataset declara SUS variables (SAR-1 puede traer HH+HV y SAR-2 solo HV). |
-| `variables[].legend` | gray8: sí | `min`, `max`, `colors[]` (≥ 2, interpolados), `nodata_label` opcional. |
-| `composites[]` | no | `{ id, label, channels: {r,g,b}, note }`; cada canal es un `id` de variable o `null`. Solo `image` + `gray8`. |
-| `source` | sí | `type`: `image` o `tiles`. `encoding`: `gray8` (defecto en image) o `rgba` (defecto en tiles). `nodata` (gray8, por defecto 0). `tileSize`, `minzoom`, `maxzoom` (tiles). |
-| `extent` | image: sí | `[oeste, sur, este, norte]` en grados. Si se da en tiles, limita las teselas. |
-| `crs`, `resolution` | no | Informativos (`null` = pendiente). |
+| `id`, `name` | yes | `id` without `:` or spaces. |
+| `status` | yes | `"real"`. |
+| `platform`, `sensor`, `provider`, `product`, `attribution` | no | `null` = pending. |
+| `variables[]` | yes | `id`, `label`, `quantity`, `polarization`, `unit`, `legend`. Each dataset declares its own variables (e.g., `HH+HV` or `VH` only). |
+| `variables[].legend` | gray8: yes | `min`, `max`, `colors[]` (>= 2 interpolated hex colors), optional `nodata_label`. |
+| `composites[]` | no | `{ id, label, channels: {r,g,b}, note }`; each channel is a variable `id` or `null`. Only for `image` + `gray8`. |
+| `source` | yes | `type`: `image` or `tiles`. `encoding`: `gray8` (default for image) or `rgba` (default for tiles). `nodata` (gray8, default 0). `tileSize`, `minzoom`, `maxzoom` (tiles). |
+| `extent` | image: yes | `[west, south, east, north]` in degrees. When given on `tiles`, bounds tile requests. |
+| `crs`, `resolution` | no | Informational (`null` = pending). |
 | `render` | no | `opacity` (0–1), `resampling` (`linear` / `nearest`). |
-| `defaultVisible` | no | `false` para empezar apagado. |
-| `frames[]` | sí | `datetime` (ISO 8601, obligatorio), `id` (opcional), `files` `{ idVariable: ruta | URL }`. |
+| `defaultVisible` | no | `false` to start hidden. |
+| `frames[]` | yes | `datetime` (ISO 8601, required), `id` (optional), `files` `{ variableId: path | URL }`. |
 
-### Codificación `gray8` (DEMO)
-PNG de 8 bits en escala de grises. `0` = sin dato. `1..255` se mapea linealmente a `legend.min..legend.max`.
-Con esto la app puede colorear, componer RGB, mostrar valores por píxel y hacer swipe. Es una convención de la demo: cuando el pipeline defina su formato real, se cambia `source` y `files` (p. ej. a `tiles` o `rgba`) sin tocar el código.
-Los PNG deben estar alineados al `extent` (lon/lat). La app los estira entre las esquinas del `extent` (aproximación válida para zonas pequeñas).
+### `gray8` Encoding
+8-bit grayscale PNG: `0` = nodata (transparent). `1..255` maps linearly onto `legend.min..legend.max`.
+This allows the browser viewer to colorize with LUTs, compose RGB, read pixel values under the cursor, and drive the swipe comparator.
+PNGs must be aligned to `extent` (`[west, south, east, north]`).
 
 ## Vector (GeoJSON)
-| Campo | Req. | Descripción |
+| Field | Req. | Description |
 |---|---|---|
-| `id`, `name`, `type` | sí | `type`: `fill`, `line`, `circle`. |
-| `source.data` | sí | Ruta a un GeoJSON (o un objeto inline). |
-| `time` | no | `{ property, mode }`. `property` guarda la fecha ISO de cada feature. `asof`: fecha más reciente ≤ la elegida. `cumulative`: todo hasta esa fecha. |
-| `paint`, `layout` | no | Estilo Mapbox GL. |
+| `id`, `name`, `type` | yes | `type`: `fill`, `line`, `circle`. |
+| `source.data` | yes | Path to a GeoJSON file (or an inline GeoJSON object). |
+| `time` | no | `{ property, mode }`. `property` holds each feature's ISO date. `asof`: latest date <= active time. `cumulative`: all up to active time. |
+| `paint`, `layout` | no | Mapbox GL styling properties. |
 | `legend` | no | `{ title, items: [{color,label}] }`. |
-| `popupFields` | no | `[[clave, etiqueta, unidad?]]`. Si falta un valor se muestra «No disponible». |
-| `status`, `simulated` | no | `simulated: true` rotula SIMULADO. |
-| `indicator` | no | `{ kind, simulated, validation }` para deshielo, zonas de riesgo, SWE, lluvia u otros. La app **no calcula** indicadores. Sin `simulated` y sin `validation` se avisa «sin validación». |
+| `popupFields` | no | `[[key, label, unit?]]`. Missing values show "Not available". |
+| `status`, `simulated` | no | Real data requires `status: "real"` and `simulated !== true`. |
+| `indicator` | no | `{ kind, simulated, validation }` for domain indicators. The app renders precomputed indicators rather than fabricating values. |
 
-## Tiempo
-El eje temporal es la unión de todas las fechas de frames y vectores. En cada fecha, cada dataset muestra **su último frame ≤ la fecha elegida**, indicando su fecha real y cuánto difiere. Nunca se interpolan datos entre frames.
+## Time
+The timeline axis is the sorted union of all frame and vector timestamps. At any active timestamp, each dataset displays **its latest frame <= active time** without temporal interpolation.

@@ -7,20 +7,20 @@ const token = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 const app = document.getElementById('app');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// ── Estado de configuración: sin token no hay mapa, pero tampoco pantalla rota ──
-if (!token || token.includes('PEGA')) {
+// ── Configuration guard: show instructions instead of a broken screen when the token is missing ──
+if (!token || token.includes('PEGA') || token.includes('PASTE')) {
   app.innerHTML = `
     <div class="setup">
-      <h1>Falta el token de Mapbox</h1>
-      <p>La app necesita un token público de Mapbox para dibujar el mapa.</p>
+      <h1>Missing Mapbox Token</h1>
+      <p>The app needs a public Mapbox token to render the map.</p>
       <ol>
-        <li>Crea un token público (<code>pk.…</code>) en <a href="https://account.mapbox.com" target="_blank" rel="noopener">account.mapbox.com</a>.</li>
-        <li>Copia <code>.env.example</code> como <code>.env</code> y pégalo en <code>VITE_MAPBOX_ACCESS_TOKEN</code>.</li>
-        <li>Reinicia con <code>npm run dev</code>.</li>
+        <li>Create a public token (<code>pk.…</code>) at <a href="https://account.mapbox.com" target="_blank" rel="noopener">account.mapbox.com</a>.</li>
+        <li>Copy <code>.env.example</code> to <code>.env</code> and paste it into <code>VITE_MAPBOX_ACCESS_TOKEN</code>.</li>
+        <li>Restart with <code>npm run dev</code>.</li>
       </ol>
-      <p class="muted">Restringe el token por URL/origen y permisos en el panel de Mapbox. Nunca lo subas al repositorio.</p>
+      <p class="muted">Restrict the token by URL/origin and scopes in your Mapbox dashboard. Never commit it to the repository.</p>
     </div>`;
-  throw new Error('VITE_MAPBOX_ACCESS_TOKEN no configurado');
+  throw new Error('VITE_MAPBOX_ACCESS_TOKEN is not configured');
 }
 
 const radios = (name, options, checked) => Object.entries(options).map(([k, v]) => {
@@ -32,52 +32,52 @@ app.innerHTML = `
   <div class="app">
     <aside class="side" id="side">
       <header>
-        <h1>Cambios en superficie con SAR</h1>
-        <p class="flag">DEMO / SIMULACIÓN. Las capas SAR son ilustrativas; no son observaciones reales ni detección en tiempo real.</p>
+        <h1>SAR Surface Change</h1>
+        <p class="flag">DEMO / SIMULATION. SAR layers are illustrative; these are not real observations or real-time detection.</p>
       </header>
 
       <section>
-        <label for="case-select">Zona de estudio</label>
+        <label for="case-select">Study area</label>
         <select id="case-select"></select>
-        <p id="case-desc" class="muted">Gira el globo y toca un punto, o elige una zona de la lista.</p>
+        <p id="case-desc" class="muted">Rotate the globe and click a marker, or choose an area from the list.</p>
       </section>
 
       <section class="base-panel">
-        <h2>Mapa base y terreno <span class="tag tag-base">BASE</span></h2>
-        <div class="field"><span class="lbl">Vista</span><div class="segs" id="mode">${radios('mode', VIEW_MODES, 'globe')}</div></div>
-        <div class="field"><span class="lbl">Mapa base</span><div class="segs" id="basemap">${radios('basemap', BASEMAPS, 'satellite')}</div></div>
-        <label class="check"><input type="checkbox" id="hillshade" checked /> Sombreado de relieve</label>
-        <div class="field"><label for="exag" class="lbl">Exageración del relieve: <output id="exag-out">1,5×</output></label>
+        <h2>Basemap & terrain <span class="tag tag-base">BASE</span></h2>
+        <div class="field"><span class="lbl">View</span><div class="segs" id="mode">${radios('mode', VIEW_MODES, 'globe')}</div></div>
+        <div class="field"><span class="lbl">Basemap</span><div class="segs" id="basemap">${radios('basemap', BASEMAPS, 'satellite')}</div></div>
+        <label class="check"><input type="checkbox" id="hillshade" checked /> Hillshade relief</label>
+        <div class="field"><label for="exag" class="lbl">Terrain exaggeration: <output id="exag-out">1.5×</output></label>
           <input id="exag" type="range" min="0.5" max="3" step="0.1" value="1.5" /></div>
-        <div class="field"><label for="sun" class="lbl">Luz solar (azimut): <output id="sun-out">315°</output></label>
+        <div class="field"><label for="sun" class="lbl">Sunlight (azimuth): <output id="sun-out">315°</output></label>
           <input id="sun" type="range" min="0" max="360" step="5" value="315" /></div>
-        <small class="muted">El relieve y el color del mapa base no son datos SAR.</small>
+        <small class="muted">Terrain relief and basemap styling are not SAR data.</small>
       </section>
 
       <section id="time-sec" hidden>
-        <div class="row"><label for="slider">Antes / después</label><button id="play" type="button" aria-label="Reproducir línea de tiempo">Reproducir</button></div>
+        <div class="row"><label for="slider">Before / After</label><button id="play" type="button" aria-label="Play timeline">Play</button></div>
         <input id="slider" type="range" min="0" max="0" step="1" value="0" />
         <div id="steps" class="steps"></div>
         <p id="step-note" class="muted"></p>
       </section>
 
       <section class="sar-panel">
-        <h2>Capas SAR <span class="tag tag-sar">DEMO</span></h2>
-        <div id="layers"><p class="muted">Selecciona una zona para ver sus capas.</p></div>
+        <h2>SAR Layers <span class="tag tag-sar">DEMO</span></h2>
+        <div id="layers"><p class="muted">Select an area to view its layers.</p></div>
       </section>
 
       <section class="sar-panel">
-        <h2>Leyenda · datos SAR (DEMO)</h2>
-        <div id="legend"><p class="muted">Sin capas activas.</p></div>
+        <h2>Legend · SAR data (DEMO)</h2>
+        <div id="legend"><p class="muted">No active layers.</p></div>
       </section>
 
-      <footer class="muted">Mapa base: © Mapbox © OpenStreetMap © Maxar. Datos SAR demo sintéticos generados por <code>scripts/make_demo_data.py</code>.</footer>
+      <footer class="muted">Basemap: © Mapbox © OpenStreetMap © Maxar. Synthetic demo SAR data generated by <code>scripts/make_demo_data.py</code>.</footer>
     </aside>
     <main class="stage">
       <div id="map"></div>
       <div id="status" class="status" role="status" hidden></div>
-      <button id="home" type="button" class="home">Ver el mundo</button>
-      <button id="recenter" type="button" class="home second" hidden>Volver a la zona</button>
+      <button id="home" type="button" class="home">View globe</button>
+      <button id="recenter" type="button" class="home second" hidden>Back to area</button>
       <div id="info" class="info" hidden></div>
     </main>
   </div>`;
@@ -94,6 +94,7 @@ const controller = new MapController({ container: 'map', token, onStatus: setSta
 let cases = [];
 let active = null;
 let timer = null;
+let selectSeq = 0;
 
 // ── Render ──
 function renderTimeline() {
@@ -109,7 +110,7 @@ function updateStepUI(step) {
   const s = active.timeline[step];
   $('slider').value = step;
   document.querySelectorAll('#steps button').forEach((b) => b.classList.toggle('on', Number(b.dataset.step) === step));
-  $('step-note').textContent = `${s.date ? `Fecha: ${s.date}. ` : 'Fecha: sin definir (DEMO). '}${s.note || ''}`;
+  $('step-note').textContent = `${s.date ? `Date: ${s.date}. ` : 'Date: undefined (DEMO). '}${s.note || ''}`;
 }
 
 function renderLayers() {
@@ -119,13 +120,13 @@ function renderLayers() {
       <label class="layer ${bad ? 'bad' : ''}">
         <input type="checkbox" data-layer="${esc(l.id)}" ${bad ? 'disabled' : 'checked'} />
         <span><strong>${esc(l.name || l.id)}</strong>${l.demo ? ' <em class="badge">DEMO</em>' : ''}
-        <small>${bad ? `Sin datos: ${esc(l.error || 'no se pudo cargar')}` : esc(l.description || '')}</small></span>
+        <small>${bad ? `No data: ${esc(l.error || 'could not be loaded')}` : esc(l.description || '')}</small></span>
       </label>`;
   }).join('');
 }
 
 function renderLegend() {
-  if (!active) { $('legend').innerHTML = '<p class="muted">Sin capas activas.</p>'; return; }
+  if (!active) { $('legend').innerHTML = '<p class="muted">No active layers.</p>'; return; }
   const items = active.layers
     .filter((l) => l.legend && l.status === 'ok' && controller.isVisible(l.id) && (!l.steps || l.steps.includes(controller.step)))
     .map((l) => `
@@ -134,15 +135,15 @@ function renderLegend() {
         ${(l.legend.items || []).map((i) => `<div class="legend-item"><span class="sw" style="background:${esc(i.color)}"></span>${esc(i.label)}</div>`).join('')}
         ${l.attribution ? `<small class="muted">${esc(l.attribution)}</small>` : ''}
       </div>`);
-  $('legend').innerHTML = items.join('') || '<p class="muted">Activa una capa SAR para ver su leyenda.</p>';
+  $('legend').innerHTML = items.join('') || '<p class="muted">Enable a SAR layer to view its legend.</p>';
 }
 
 function refreshStatus() {
   if (!active) return setStatus('', '');
   const empty = active.layers.filter((l) => controller.isVisible(l.id) && l.status === 'ok' && !layerHasData(l, controller.step));
   const failed = active.layers.filter((l) => l.status !== 'ok');
-  if (empty.length) setStatus('empty', `Sin datos SAR en este paso: ${empty.map((l) => l.name).join(', ')}`);
-  else if (failed.length) setStatus('error', `No se pudieron cargar ${failed.length} capa(s). El resto funciona.`);
+  if (empty.length) setStatus('empty', `No SAR data at this step: ${empty.map((l) => l.name).join(', ')}`);
+  else if (failed.length) setStatus('error', `Could not load ${failed.length} layer(s). The rest still work.`);
   else setStatus('', '');
 }
 
@@ -155,11 +156,11 @@ function showInfo(layer, feature) {
     .map(([k, label, unit]) => `<tr><th>${esc(label || k)}</th><td>${esc(p[k])}${unit ? ` ${esc(unit)}` : ''}</td></tr>`).join('');
   const s = active.timeline[controller.step];
   box.innerHTML = `
-    <button type="button" class="close" aria-label="Cerrar panel">×</button>
+    <button type="button" class="close" aria-label="Close panel">×</button>
     <h3>${esc(p.name || p.zone || layer.name)}</h3>
-    <p class="muted">Dato SAR · ${esc(layer.name)}${layer.demo ? ' · DEMO' : ''} · ${esc(s.label)}${s.date ? ` · ${esc(s.date)}` : ''}</p>
-    <p>${esc(layer.description || 'Sin descripción disponible.')}</p>
-    <table>${rows || '<tr><td>Sin atributos disponibles.</td></tr>'}</table>`;
+    <p class="muted">SAR data · ${esc(layer.name)}${layer.demo ? ' · DEMO' : ''} · ${esc(s.label)}${s.date ? ` · ${esc(s.date)}` : ''}</p>
+    <p>${esc(layer.description || 'No description available.')}</p>
+    <table>${rows || '<tr><td>No attributes available.</td></tr>'}</table>`;
   box.hidden = false;
   box.querySelector('.close').onclick = () => { box.hidden = true; };
 }
@@ -171,29 +172,35 @@ function showWorldUI() {
   $('time-sec').hidden = true;
   $('recenter').hidden = true;
   $('case-select').value = '';
-  $('case-desc').textContent = 'Gira el globo y toca un punto, o elige una zona de la lista.';
-  $('layers').innerHTML = '<p class="muted">Selecciona una zona para ver sus capas.</p>';
+  $('case-desc').textContent = 'Rotate the globe and click a marker, or choose an area from the list.';
+  $('layers').innerHTML = '<p class="muted">Select an area to view its layers.</p>';
   renderLegend();
   setStatus('', '');
 }
 
 async function selectCase(id) {
-  if (!id) { await controller.showWorld(); showWorldUI(); return; }
+  const seq = ++selectSeq;
   stopPlay();
+  if (!id) {
+    await controller.showWorld();
+    if (seq === selectSeq) showWorldUI();
+    return;
+  }
   const def = cases.find((c) => c.id === id);
   if (!def) return;
   active = def;
   $('case-select').value = id;
   $('info').hidden = true;
   $('recenter').hidden = false;
-  setStatus('loading', 'Acercando a la zona…');
+  setStatus('loading', 'Zooming to area…');
   $('case-desc').textContent = def.description || '';
   try {
     await controller.loadCase(def);
   } catch (err) {
-    setStatus('error', `No se pudo cargar el caso: ${err.message}`);
+    if (seq === selectSeq) setStatus('error', `Failed to load case: ${err.message}`);
     return;
   }
+  if (seq !== selectSeq) return;
   renderTimeline();
   renderLayers();
   renderLegend();
@@ -210,10 +217,10 @@ function goTo(step) {
 function stopPlay() {
   clearInterval(timer);
   timer = null;
-  $('play').textContent = 'Reproducir';
+  $('play').textContent = 'Play';
 }
 
-// ── Eventos ──
+// ── Events ──
 $('case-select').onchange = (e) => selectCase(e.target.value);
 $('slider').oninput = (e) => { stopPlay(); goTo(Number(e.target.value)); };
 $('steps').onclick = (e) => { const b = e.target.closest('button'); if (b) { stopPlay(); goTo(Number(b.dataset.step)); } };
@@ -227,7 +234,8 @@ $('home').onclick = () => selectCase('');
 $('recenter').onclick = () => controller.flyToCase();
 $('play').onclick = () => {
   if (timer) return stopPlay();
-  $('play').textContent = 'Pausar';
+  if (!active || active.timeline.length < 2) return;
+  $('play').textContent = 'Pause';
   timer = setInterval(() => goTo((controller.step + 1) % active.timeline.length), 1400);
 };
 $('mode').onchange = (e) => controller.setMode(e.target.value);
@@ -235,7 +243,7 @@ $('basemap').onchange = (e) => controller.setBasemap(e.target.value);
 $('hillshade').onchange = (e) => controller.setHillshade(e.target.checked);
 $('exag').oninput = (e) => {
   const v = Number(e.target.value);
-  $('exag-out').textContent = `${String(v).replace('.', ',')}×`;
+  $('exag-out').textContent = `${v}×`;
   controller.setExaggeration(v);
 };
 $('sun').oninput = (e) => {
@@ -245,21 +253,21 @@ $('sun').oninput = (e) => {
 controller.onFeature = showInfo;
 controller.onCasePick = (id) => selectCase(id);
 
-// ── Arranque: globo con las zonas disponibles ──
+// ── Startup: globe with available study areas ──
 (async function init() {
-  setStatus('loading', 'Cargando zonas de estudio…');
+  setStatus('loading', 'Loading study areas…');
   try {
     const result = await loadCases();
     cases = result.cases;
-    if (!cases.length) throw new Error(result.problems.join(' | ') || 'No hay casos registrados');
-    $('case-select').innerHTML = `<option value="">Mundo (globo 3D)</option>` +
+    if (!cases.length) throw new Error(result.problems.join(' | ') || 'No cases registered');
+    $('case-select').innerHTML = `<option value="">World (3D globe)</option>` +
       cases.map((c) => `<option value="${esc(c.id)}">${esc(c.title)}</option>`).join('');
     await controller.ready;
     controller.setCases(cases);
     setStatus('', '');
-    if (result.problems.length) setStatus('error', `Casos omitidos por error: ${result.problems.length}. Revisa la consola.`);
+    if (result.problems.length) setStatus('error', `Cases skipped due to errors: ${result.problems.length}. Check the console.`);
     result.problems.forEach((p) => console.warn('[registry]', p));
   } catch (err) {
-    setStatus('error', `No se pudieron cargar los datos: ${err.message}`);
+    setStatus('error', `Failed to load data: ${err.message}`);
   }
 })();

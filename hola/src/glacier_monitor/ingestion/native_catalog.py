@@ -28,16 +28,16 @@ NATIVE_CATALOG: dict[str, NativeDatasetSpec] = {
     "sentinel1_grd": NativeDatasetSpec(
         key="sentinel1_grd",
         dataset_id="COPERNICUS/S1_GRD",
-        name="Sentinel-1 SAR GRD (Backscatter en dB)",
+        name="Sentinel-1 SAR GRD (Backscatter in dB)",
         bands=("VV", "VH", "HH", "HV", "angle"),
         default_bands=("VV", "VH"),
         resolution_m=10,
-        cadence="6-12 días (actualización automática en GEE)",
+        cadence="6-12 days (auto-updated in GEE)",
     ),
     "modis_snow": NativeDatasetSpec(
         key="modis_snow",
         dataset_id="MODIS/061/MOD10A1",
-        name="MODIS Terra Nieve Diaria 500m (NDSI)",
+        name="MODIS Terra Daily Snow 500m (NDSI)",
         bands=(
             "NDSI_Snow_Cover",
             "NDSI_Snow_Cover_Basic_QA",
@@ -47,12 +47,12 @@ NATIVE_CATALOG: dict[str, NativeDatasetSpec] = {
         ),
         default_bands=("NDSI_Snow_Cover", "NDSI_Snow_Cover_Basic_QA"),
         resolution_m=500,
-        cadence="Diaria (actualización automática en GEE)",
+        cadence="Daily (auto-updated in GEE)",
     ),
     "modis_lst": NativeDatasetSpec(
         key="modis_lst",
         dataset_id="MODIS/061/MOD11A1",
-        name="MODIS Terra Temperatura Superficial Diaria 1km (LST)",
+        name="MODIS Terra Daily Land Surface Temp 1km (LST)",
         bands=(
             "LST_Day_1km",
             "QC_Day",
@@ -69,7 +69,7 @@ NATIVE_CATALOG: dict[str, NativeDatasetSpec] = {
         ),
         default_bands=("LST_Day_1km", "LST_Night_1km", "QC_Day"),
         resolution_m=1000,
-        cadence="Diaria (actualización automática en GEE)",
+        cadence="Daily (auto-updated in GEE)",
     ),
 }
 
@@ -93,7 +93,7 @@ def get_dataset_spec(dataset_key: str) -> NativeDatasetSpec:
     spec = NATIVE_CATALOG.get(dataset_key)
     if spec is None:
         valid = ", ".join(sorted(NATIVE_CATALOG))
-        raise ValueError(f"Dataset nativo desconocido '{dataset_key}'. Opciones: {valid}")
+        raise ValueError(f"Unknown native dataset '{dataset_key}'. Options: {valid}")
     return spec
 
 

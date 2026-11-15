@@ -1,8 +1,8 @@
-"""Implementación vectorizada del algoritmo físico NISAR L3 AGB ATBD.
+"""Vectorized implementation of the NISAR L3 AGB ATBD physical algorithm.
 
-Reproduce fielmente las ecuaciones forward (`volume + double + surface`) y la
-inversión en dB ponderada (`weights=(4, 1)`) de `NISAR_Biomass/algorithm/bin/model_radar.py`,
-sin requerir GDAL/osgeo/sklearn en tiempo de ejecución.
+Faithfully reproduces the forward equations (`volume + double + surface`) and
+weighted dB inversion (`weights=(4, 1)`) from `NISAR_Biomass/algorithm/bin/model_radar.py`,
+without requiring GDAL/osgeo/sklearn at runtime.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from .config import NisarAtbdParameters
 
 @dataclass(frozen=True)
 class NisarInversionResult:
-    """Resultado espacial de inversión AGB (Mg/ha) para una escena o ventana temporal."""
+    """Spatial AGB inversion result (Mg/ha) for a scene or temporal window."""
 
     agb_mgha: np.ndarray
     agb_init_mgha: np.ndarray
@@ -38,7 +38,7 @@ def volume_scattering(
     b: float,
     alpha: float,
 ) -> np.ndarray | float:
-    """Componente de dispersión volumétrica: `A * W^alpha * (1 - exp(-B * W))`."""
+    """Volume scattering component: `A * W^alpha * (1 - exp(-B * W))`."""
     w = np.maximum(np.asarray(agb, dtype=np.float64), 1e-9)
     return a * np.power(w, alpha) * (1.0 - np.exp(-b * w))
 
@@ -50,7 +50,7 @@ def double_bounce_scattering(
     delta: float,
     soil: float,
 ) -> np.ndarray | float:
-    """Componente de doble rebote tronco-suelo: `C * S * W^delta * exp(-B * W)`."""
+    """Trunk-ground double-bounce component: `C * S * W^delta * exp(-B * W)`."""
     w = np.maximum(np.asarray(agb, dtype=np.float64), 1e-9)
     return c * soil * np.power(w, delta) * np.exp(-b * w)
 
@@ -61,7 +61,7 @@ def surface_scattering(
     d: float,
     soil: float,
 ) -> np.ndarray | float:
-    """Componente superficial atenuada por dosel: `D * S * exp(-B * W)`."""
+    """Canopy-attenuated surface component: `D * S * exp(-B * W)`."""
     w = np.maximum(np.asarray(agb, dtype=np.float64), 1e-9)
     return d * soil * np.exp(-b * w)
 
@@ -76,10 +76,12 @@ def forward_nisar_channel(
     d: float,
     soil: float,
 ) -> np.ndarray:
-    """Modelo forward semi-empírico NISAR Banda L para un canal polarimétrico."""
-    vol = volume_scattering(agb, a, b, alpha)
-    dbl = double_bounce_scattering(agb, b, c, delta, soil)
-    srf = surface_scattering(agb, b, d, soil)
+    """NISAR L-band semi-empirical forward model for a single polarimetric channel."""
+    w = np.maximum(np.asarray(agb, dtype=np.float64), 1e-9)
+    exp_bw = np.exp(-b * w)
+    vol = a * np.power(w, alpha) * (1.0 - exp_bw)
+    dbl = c * soil * np.power(w, delta) * exp_bw
+    srf = d * soil * exp_bw
     return np.asarray(vol + dbl + srf, dtype=np.float64)
 
 
@@ -87,7 +89,7 @@ def forward_nisar_hh_hv(
     agb_mgha: np.ndarray | float,
     params: NisarAtbdParameters,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Evalúa `(HH, HV)` en potencia lineal gamma0 a partir de AGB (`Mg/ha`)."""
+    """Evaluate `(HH, HV)` in linear gamma0 power from AGB (`Mg/ha`)."""
     hv = forward_nisar_channel(
         agb_mgha,
         params.A_HV,
@@ -112,7 +114,7 @@ def forward_nisar_hh_hv(
 
 
 def linear_to_db(gamma0: np.ndarray, floor_linear: float = 1e-6) -> np.ndarray:
-    """Convierte potencia lineal gamma0 a decibelios `10 * log10(gamma0)` preservando NaN."""
+    """Convert linear gamma0 power to decibels `10 * log10(gamma0)`, preserving NaNs."""
     arr = np.asarray(gamma0, dtype=np.float64)
     out = np.full_like(arr, np.nan, dtype=np.float32)
     valid = np.isfinite(arr) & (arr > floor_linear)
@@ -126,7 +128,7 @@ def compute_initial_agb(
     min_agb: float = 0.0,
     max_agb: float = 300.0,
 ) -> np.ndarray:
-    """Estimación empírica inicial de AGB (`functions.py:380`: `clip((100 * HV)^2, 0, 300)`)."""
+    """Empirical initial AGB estimate (`functions.py:380`: `clip((100 * HV)^2, 0, 300)`)."""
     hv = np.asarray(hv_linear, dtype=np.float64)
     out = np.full_like(hv, np.nan, dtype=np.float64)
     valid = np.isfinite(hv) & (hv > 0.0)
@@ -142,7 +144,7 @@ def build_sar_valid_mask(
     hv_max: float = 1.0,
     hh_max: float = 1.0,
 ) -> np.ndarray:
-    """Aplica la máscara física NISAR (`HV_MIN > 0.01`, `HV_MAX < 1`, `HH_MAX < 1`)."""
+    """Apply the NISAR physical mask (`HV_MIN > 0.01`, `HV_MAX < 1`, `HH_MAX < 1`)."""
     hh = np.asarray(hh_stack, dtype=np.float64)
     hv = np.asarray(hv_stack, dtype=np.float64)
     if hh.ndim == 2:
@@ -165,11 +167,11 @@ def _objective_db_weighted(
     hv_weight: float,
     hh_weight: float,
 ) -> np.ndarray:
-    """Evalúa el costo en dB ponderado para `w_grid` de forma `(K, N)` y obs `(S, N)`."""
+    """Evaluate weighted dB cost for `w_grid` of shape `(K, N)` and obs `(S, N)`."""
     hh_hat, hv_hat = forward_nisar_hh_hv(w_grid, params)
     hh_hat_db = 10.0 * np.log10(np.maximum(hh_hat, 1e-12))
     hv_hat_db = 10.0 * np.log10(np.maximum(hv_hat, 1e-12))
-    # Broadcasting: (1, K, N) vs (S, 1, N) -> suma sobre escenas S
+    # Broadcasting: (1, K, N) vs (S, 1, N) -> sum across scenes S
     err_hv = (hv_hat_db[None, :, :] - hv_obs_db[:, None, :]) * hv_weight
     err_hh = (hh_hat_db[None, :, :] - hh_obs_db[:, None, :]) * hh_weight
     return np.sum(err_hv * err_hv + err_hh * err_hh, axis=0)
@@ -188,7 +190,7 @@ def _solve_agb_vectorized_1d(
     n_grid: int = 65,
     n_golden_iters: int = 24,
 ) -> np.ndarray:
-    """Resuelve Stage 1 del modelo NISAR sobre N píxeles simultáneamente (~1e-3 Mg/ha de error vs L-BFGS-B)."""
+    """Solve Stage 1 of the NISAR model across N pixels simultaneously (~1e-3 Mg/ha vs L-BFGS-B)."""
     if hh_obs.shape[1] == 0:
         return np.empty((0,), dtype=np.float64)
 
@@ -213,8 +215,10 @@ def _solve_agb_vectorized_1d(
     phi = (np.sqrt(5.0) - 1.0) / 2.0
     x1 = b - phi * (b - a)
     x2 = a + phi * (b - a)
-    f1 = _objective_db_weighted(x1[None, :], hh_obs_db, hv_obs_db, params, hv_weight, hh_weight)[0]
-    f2 = _objective_db_weighted(x2[None, :], hh_obs_db, hv_obs_db, params, hv_weight, hh_weight)[0]
+    pts = _objective_db_weighted(
+        np.vstack((x1, x2)), hh_obs_db, hv_obs_db, params, hv_weight, hh_weight
+    )
+    f1, f2 = pts[0], pts[1]
 
     for _ in range(n_golden_iters):
         choose_left = f1 <= f2
@@ -225,18 +229,15 @@ def _solve_agb_vectorized_1d(
         x1 = np.where(~choose_left, x2, x1)
         f1 = np.where(~choose_left, f2, f1)
 
-        new_x1 = b - phi * (b - a)
-        new_x2 = a + phi * (b - a)
-        new_f1 = _objective_db_weighted(
-            new_x1[None, :], hh_obs_db, hv_obs_db, params, hv_weight, hh_weight
+        # Standard golden-section reuse: only one interior point needs evaluation per pixel.
+        new_x = np.where(choose_left, b - phi * (b - a), a + phi * (b - a))
+        new_f = _objective_db_weighted(
+            new_x[None, :], hh_obs_db, hv_obs_db, params, hv_weight, hh_weight
         )[0]
-        new_f2 = _objective_db_weighted(
-            new_x2[None, :], hh_obs_db, hv_obs_db, params, hv_weight, hh_weight
-        )[0]
-        x1 = np.where(choose_left, new_x1, x1)
-        f1 = np.where(choose_left, new_f1, f1)
-        x2 = np.where(~choose_left, new_x2, x2)
-        f2 = np.where(~choose_left, new_f2, f2)
+        x1 = np.where(choose_left, new_x, x1)
+        f1 = np.where(choose_left, new_f, f1)
+        x2 = np.where(~choose_left, new_x, x2)
+        f2 = np.where(~choose_left, new_f, f2)
 
     return 0.5 * (a + b)
 
@@ -252,7 +253,7 @@ def optimize_pixel_lbfgsb(
     hv_weight: float = 4.0,
     hh_weight: float = 1.0,
 ) -> float:
-    """Referencia exacta por píxel con `scipy.optimize.minimize(L-BFGS-B)` (Stage 1 de model_radar.py)."""
+    """Exact per-pixel reference using `scipy.optimize.minimize(L-BFGS-B)` (Stage 1 of model_radar.py)."""
     hh_arr = np.atleast_1d(np.asarray(hh_obs, dtype=np.float64))
     hv_arr = np.atleast_1d(np.asarray(hv_obs, dtype=np.float64))
     hh_db = 10.0 * np.log10(np.maximum(hh_arr, 1e-12))
@@ -272,6 +273,15 @@ def optimize_pixel_lbfgsb(
     return float(res.x[0])
 
 
+def _safe_finite_mean(stack: np.ndarray) -> np.ndarray:
+    """Compute mean along axis=0 without RuntimeWarning on all-NaN columns."""
+    valid = np.isfinite(stack)
+    counts = np.sum(valid, axis=0)
+    sums = np.sum(np.where(valid, stack, 0.0), axis=0)
+    out = np.full(stack.shape[1:], np.nan, dtype=np.float64)
+    return np.divide(sums, counts, out=out, where=counts > 0)
+
+
 def invert_agb_scene(
     hh_stack: np.ndarray,
     hv_stack: np.ndarray,
@@ -283,20 +293,20 @@ def invert_agb_scene(
     hv_weight: float = 4.0,
     hh_weight: float = 1.0,
 ) -> NisarInversionResult:
-    """Ejecuta la inversión NISAR L3 AGB sobre una escena `(H, W)` o pila `(S, H, W)`."""
+    """Run NISAR L3 AGB inversion over a `(H, W)` scene or `(S, H, W)` stack."""
     hh = np.asarray(hh_stack, dtype=np.float64)
     hv = np.asarray(hv_stack, dtype=np.float64)
     if hh.ndim == 2:
         hh = hh[None, ...]
         hv = hv[None, ...]
     if hh.shape != hv.shape:
-        raise ValueError(f"Shapes incompatibles HH={hh.shape} y HV={hv.shape}")
+        raise ValueError(f"Incompatible shapes HH={hh.shape} and HV={hv.shape}")
 
     sar_ok = build_sar_valid_mask(hh, hv)
     final_mask = sar_ok if valid_mask is None else (sar_ok & np.asarray(valid_mask, dtype=bool))
 
-    hh_mean = np.nanmean(hh, axis=0)
-    hv_mean = np.nanmean(hv, axis=0)
+    hh_mean = _safe_finite_mean(hh)
+    hv_mean = _safe_finite_mean(hv)
     agb_init = compute_initial_agb(hv_mean, min_agb=0.0, max_agb=min(300.0, agb_max_mgha))
 
     _, height, width = hh.shape

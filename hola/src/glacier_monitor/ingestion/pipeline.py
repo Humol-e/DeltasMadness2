@@ -82,12 +82,12 @@ def _require_storage_and_collection(
 ) -> tuple[str, str]:
     bucket = settings.gcs_bucket
     if not bucket:
-        raise ValueError("GCS_BUCKET es obligatorio para subir GeoTIFFs a Cloud Storage.")
+        raise ValueError("GCS_BUCKET is required to upload GeoTIFFs to Cloud Storage.")
 
     collection_id = (collection_override or settings.resolved_asset_collection() or "").strip("/")
     if not collection_id:
         raise ValueError(
-            "Define GEE_ASSET_COLLECTION o GEE_PROJECT_ID para determinar la colección de destino."
+            "Set GEE_ASSET_COLLECTION or GEE_PROJECT_ID to determine the target collection."
         )
     return bucket, collection_id
 
@@ -114,7 +114,7 @@ def ingest_local_geotiffs(
 ) -> Stage1IngestionReport:
     """Upload local NASA/ASF GeoTIFF files (NISAR, UAVSAR, HyP3) to GCS and GEE."""
     if not geotiff_paths:
-        raise ValueError("Debes proporcionar al menos un archivo GeoTIFF (.tif/.tiff).")
+        raise ValueError("You must provide at least one GeoTIFF file (.tif/.tiff).")
 
     bucket_name, target_collection = _require_storage_and_collection(
         settings, collection_id
@@ -216,12 +216,12 @@ def ingest_hyp3_jobs(
     jobs = fetch_succeeded_jobs(hyp3, job_name=job_name, job_id=job_id)
     if not jobs:
         raise RuntimeError(
-            "No se encontraron jobs HyP3 completados (SUCCEEDED) con los filtros indicados."
+            "No completed HyP3 jobs (SUCCEEDED) were found matching the specified filters."
         )
 
     if use_community_bridge:
         if dry_run:
-            raise ValueError("El modo --dry-run no aplica con --use-community-bridge.")
+            raise ValueError("--dry-run mode does not apply with --use-community-bridge.")
         target_collection = (
             collection_id or settings.resolved_asset_collection() or ""
         ).strip("/")
@@ -265,7 +265,7 @@ def ingest_hyp3_jobs(
 
     if not all_results:
         raise RuntimeError(
-            "Los jobs HyP3 descargados no contienen GeoTIFFs que coincidan con los filtros (--suffix)."
+            "Downloaded HyP3 jobs contain no GeoTIFFs matching the filters (--suffix)."
         )
 
     return Stage1IngestionReport(
@@ -314,9 +314,9 @@ def _build_local_items(
     staged: list[LocalStagedFile] = []
     for path in geotiff_paths:
         if not path.exists() or not path.is_file():
-            raise FileNotFoundError(f"No se encontró el GeoTIFF local: {path}")
+            raise FileNotFoundError(f"Local GeoTIFF not found: {path}")
         if path.suffix.lower() not in {".tif", ".tiff"}:
-            raise ValueError(f"El archivo '{path}' no tiene extensión GeoTIFF (.tif/.tiff).")
+            raise ValueError(f"File '{path}' does not have a GeoTIFF extension (.tif/.tiff).")
         meta = parse_geotiff_metadata(
             path,
             sensor=sensor,
@@ -339,7 +339,7 @@ def stage_local_geotiffs_catalog(
 ) -> LocalStagingReport:
     """Index existing local GeoTIFFs into the local Stage 1 catalog without GCS."""
     if not geotiff_paths:
-        raise ValueError("Debes proporcionar al menos un archivo GeoTIFF (.tif/.tiff).")
+        raise ValueError("You must provide at least one GeoTIFF file (.tif/.tiff).")
     items = _build_local_items(
         geotiff_paths,
         sensor=sensor,
@@ -366,7 +366,7 @@ def stage_hyp3_jobs_locally(
     jobs = fetch_succeeded_jobs(hyp3, job_name=job_name, job_id=job_id)
     if not jobs:
         raise RuntimeError(
-            "No se encontraron jobs HyP3 completados (SUCCEEDED) con los filtros indicados."
+            "No completed HyP3 jobs (SUCCEEDED) were found matching the specified filters."
         )
 
     all_items: list[LocalStagedFile] = []
@@ -393,7 +393,7 @@ def stage_hyp3_jobs_locally(
 
     if not all_items:
         raise RuntimeError(
-            "Los jobs HyP3 descargados no contienen GeoTIFFs que coincidan con los filtros (--suffix)."
+            "Downloaded HyP3 jobs contain no GeoTIFFs matching the filters (--suffix)."
         )
 
     catalog_path = _write_local_catalog(settings.local_download_dir, all_items)
@@ -413,7 +413,7 @@ def stage_asf_granules_locally(
 ) -> LocalStagingReport:
     """Download direct ASF GeoTIFF granules (e.g. OPERA-S1) and index locally without GCS."""
     if not granule_names:
-        raise ValueError("Debes indicar al menos un nombre de gránulo ASF (--granule).")
+        raise ValueError("You must specify at least one ASF granule name (--granule).")
 
     all_items: list[LocalStagedFile] = []
     for granule in granule_names:
@@ -429,7 +429,7 @@ def stage_asf_granules_locally(
 
     if not all_items:
         raise RuntimeError(
-            "No se descargaron archivos GeoTIFF que coincidan con los filtros (--suffix)."
+            "No downloaded GeoTIFF files matched the filters (--suffix)."
         )
 
     catalog_path = _write_local_catalog(settings.local_download_dir, all_items)

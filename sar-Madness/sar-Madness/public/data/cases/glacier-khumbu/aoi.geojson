@@ -5,7 +5,7 @@
       "type": "Feature",
       "properties": {
         "id": "glacier-khumbu",
-        "name": "Glaciar de Khumbu · Deshielo alpino"
+        "name": "Khumbu Glacier · Alpine Melt"
       },
       "geometry": {
         "type": "Polygon",

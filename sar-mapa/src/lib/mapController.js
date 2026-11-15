@@ -1,12 +1,12 @@
 import mapboxgl from 'mapbox-gl';
 
 export const BASEMAPS = {
-  satellite: { label: 'Satélite', style: 'mapbox://styles/mapbox/satellite-streets-v12' },
-  light: { label: 'Claro', style: 'mapbox://styles/mapbox/light-v11' },
-  streets: { label: 'Calles', style: 'mapbox://styles/mapbox/streets-v12' },
+  satellite: { label: 'Satellite', style: 'mapbox://styles/mapbox/satellite-streets-v12' },
+  light: { label: 'Light', style: 'mapbox://styles/mapbox/light-v11' },
+  streets: { label: 'Streets', style: 'mapbox://styles/mapbox/streets-v12' },
 };
 
-export const VIEW_MODES = { globe: 'Globo 3D', flat: 'Mapa plano', terrain: 'Terreno 3D' };
+export const VIEW_MODES = { globe: '3D Globe', flat: 'Flat map', terrain: '3D Terrain' };
 
 const DEM_SOURCE = 'base-dem';
 const HILLSHADE_LAYER = 'base-hillshade';
@@ -26,6 +26,7 @@ export class MapController {
     this.step = 0;
     this.visible = new Set();
     this.cases = [];
+    this.caseSeq = 0;
 
     this.basemap = 'satellite';
     this.mode = 'globe';
@@ -45,9 +46,9 @@ export class MapController {
     this.map.addControl(new mapboxgl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
     this.ready = new Promise((res) => this.map.once('load', res));
-    // Cada vez que cambia el estilo base se pierden fuentes y capas propias: se vuelven a añadir.
+    // Re-add custom sources and layers whenever the basemap style reloads.
     this.map.on('style.load', () => this.#applyAll());
-    this.map.on('error', (e) => this.onStatus('error', e?.error?.message || 'Error del mapa'));
+    this.map.on('error', (e) => this.onStatus('error', e?.error?.message || 'Map error'));
     this.map.on('click', (e) => this.#click(e));
     this.map.on('mousemove', (e) => {
       const ids = [...this.#activeIds(), ...this.#worldIds()];
@@ -56,7 +57,7 @@ export class MapController {
     });
   }
 
-  // ── Utilidades ──
+  // ── Helpers ──
   #mid(layer) { return `${this.current.id}:${layer.id}`; }
   #isShown(layer) {
     return this.visible.has(layer.id) && (!layer.steps || layer.steps.includes(this.step));
@@ -74,7 +75,7 @@ export class MapController {
     return l ? this.#mid(l) : undefined;
   }
 
-  // ── Reaplicar todo lo propio (terreno, cielo, capas de zonas y capas SAR) ──
+  // ── Reapply custom state (terrain, sky, study-area markers, and SAR layers) ──
   #applyAll() {
     this.#addTerrainBase();
     this.#addWorldMarkers();
@@ -88,7 +89,7 @@ export class MapController {
     if (!m.getSource(DEM_SOURCE)) {
       m.addSource(DEM_SOURCE, { type: 'raster-dem', url: 'mapbox://mapbox.mapbox-terrain-dem-v1', tileSize: 512, maxzoom: 14 });
     }
-    // Sombreado de relieve: pertenece al TERRENO BASE, no es dato SAR.
+    // Hillshade relief: belongs to the BASE TERRAIN, not SAR data.
     if (!m.getLayer(HILLSHADE_LAYER)) {
       m.addLayer({
         id: HILLSHADE_LAYER, type: 'hillshade', source: DEM_SOURCE,
@@ -113,7 +114,7 @@ export class MapController {
     }
   }
 
-  #sunPosition() { return [this.sunAzimuth, 60]; } // [azimut, altura polar]
+  #sunPosition() { return [this.sunAzimuth, 60]; } // [azimuth, polar altitude]
 
   #addWorldMarkers() {
     const m = this.map;
@@ -159,7 +160,7 @@ export class MapController {
     }
   }
 
-  // ── Casos / zonas ──
+  // ── Study cases / areas ──
   setCases(cases) {
     this.cases = cases;
     const src = this.map.getSource(WORLD_SOURCE);
@@ -179,10 +180,13 @@ export class MapController {
       if (this.map.getSource(id)) this.map.removeSource(id);
     }
     this.current = null;
+    this.map.getCanvas().style.cursor = '';
   }
 
   async loadCase(def) {
+    const seq = ++this.caseSeq;
     await this.ready;
+    if (seq !== this.caseSeq) return;
     this.clear();
     this.current = def;
     this.step = 0;
@@ -192,9 +196,11 @@ export class MapController {
     this.flyToCase();
   }
 
-  /** Vuelve al globo completo y quita el caso activo. */
+  /** Returns to the full globe and clears the active case. */
   async showWorld() {
+    const seq = ++this.caseSeq;
     await this.ready;
+    if (seq !== this.caseSeq) return;
     this.clear();
     this.step = 0;
     this.map.flyTo({ ...WORLD_VIEW, duration: 2200, essential: true });
@@ -204,12 +210,12 @@ export class MapController {
   flyToCase() {
     if (!this.current) return this.map.flyTo({ ...WORLD_VIEW, duration: 1800 });
     const { center, zoom = 10, pitch = 0, bearing = 0 } = this.current.view;
-    // En terreno 3D se usa la inclinación del caso; en globo/plano se mira desde arriba.
+    // In 3D terrain use the case tilt; in globe/flat view from above.
     const tilt = this.mode === 'terrain' ? Math.max(pitch, 55) : this.mode === 'flat' ? 0 : Math.min(pitch, 20);
     this.map.flyTo({ center, zoom, pitch: tilt, bearing, duration: 3200, curve: 1.6, essential: true });
   }
 
-  // ── Pasos temporales y visibilidad de capas SAR ──
+  // ── Timeline steps and SAR layer visibility ──
   setStep(step) {
     this.step = step;
     if (!this.current) return;
@@ -225,17 +231,18 @@ export class MapController {
   }
 
   setVisible(layerId, on) {
+    if (!this.current) return;
     on ? this.visible.add(layerId) : this.visible.delete(layerId);
     this.setStep(this.step);
   }
 
   isVisible(layerId) { return this.visible.has(layerId); }
 
-  // ── Base: mapa base, modo de vista, relieve y luz ──
+  // ── Basemap, view mode, terrain relief, and sunlight ──
   setBasemap(key) {
     if (!BASEMAPS[key] || key === this.basemap) return;
     this.basemap = key;
-    this.map.setStyle(BASEMAPS[key].style); // 'style.load' reaplica terreno, cielo y capas SAR
+    this.map.setStyle(BASEMAPS[key].style); // 'style.load' reapplies terrain, sky, and SAR layers
   }
 
   setMode(mode) {
@@ -283,16 +290,16 @@ export class MapController {
     if (this.map.getLayer(HILLSHADE_LAYER)) this.map.setLayoutProperty(HILLSHADE_LAYER, 'visibility', on ? 'visible' : 'none');
   }
 
-  // ── Interacción ──
+  // ── Interaction ──
   #click(e) {
     const m = this.map;
-    // 1) Clic en una zona del globo → seleccionar el caso
+    // 1) Click on a globe marker -> select that case
     const world = this.#worldIds();
     if (world.length) {
       const z = m.queryRenderedFeatures(e.point, { layers: world })[0];
       if (z) return this.onCasePick(z.properties.id);
     }
-    // 2) Clic en datos SAR → panel de atributos
+    // 2) Click on SAR data -> attribute panel
     const ids = this.#activeIds();
     const f = ids.length ? m.queryRenderedFeatures(e.point, { layers: ids })[0] : null;
     if (!f) return this.onFeature(null, null);

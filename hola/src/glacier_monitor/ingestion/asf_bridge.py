@@ -168,7 +168,7 @@ def submit_hyp3_job(
     if normalized_type == "rtc":
         if len(granules) != 1:
             raise ValueError(
-                f"Un job RTC requiere exactamente 1 gránulo; recibidos {len(granules)}."
+                f"An RTC job requires exactly 1 granule; received {len(granules)}."
             )
         return hyp3.submit_rtc_job(
             granule=granules[0],
@@ -181,8 +181,8 @@ def submit_hyp3_job(
     if normalized_type == "insar":
         if len(granules) != 2:
             raise ValueError(
-                f"Un job InSAR requiere exactamente 2 gránulos (referencia y secundario); "
-                f"recibidos {len(granules)}."
+                f"An InSAR job requires exactly 2 granules (reference and secondary); "
+                f"received {len(granules)}."
             )
         return hyp3.submit_insar_job(
             granule1=granules[0],
@@ -192,7 +192,7 @@ def submit_hyp3_job(
             include_inc_map=include_inc_map,
         )
 
-    raise ValueError(f"Tipo de job HyP3 no soportado: '{job_type}'. Usa 'insar' o 'rtc'.")
+    raise ValueError(f"Unsupported HyP3 job type: '{job_type}'. Use 'insar' or 'rtc'.")
 
 
 def list_hyp3_jobs(
@@ -223,10 +223,10 @@ def fetch_succeeded_jobs(
         job = hyp3.get_job_by_id(job_id)
         if not job.succeeded():
             raise RuntimeError(
-                f"El job HyP3 '{job_id}' no ha finalizado con éxito (estado: {job.status_code})."
+                f"HyP3 job '{job_id}' has not completed successfully (status: {job.status_code})."
             )
         if exclude_expired and job.expired():
-            raise RuntimeError(f"Los archivos del job HyP3 '{job_id}' ya expiraron.")
+            raise RuntimeError(f"Files for HyP3 job '{job_id}' have expired.")
         return [job]
 
     batch = hyp3.find_jobs(name=job_name, status_code="SUCCEEDED")
@@ -260,7 +260,7 @@ def _extract_geotiffs_from_zip(zip_path: Path, target_dir: Path) -> list[Path]:
                 continue
             dest = (extract_root / member_path).resolve()
             if not dest.is_relative_to(extract_root.resolve()):
-                raise ValueError(f"Ruta inválida dentro del ZIP: {member.filename}")
+                raise ValueError(f"Invalid path inside ZIP archive: {member.filename}")
             dest.parent.mkdir(parents=True, exist_ok=True)
             with archive.open(member, "r") as src, dest.open("wb") as dst:
                 shutil.copyfileobj(src, dst)
@@ -345,13 +345,13 @@ def download_asf_granule_geotiffs(
     """Download GeoTIFFs (direct or zipped) for an ASF granule without using GCS."""
     results = asf.granule_search([granule_name])
     if not results:
-        raise RuntimeError(f"No se encontró el gránulo '{granule_name}' en el catálogo ASF.")
+        raise RuntimeError(f"Granule '{granule_name}' was not found in the ASF catalog.")
 
     product = results[0]
     urls = _collect_asf_download_urls(product, product_suffixes)
     if not urls:
         raise RuntimeError(
-            f"El gránulo '{granule_name}' no tiene URLs GeoTIFF/ZIP descargables directamente."
+            f"Granule '{granule_name}' has no directly downloadable GeoTIFF/ZIP URLs."
         )
 
     session = create_asf_session(settings)
@@ -487,16 +487,16 @@ def transfer_with_sar_asf_to_gee(
 ) -> Any:
     """Delegate HyP3 -> GCS -> GEE transfer to gee-community/sar-asf-to-gee if installed."""
     if not settings.gcs_bucket:
-        raise ValueError("GCS_BUCKET es obligatorio para usar sar-asf-to-gee.")
+        raise ValueError("GCS_BUCKET is required to use sar-asf-to-gee.")
     if not settings.gee_project_id:
-        raise ValueError("GEE_PROJECT_ID es obligatorio para usar sar-asf-to-gee.")
+        raise ValueError("GEE_PROJECT_ID is required to use sar-asf-to-gee.")
 
     try:
         asf_hyp3 = importlib.import_module("sar_asf_to_gee.asf_hyp3")
     except ModuleNotFoundError as exc:
         raise RuntimeError(
-            "El paquete opcional 'sar-asf-to-gee' no está instalado. "
-            "Instálalo con: pip install git+https://github.com/gee-community/sar-asf-to-gee.git"
+            "Optional package 'sar-asf-to-gee' is not installed. "
+            "Install it with: pip install git+https://github.com/gee-community/sar-asf-to-gee.git"
         ) from exc
 
     target_collection = collection_name or settings.resolved_asset_collection()

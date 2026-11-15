@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "wildfire-monitor"
 version = "0.1.0"
-description = "Ingesta y adaptación de datos GeoPulse de incendios forestales (Planetary Computer STAC -> formato compatible con sar-platform)"
+description = "GeoPulse wildfire data ingestion and adaptation (Planetary Computer STAC -> sar-platform / sar-Madness compatible format)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -34,7 +34,7 @@ dev = [
 ]
 
 [project.scripts]
-incendios-stage1 = "wildfire_monitor.cli:main"
+wildfire-stage1 = "wildfire_monitor.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

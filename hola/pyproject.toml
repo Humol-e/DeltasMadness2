@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "glacier-monitor"
 version = "0.1.0"
-description = "Monitoreo satelital de glaciares y lagos glaciares en Google Earth Engine + ASF HyP3"
+description = "Satellite monitoring of glaciers and glacial lakes with Google Earth Engine + ASF HyP3"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

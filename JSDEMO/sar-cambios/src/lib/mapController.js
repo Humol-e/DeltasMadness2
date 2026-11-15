@@ -10,6 +10,7 @@ export class MapController {
     this.current = null;
     this.step = 0;
     this.visible = new Set();
+    this.caseSeq = 0;
 
     this.map = new mapboxgl.Map({
       container, style: STYLE, center: [0, 20], zoom: 1.6, projection: 'mercator',
@@ -19,7 +20,7 @@ export class MapController {
     this.map.addControl(new mapboxgl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
     this.ready = new Promise((res) => this.map.once('load', res));
-    this.map.on('error', (e) => this.onStatus('error', e?.error?.message || 'Error del mapa'));
+    this.map.on('error', (e) => this.onStatus('error', e?.error?.message || 'Map error'));
     this.map.on('click', (e) => this.#click(e));
     this.map.on('mousemove', (e) => {
       const ids = this.#activeIds();
@@ -47,10 +48,13 @@ export class MapController {
       if (this.map.getSource(id)) this.map.removeSource(id);
     }
     this.current = null;
+    this.map.getCanvas().style.cursor = '';
   }
 
   async loadCase(def) {
+    const seq = ++this.caseSeq;
     await this.ready;
+    if (seq !== this.caseSeq) return;
     this.clear();
     this.current = def;
     this.step = 0;
@@ -86,6 +90,7 @@ export class MapController {
   }
 
   setVisible(layerId, on) {
+    if (!this.current) return;
     on ? this.visible.add(layerId) : this.visible.delete(layerId);
     this.setStep(this.step);
   }
@@ -100,6 +105,7 @@ export class MapController {
   }
 
   #click(e) {
+    if (!this.current) return;
     const ids = this.#activeIds();
     const f = ids.length ? this.map.queryRenderedFeatures(e.point, { layers: ids })[0] : null;
     if (!f) return this.onFeature(null, null);

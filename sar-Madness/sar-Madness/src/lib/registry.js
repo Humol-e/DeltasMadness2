@@ -1,4 +1,4 @@
-// Carga del catálogo y de los casos (esquema v2). El motor del mapa no sabe nada de casos concretos.
+// Catalog and case loader (Schema v2). The map controller stays decoupled from specific cases.
 import { parseJsonc, validateCase, normalizeCase, toMs } from './schema.js';
 import { buildAxis } from './timeline.js';
 
@@ -7,21 +7,21 @@ export const resolveUrl = (p) => (/^(https?:)?\/\//.test(p) || p.startsWith('dat
 
 async function fetchJson(path) {
   const res = await fetch(resolveUrl(path));
-  if (!res.ok) throw new Error(res.status === 429 ? 'HTTP 429 (demasiadas peticiones al servidor)' : `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(res.status === 429 ? 'HTTP 429 (too many requests to server)' : `HTTP ${res.status}`);
   try {
     return parseJsonc(await res.text());
   } catch {
-    throw new Error('el archivo no es JSON válido o no existe (revisa la ruta)');
+    throw new Error('file is not valid JSON or could not be found (check path)');
   }
 }
 
-/** Descarga los GeoJSON de los vectores. Un vector que falla queda marcado y no rompe el resto. */
+/** Fetch vector GeoJSONs. A failing vector is marked as error without breaking the case. */
 async function hydrateVectors(def) {
   await Promise.all(def.vectors.map(async (v) => {
     v._load = 'ok';
     try {
       v.data = typeof v.source.data === 'string' ? await fetchJson(v.source.data) : v.source.data;
-      if (!v.data || !Array.isArray(v.data.features)) throw new Error('GeoJSON sin "features"');
+      if (!v.data || !Array.isArray(v.data.features)) throw new Error('GeoJSON is missing "features"');
       if (v.time) {
         const set = new Set(v.data.features.map((f) => f.properties?.[v.time.property]).filter((x) => x != null));
         v._dates = [...set].filter((s) => !Number.isNaN(toMs(s))).sort((a, b) => toMs(a) - toMs(b));
@@ -33,7 +33,7 @@ async function hydrateVectors(def) {
   }));
 }
 
-/** Lee catalog.json → casos validados y normalizados. No reintenta en bucle: devuelve los problemas. */
+/** Load catalog.json -> validated and normalized cases. Collects problems instead of retrying blindly. */
 export async function loadCatalog(path = 'data/catalog.json') {
   const catalog = await fetchJson(path);
   const problems = [];

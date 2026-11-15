@@ -24,11 +24,11 @@ class BoundingBox(BaseModel):
     def _validate_order(self) -> BoundingBox:
         if self.min_lon >= self.max_lon:
             raise ValueError(
-                f"min_lon ({self.min_lon}) debe ser menor que max_lon ({self.max_lon})."
+                f"min_lon ({self.min_lon}) must be less than max_lon ({self.max_lon})."
             )
         if self.min_lat >= self.max_lat:
             raise ValueError(
-                f"min_lat ({self.min_lat}) debe ser menor que max_lat ({self.max_lat})."
+                f"min_lat ({self.min_lat}) must be less than max_lat ({self.max_lat})."
             )
         return self
 
@@ -65,13 +65,13 @@ class AOIPreset:
 AOI_PRESETS: dict[str, AOIPreset] = {
     "langtang": AOIPreset(
         key="langtang",
-        name="Valle de Langtang (Glaciar Langtang / Lago Lirung)",
+        name="Langtang Valley (Langtang Glacier / Lirung Lake)",
         country="Nepal",
         bbox=BoundingBox(min_lon=85.50, min_lat=28.18, max_lon=85.74, max_lat=28.30),
     ),
     "khumbu": AOIPreset(
         key="khumbu",
-        name="Valle de Khumbu (Glaciar Khumbu)",
+        name="Khumbu Valley (Khumbu Glacier)",
         country="Nepal",
         bbox=BoundingBox(min_lon=86.78, min_lat=27.90, max_lon=86.88, max_lat=28.01),
     ),
@@ -89,18 +89,18 @@ def resolve_aoi(aoi_spec: str) -> tuple[str, BoundingBox]:
     if len(parts) != 4:
         available = ", ".join(sorted(AOI_PRESETS))
         raise ValueError(
-            f"AOI inválido '{aoi_spec}'. Usa un preset ({available}) "
-            "o cuatro coordenadas 'min_lon,min_lat,max_lon,max_lat'."
+            f"Invalid AOI '{aoi_spec}'. Use a preset ({available}) "
+            "or four coordinates 'min_lon,min_lat,max_lon,max_lat'."
         )
 
     try:
         min_lon, min_lat, max_lon, max_lat = (float(value) for value in parts)
     except ValueError as exc:
         raise ValueError(
-            f"Las coordenadas del AOI '{aoi_spec}' deben ser numéricas."
+            f"AOI coordinates '{aoi_spec}' must be numeric."
         ) from exc
 
-    return f"AOI personalizado ({cleaned})", BoundingBox(
+    return f"Custom AOI ({cleaned})", BoundingBox(
         min_lon=min_lon,
         min_lat=min_lat,
         max_lon=max_lon,
@@ -128,7 +128,7 @@ class Settings(BaseSettings):
     gee_private_key_path: Path | None = None
 
     gcs_bucket: str | None = None
-    gcs_prefix: str = "asf-sar-ingesta"
+    gcs_prefix: str = "asf-sar-ingest"
     gee_asset_collection: str | None = None
 
     earthdata_token: str | None = None

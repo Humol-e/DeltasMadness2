@@ -1,4 +1,4 @@
-"""Exportador real de casos de deshielo (GEE + GeoTIFFs + PNGs Antes/Después) para sar-Madness."""
+"""Real glacier melt case exporter (GEE + GeoTIFFs + Before/After PNGs) for sar-Madness."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ POST_DEFAULT = ("2026-05-15", "2026-08-31")
 
 @dataclass(frozen=True)
 class GlacierPresetMeta:
-    """Metadatos geográficos y editoriales de cada zona glaciar real."""
+    """Geographic and editorial metadata for each real glacier monitoring zone."""
 
     key: str
     case_id: str
@@ -41,32 +41,32 @@ GLACIER_CASE_META: dict[str, GlacierPresetMeta] = {
     "langtang": GlacierPresetMeta(
         key="langtang",
         case_id="glacier-langtang",
-        name="Valle de Langtang · Deshielo glaciar",
-        region="Himalaya central, Nepal",
+        name="Langtang Valley · Glacial Melt",
+        region="Central Himalayas, Nepal",
         zoom=11.6,
         summary=(
-            "Retroceso estacional de cobertura nival y transición de nieve seca invernal "
-            "(ene–feb 2026) a deshielo estival sobre 0 °C (may–ago 2026) observado con "
-            "Sentinel-2, Sentinel-1 GRD y MODIS."
+            "Seasonal snow cover retreat and transition from dry winter snowpack "
+            "(Jan-Feb 2026) to summer melt above 0 °C (May-Aug 2026) observed with "
+            "Sentinel-2, Sentinel-1 GRD, and MODIS."
         ),
     ),
     "khumbu": GlacierPresetMeta(
         key="khumbu",
         case_id="glacier-khumbu",
-        name="Glaciar de Khumbu · Deshielo alpino",
-        region="Región del Everest, Nepal",
+        name="Khumbu Glacier · Alpine Melt",
+        region="Everest Region, Nepal",
         zoom=12.0,
         summary=(
-            "Comparación real Antes/Después de cobertura nival NDSI, temperatura superficial "
-            "MODIS y retrodispersión SAR Sentinel-1 entre acumulación invernal y ablación de "
-            "verano 2026."
+            "Real Before/After comparison of NDSI snow cover, MODIS land surface "
+            "temperature, and Sentinel-1 SAR backscatter between winter accumulation and "
+            "summer 2026 ablation."
         ),
     ),
 }
 
 
 class GlacierExportResult(BaseModel):
-    """Resultado completo de exportación real de un caso de deshielo."""
+    """Complete result of a real glacier melt case export."""
 
     case_id: str
     name: str
@@ -84,7 +84,7 @@ class GlacierExportResult(BaseModel):
 
 
 def compute_grid_spec(bbox: BoundingBox, max_dim: int = 420) -> dict[str, Any]:
-    """Calcula dimensiones proporcionales EPSG:4326 y rejilla compatible con GEE computePixels."""
+    """Compute proportional EPSG:4326 dimensions and grid compatible with GEE computePixels."""
     dlon = bbox.max_lon - bbox.min_lon
     dlat = bbox.max_lat - bbox.min_lat
     if dlon >= dlat:
@@ -117,8 +117,13 @@ def compute_grid_spec(bbox: BoundingBox, max_dim: int = 420) -> dict[str, Any]:
     }
 
 
+def _safe_nanmean(arr: np.ndarray) -> float:
+    finite = arr[np.isfinite(arr)]
+    return round(float(finite.mean()), 1) if finite.size else 0.0
+
+
 def encode_gray8_png(arr: np.ndarray, vmin: float, vmax: float) -> bytes:
-    """Codifica una matriz real 2D a PNG de 8 bits (escala física fija entre Antes y Después)."""
+    """Encode a 2D array to an 8-bit PNG using a fixed physical range across Before/After."""
     span = max(float(vmax - vmin), 1e-9)
     valid = np.isfinite(arr)
     norm = np.zeros(arr.shape, dtype=np.float32)
@@ -137,7 +142,7 @@ def encode_s2_rgb_png(
     max_refl: float = 0.90,
     gamma: float = 0.85,
 ) -> bytes:
-    """Codifica reflectancias Sentinel-2 [B4,B3,B2] a RGBA PNG con estiramiento físico fijo."""
+    """Encode Sentinel-2 reflectance [B4,B3,B2] to an RGBA PNG with fixed physical stretch."""
     valid = np.isfinite(red) & np.isfinite(green) & np.isfinite(blue)
     span = max(float(max_refl - min_refl), 1e-6)
 
@@ -164,7 +169,7 @@ def encode_s2_rgb_png(
 
 
 def compute_melt_loss_array(ndsi_pre: np.ndarray, ndsi_post: np.ndarray) -> np.ndarray:
-    """Calcula pérdida real de índice de nieve (en %) solo donde existía nieve previa o retroceso."""
+    """Compute real snow index loss (%) on finite pixels between Before and After."""
     valid = np.isfinite(ndsi_pre) & np.isfinite(ndsi_post)
     loss = np.zeros(ndsi_pre.shape, dtype=np.float32)
     diff = ndsi_pre - ndsi_post
@@ -179,7 +184,7 @@ def extract_melt_extent_geojson(
     ndsi_drop_thresh: float = 0.16,
     pre_snow_min: float = 0.28,
 ) -> tuple[dict[str, Any], float]:
-    """Extrae polígonos GeoJSON de pérdida real de nieve/hielo y calcula el área real en km²."""
+    """Extract GeoJSON polygons of real snow/ice loss and compute real area in km²."""
     height, width = ndsi_pre.shape
     valid = np.isfinite(ndsi_pre) & np.isfinite(ndsi_post)
     delta = np.where(valid, ndsi_pre - ndsi_post, 0.0)
@@ -195,7 +200,7 @@ def extract_melt_extent_geojson(
     if int(melt_mask.sum()) >= 4:
         xs = bbox.min_lon + (np.arange(width) + 0.5) * dlon_pix
         ys = bbox.max_lat - (np.arange(height) + 0.5) * dlat_pix
-        # Para contornos limpios sin invertir orientación geoespacial, se ordena lat ascendente.
+        # Sort latitude ascending so contour winding preserves geospatial orientation.
         z = melt_mask[::-1, :].astype(np.float64)
         cg = contourpy.contour_generator(x=xs, y=ys[::-1], z=z, fill_type=contourpy.FillType.OuterOffset)
         verts_list, offs_list = cg.filled(0.5, 1.5)
@@ -224,7 +229,7 @@ def extract_melt_extent_geojson(
                 {
                     "type": "Feature",
                     "properties": {
-                        "name": "Zona de retroceso nival y deshielo real",
+                        "name": "Real snow retreat and melt zone",
                         "area_km2": round(melt_area_km2, 2),
                         "ndsi_drop_threshold": ndsi_drop_thresh,
                     },
@@ -236,7 +241,7 @@ def extract_melt_extent_geojson(
 
 
 def build_aoi_geojson(bbox: BoundingBox, name: str, case_id: str) -> dict[str, Any]:
-    """Construye el FeatureCollection GeoJSON del AOI real."""
+    """Build the GeoJSON FeatureCollection for the real AOI bounding box."""
     coords = [
         [
             [bbox.min_lon, bbox.min_lat],
@@ -316,7 +321,7 @@ def _extract_band(structured: Any, band: str, nodata: float = -9999.0) -> np.nda
     return np.where(arr == nodata, np.nan, arr)
 
 
-def build_deshielo_case_definition(
+def build_glacier_case_definition(
     *,
     case_id: str,
     name: str,
@@ -329,22 +334,22 @@ def build_deshielo_case_definition(
     stats: dict[str, Any],
     downloads: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Construye la definición schemaVersion=2 estrictamente real para un caso de deshielo."""
+    """Build a strictly real schemaVersion=2 definition for a glacier melt case."""
     extent = [bbox.min_lon, bbox.min_lat, bbox.max_lon, bbox.max_lat]
     center = [
         round((bbox.min_lon + bbox.max_lon) / 2.0, 5),
         round((bbox.min_lat + bbox.max_lat) / 2.0, 5),
     ]
     base = f"data/cases/{case_id}"
-    pre_label = f"Antes · {pre_window[0]} a {pre_window[1]}"
-    post_label = f"Después · {post_window[0]} a {post_window[1]}"
+    pre_label = f"Before · {pre_window[0]} to {pre_window[1]}"
+    post_label = f"After · {post_window[0]} to {post_window[1]}"
 
     return {
         "schemaVersion": 2,
         "id": case_id,
         "status": "real",
         "simulated": False,
-        "category": "deshielo",
+        "category": "glacier",
         "title": name,
         "region": region,
         "description": summary,
@@ -357,7 +362,7 @@ def build_deshielo_case_definition(
         "sources": [
             f"Google Earth Engine · COPERNICUS/S2_SR_HARMONIZED ({stats['s2_pre_count']} pre / {stats['s2_post_count']} post)",
             f"Google Earth Engine · COPERNICUS/S1_GRD IW ({stats['s1_pre_count']} pre / {stats['s1_post_count']} post)",
-            f"Google Earth Engine · MODIS/061/MOD10A1 y MOD11A1 ({stats['modis_pre_count']} pre / {stats['modis_post_count']} post)",
+            f"Google Earth Engine · MODIS/061/MOD10A1 and MOD11A1 ({stats['modis_pre_count']} pre / {stats['modis_post_count']} post)",
         ],
         "metrics": {
             "preWindow": f"{pre_window[0]}..{pre_window[1]}",
@@ -371,13 +376,13 @@ def build_deshielo_case_definition(
         "datasets": [
             {
                 "id": "s2_rgb",
-                "name": "Sentinel-2 RGB · Color real",
+                "name": "Sentinel-2 RGB · True Color",
                 "kind": "raster",
                 "status": "real",
                 "platform": "Sentinel-2A/2B/2C",
                 "sensor": "MSI",
                 "provider": "Google Earth Engine",
-                "product": "Compuesto sin nubes B4/B3/B2",
+                "product": "Cloud-free composite B4/B3/B2",
                 "attribution": "ESA Copernicus Sentinel-2",
                 "extent": extent,
                 "source": {"type": "image", "encoding": "rgba"},
@@ -386,7 +391,7 @@ def build_deshielo_case_definition(
                 "variables": [
                     {
                         "id": "rgb",
-                        "label": "Color verdadero (B4/B3/B2)",
+                        "label": "True Color (B4/B3/B2)",
                         "quantity": "reflectance",
                         "polarization": None,
                         "unit": "RGB",
@@ -411,7 +416,7 @@ def build_deshielo_case_definition(
             },
             {
                 "id": "s2_ndsi",
-                "name": "Índice de nieve NDSI · Sentinel-2",
+                "name": "Snow Index NDSI · Sentinel-2",
                 "kind": "raster",
                 "status": "real",
                 "platform": "Sentinel-2",
@@ -426,7 +431,7 @@ def build_deshielo_case_definition(
                 "variables": [
                     {
                         "id": "ndsi",
-                        "label": "Índice NDSI de nieve",
+                        "label": "Snow Index (NDSI)",
                         "quantity": "spectral_index",
                         "polarization": None,
                         "unit": "NDSI",
@@ -456,13 +461,13 @@ def build_deshielo_case_definition(
             },
             {
                 "id": "s1_sar",
-                "name": "Radar SAR · Sentinel-1 GRD",
+                "name": "SAR Radar · Sentinel-1 GRD",
                 "kind": "raster",
                 "status": "real",
                 "platform": "Sentinel-1",
                 "sensor": "C-SAR IW",
                 "provider": "Google Earth Engine",
-                "product": "Retrodispersión σ⁰ en invierno vs deshielo",
+                "product": "Backscatter σ⁰ winter vs melt",
                 "attribution": "ESA Copernicus Sentinel-1",
                 "extent": extent,
                 "source": {"type": "image", "encoding": "gray8", "nodata": None},
@@ -471,7 +476,7 @@ def build_deshielo_case_definition(
                 "variables": [
                     {
                         "id": "vh",
-                        "label": "Polarización VH",
+                        "label": "VH Polarization",
                         "quantity": "backscatter",
                         "polarization": "VH",
                         "unit": "dB",
@@ -483,7 +488,7 @@ def build_deshielo_case_definition(
                     },
                     {
                         "id": "vv",
-                        "label": "Polarización VV",
+                        "label": "VV Polarization",
                         "quantity": "backscatter",
                         "polarization": "VV",
                         "unit": "dB",
@@ -519,7 +524,7 @@ def build_deshielo_case_definition(
             },
             {
                 "id": "modis_cryo",
-                "name": "MODIS Nieve y Temperatura (LST)",
+                "name": "MODIS Snow Cover & Surface Temp (LST)",
                 "kind": "raster",
                 "status": "real",
                 "platform": "Terra / Aqua",
@@ -534,7 +539,7 @@ def build_deshielo_case_definition(
                 "variables": [
                     {
                         "id": "snow",
-                        "label": "Cobertura de nieve",
+                        "label": "Snow cover",
                         "quantity": "snow_cover",
                         "polarization": None,
                         "unit": "%",
@@ -546,7 +551,7 @@ def build_deshielo_case_definition(
                     },
                     {
                         "id": "lst",
-                        "label": "Temperatura superficial día",
+                        "label": "Daytime surface temperature",
                         "quantity": "temperature",
                         "polarization": None,
                         "unit": "°C",
@@ -582,13 +587,13 @@ def build_deshielo_case_definition(
             },
             {
                 "id": "melt_change",
-                "name": "Pérdida neta de nieve (ΔNDSI)",
+                "name": "Net Snow Loss (ΔNDSI)",
                 "kind": "raster",
                 "status": "real",
                 "platform": "Sentinel-2",
                 "sensor": "MSI",
                 "provider": "Google Earth Engine",
-                "product": "Diferencia real Pre − Post NDSI",
+                "product": "Real Pre - Post NDSI difference",
                 "attribution": "ESA Copernicus Sentinel-2",
                 "extent": extent,
                 "source": {"type": "image", "encoding": "gray8", "nodata": None},
@@ -597,7 +602,7 @@ def build_deshielo_case_definition(
                 "variables": [
                     {
                         "id": "loss",
-                        "label": "Pérdida de nieve (ΔNDSI × 100)",
+                        "label": "Snow loss (ΔNDSI × 100)",
                         "quantity": "snow_loss",
                         "polarization": None,
                         "unit": "%",
@@ -612,7 +617,7 @@ def build_deshielo_case_definition(
                     {
                         "id": "melt-net",
                         "datetime": f"{post_window[1]}T00:00:00Z",
-                        "label": f"Cambio {pre_window[0]} → {post_window[1]}",
+                        "label": f"Change {pre_window[0]} → {post_window[1]}",
                         "phase": "change",
                         "files": {"loss": f"{base}/melt_snow_loss.png"},
                     }
@@ -622,7 +627,7 @@ def build_deshielo_case_definition(
         "vectors": [
             {
                 "id": "aoi",
-                "name": "Área de estudio (AOI)",
+                "name": "Study Area (AOI)",
                 "type": "line",
                 "status": "real",
                 "simulated": False,
@@ -632,7 +637,7 @@ def build_deshielo_case_definition(
             },
             {
                 "id": "melt-extent",
-                "name": "Zona de deshielo detectada",
+                "name": "Detected Melt Zone",
                 "type": "line",
                 "status": "real",
                 "simulated": False,
@@ -640,10 +645,10 @@ def build_deshielo_case_definition(
                 "source": {"type": "geojson", "data": f"{base}/melt_extent.geojson"},
                 "paint": {"line-color": "#fb923c", "line-width": 1.8},
                 "legend": {
-                    "title": "Retroceso nival real",
-                    "items": [{"color": "#fb923c", "label": "Pérdida ΔNDSI ≥ 0.16"}],
+                    "title": "Real snow retreat",
+                    "items": [{"color": "#fb923c", "label": "Loss ΔNDSI ≥ 0.16"}],
                 },
-                "popupFields": [["area_km2", "Área de deshielo", "km²"]],
+                "popupFields": [["area_km2", "Melt area", "km²"]],
             },
         ],
         "downloads": downloads,
@@ -651,7 +656,7 @@ def build_deshielo_case_definition(
 
 
 def register_case_in_catalog_v2(catalog_path: Path, case_rel_path: str) -> None:
-    """Registra o actualiza una entrada de caso en public/data/catalog.json sin duplicados."""
+    """Register or update a case entry in public/data/catalog.json without duplicates."""
     catalog_path.parent.mkdir(parents=True, exist_ok=True)
     if catalog_path.exists():
         catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
@@ -682,7 +687,7 @@ def _update_local_download_catalog(
     cat_path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def export_deshielo_case_to_madness(
+def export_glacier_case_to_madness(
     aoi_spec: str,
     *,
     settings: Settings | None = None,
@@ -693,7 +698,7 @@ def export_deshielo_case_to_madness(
     max_dim: int = 420,
     target_public_dir: Path | None = None,
 ) -> GlacierExportResult:
-    """Descarga datos reales de GEE (Antes/Después), genera GeoTIFFs y PNGs y publica en sar-Madness."""
+    """Download real GEE Before/After data, generate GeoTIFFs & PNGs, and publish to sar-Madness."""
     cfg = settings or Settings()
     initialize_earth_engine(cfg)
 
@@ -709,9 +714,9 @@ def export_deshielo_case_to_madness(
         slug = "".join(c if c.isalnum() else "-" for c in aoi_spec.lower()).strip("-")
         case_id = f"glacier-{slug}"
         name = resolved_name
-        region = "Zona personalizada"
+        region = "Custom region"
         zoom = 11.5
-        summary = f"Observaciones satelitales reales Antes ({pre_start}..{pre_end}) y Después ({post_start}..{post_end})."
+        summary = f"Real satellite observations Before ({pre_start}..{pre_end}) and After ({post_start}..{post_end})."
 
     public_dir = (target_public_dir or DEFAULT_SAR_MADNESS_PUBLIC).resolve()
     case_dir = public_dir / "data" / "cases" / case_id
@@ -725,7 +730,7 @@ def export_deshielo_case_to_madness(
     grid_spec = compute_grid_spec(bbox, max_dim=max_dim)
     grid = grid_spec["grid"]
 
-    # Colecciones reales GEE
+    # Real GEE collections
     s2_pre_col = _s2_clean_collection(geom, pre_start, pre_end)
     s2_post_col = _s2_clean_collection(geom, post_start, post_end)
     s1_pre_col = _s1_iw_collection(geom, pre_start, pre_end)
@@ -758,7 +763,7 @@ def export_deshielo_case_to_madness(
     mod11_post_img = mod11_post_col.median().multiply(0.02).subtract(273.15).clip(geom)
     melt_loss_img = s2_pre_ndsi_img.subtract(s2_post_ndsi_img).multiply(100.0).max(0.0).rename("MELT_PCT")
 
-    # Descargar arrays sincronizados desde GEE
+    # Fetch synchronized arrays from GEE
     arr_s2_pre = _gee_npy(s2_pre_rgb_img.addBands(s2_pre_ndsi_img), grid)
     arr_s2_post = _gee_npy(s2_post_rgb_img.addBands(s2_post_ndsi_img), grid)
     arr_s1_pre = _gee_npy(s1_pre_img, grid)
@@ -776,7 +781,7 @@ def export_deshielo_case_to_madness(
     lst_post = _extract_band(arr_m11_post, "LST_Day_1km")
     melt_loss = compute_melt_loss_array(ndsi_pre, ndsi_post)
 
-    # Escribir PNGs visuales (Antes, Después y Cambio)
+    # Write preview PNGs (Before, After, and Change)
     png_specs: list[tuple[str, bytes]] = [
         (
             "s2_pre_rgb.png",
@@ -809,19 +814,19 @@ def export_deshielo_case_to_madness(
     for filename, payload in png_specs:
         (case_dir / filename).write_bytes(payload)
 
-    # Descargar GeoTIFFs reales de Earth Engine
-    tif_specs: list[tuple[str, str, str, str, ee.Image]] = [
-        ("s2-pre-rgb-tif", f"{case_id}_s2_pre_rgb.tif", "Sentinel-2 RGB Antes (.tif)", "s2_rgb", "before", s2_pre_rgb_img),
-        ("s2-post-rgb-tif", f"{case_id}_s2_post_rgb.tif", "Sentinel-2 RGB Después (.tif)", "s2_rgb", "after", s2_post_rgb_img),
-        ("s2-pre-ndsi-tif", f"{case_id}_s2_pre_ndsi.tif", "Sentinel-2 NDSI Antes (.tif)", "s2_ndsi", "before", s2_pre_ndsi_img),
-        ("s2-post-ndsi-tif", f"{case_id}_s2_post_ndsi.tif", "Sentinel-2 NDSI Después (.tif)", "s2_ndsi", "after", s2_post_ndsi_img),
-        ("s1-pre-sar-tif", f"{case_id}_s1_pre_sar.tif", "Sentinel-1 VV/VH Antes (.tif)", "s1_sar", "before", s1_pre_img),
-        ("s1-post-sar-tif", f"{case_id}_s1_post_sar.tif", "Sentinel-1 VV/VH Después (.tif)", "s1_sar", "after", s1_post_img),
-        ("mod10-pre-snow-tif", f"{case_id}_mod10_pre_snow.tif", "MODIS Nieve Antes (.tif)", "modis_cryo", "before", mod10_pre_img),
-        ("mod10-post-snow-tif", f"{case_id}_mod10_post_snow.tif", "MODIS Nieve Después (.tif)", "modis_cryo", "after", mod10_post_img),
-        ("mod11-pre-lst-tif", f"{case_id}_mod11_pre_lst.tif", "MODIS Temp °C Antes (.tif)", "modis_cryo", "before", mod11_pre_img),
-        ("mod11-post-lst-tif", f"{case_id}_mod11_post_lst.tif", "MODIS Temp °C Después (.tif)", "modis_cryo", "after", mod11_post_img),
-        ("melt-loss-tif", f"{case_id}_melt_snow_loss.tif", "Pérdida Nieve Neta (.tif)", "melt_change", "change", melt_loss_img),
+    # Download real GeoTIFFs from Earth Engine
+    tif_specs: list[tuple[str, str, str, str, str, ee.Image]] = [
+        ("s2-pre-rgb-tif", f"{case_id}_s2_pre_rgb.tif", "Sentinel-2 RGB Before (.tif)", "s2_rgb", "before", s2_pre_rgb_img),
+        ("s2-post-rgb-tif", f"{case_id}_s2_post_rgb.tif", "Sentinel-2 RGB After (.tif)", "s2_rgb", "after", s2_post_rgb_img),
+        ("s2-pre-ndsi-tif", f"{case_id}_s2_pre_ndsi.tif", "Sentinel-2 NDSI Before (.tif)", "s2_ndsi", "before", s2_pre_ndsi_img),
+        ("s2-post-ndsi-tif", f"{case_id}_s2_post_ndsi.tif", "Sentinel-2 NDSI After (.tif)", "s2_ndsi", "after", s2_post_ndsi_img),
+        ("s1-pre-sar-tif", f"{case_id}_s1_pre_sar.tif", "Sentinel-1 VV/VH Before (.tif)", "s1_sar", "before", s1_pre_img),
+        ("s1-post-sar-tif", f"{case_id}_s1_post_sar.tif", "Sentinel-1 VV/VH After (.tif)", "s1_sar", "after", s1_post_img),
+        ("mod10-pre-snow-tif", f"{case_id}_mod10_pre_snow.tif", "MODIS Snow Before (.tif)", "modis_cryo", "before", mod10_pre_img),
+        ("mod10-post-snow-tif", f"{case_id}_mod10_post_snow.tif", "MODIS Snow After (.tif)", "modis_cryo", "after", mod10_post_img),
+        ("mod11-pre-lst-tif", f"{case_id}_mod11_pre_lst.tif", "MODIS Temp °C Before (.tif)", "modis_cryo", "before", mod11_pre_img),
+        ("mod11-post-lst-tif", f"{case_id}_mod11_post_lst.tif", "MODIS Temp °C After (.tif)", "modis_cryo", "after", mod11_post_img),
+        ("melt-loss-tif", f"{case_id}_melt_snow_loss.tif", "Net Snow Loss (.tif)", "melt_change", "change", melt_loss_img),
     ]
     downloads: list[dict[str, Any]] = []
     local_cat_entries: list[dict[str, Any]] = []
@@ -852,16 +857,16 @@ def export_deshielo_case_to_madness(
 
     _update_local_download_catalog(dl_root, case_id, local_cat_entries)
 
-    # Vectores GeoJSON reales
+    # Real GeoJSON vectors
     aoi_geo = build_aoi_geojson(bbox, name, case_id)
     melt_geo, melt_area_km2 = extract_melt_extent_geojson(ndsi_pre, ndsi_post, bbox)
     (case_dir / "aoi.geojson").write_text(json.dumps(aoi_geo, indent=2, ensure_ascii=False), encoding="utf-8")
     (case_dir / "melt_extent.geojson").write_text(json.dumps(melt_geo, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    snow_pre_pct = round(float(np.nanmean(snow_pre)), 1)
-    snow_post_pct = round(float(np.nanmean(snow_post)), 1)
-    lst_pre_c = round(float(np.nanmean(lst_pre)), 1)
-    lst_post_c = round(float(np.nanmean(lst_post)), 1)
+    snow_pre_pct = _safe_nanmean(snow_pre)
+    snow_post_pct = _safe_nanmean(snow_post)
+    lst_pre_c = _safe_nanmean(lst_pre)
+    lst_post_c = _safe_nanmean(lst_post)
 
     stats = {
         "s2_pre_count": s2_pre_count,
@@ -900,7 +905,7 @@ def export_deshielo_case_to_madness(
         encoding="utf-8",
     )
 
-    case_def = build_deshielo_case_definition(
+    case_def = build_glacier_case_definition(
         case_id=case_id,
         name=name,
         region=region,

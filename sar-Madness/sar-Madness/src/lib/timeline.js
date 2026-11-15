@@ -1,6 +1,6 @@
 import { toMs } from './schema.js';
 
-/** Eje temporal = unión ordenada de las fechas de todos los frames y de los vectores con fecha. */
+/** Timeline axis = sorted union of all frame dates and dated vector features. */
 export function buildAxis(def) {
   const seen = new Map();
   const add = (s) => { const ms = toMs(s); if (!Number.isNaN(ms) && !seen.has(ms)) seen.set(ms, s); };
@@ -9,14 +9,14 @@ export function buildAxis(def) {
   return [...seen].sort((a, b) => a[0] - b[0]).map(([ms, label]) => ({ ms, label }));
 }
 
-/** Último frame del dataset con fecha <= ms (null si aún no hay ninguno). */
+/** Latest frame in the dataset with timestamp <= ms (null if none yet). */
 export function frameAt(ds, ms) {
   let best = null;
   for (const f of ds.frames) { if (f.ms <= ms) best = f; else break; }
   return best;
 }
 
-/** Última fecha de un vector <= ms (string tal como está en los datos). */
+/** Latest vector timestamp <= ms (raw string from data). */
 export function vectorCutoff(v, ms) {
   let best = null;
   for (const d of v._dates || []) { if (toMs(d) <= ms) best = d; else break; }
@@ -25,7 +25,7 @@ export function vectorCutoff(v, ms) {
 
 export const fmtTime = (s) => String(s).replace('T', ' ');
 
-/** Diferencia legible entre la fecha elegida y la del frame; null si coinciden. */
+/** Human-readable offset between selected time and frame time; null when aligned. */
 export function deltaLabel(ms, frameMs) {
   const diff = ms - frameMs;
   if (Math.abs(diff) < 60000) return null;

@@ -1,30 +1,71 @@
 import mapboxgl from 'mapbox-gl';
 import { frameAt, vectorCutoff } from './timeline.js';
 import { resolveUrl } from './registry.js';
-import { loadGray, loadRgbaCanvas, colorizeGray, composeRgb, grayToValue } from './rasterCanvas.js';
+import { loadGray, grayToValue, renderFrameCanvas } from './rasterCanvas.js';
 
 export const BASEMAPS = {
-  satellite: { label: 'Satélite', style: 'mapbox://styles/mapbox/satellite-streets-v12' },
-  light: { label: 'Claro', style: 'mapbox://styles/mapbox/light-v11' },
-  streets: { label: 'Calles', style: 'mapbox://styles/mapbox/streets-v12' },
+  satellite: { label: 'Satellite', style: 'mapbox://styles/mapbox/satellite-streets-v12' },
+  light: { label: 'Light', style: 'mapbox://styles/mapbox/light-v11' },
+  streets: { label: 'Streets', style: 'mapbox://styles/mapbox/streets-v12' },
 };
-export const VIEW_MODES = { globe: 'Globo 3D', flat: 'Mapa plano', terrain: 'Terreno 3D' };
+export const VIEW_MODES = { globe: '3D Globe', flat: 'Flat Map', terrain: '3D Terrain' };
 
 const DEM_SOURCE = 'base-dem';
 const HILLSHADE_LAYER = 'base-hillshade';
 const SKY_LAYER = 'base-sky';
-const ANCHOR_VEC = 'anchor-vectors'; // los rásteres se insertan debajo; los vectores, encima
+const ANCHOR_VEC = 'anchor-vectors'; // rasters are inserted below; vectors above
 const WORLD_SOURCE = 'world-cases';
 const WORLD_DOT = 'world-cases-dot';
 const WORLD_LABEL = 'world-cases-label';
 const SWIPE_SOURCE = 'swipe-img';
 const SWIPE_LINE_SOURCE = 'swipe-line';
-const WORLD_VIEW = { center: [-20, 20], zoom: 1.5, pitch: 0, bearing: 0 };
-const MAX_CACHE = 60;
+const WORLD_VIEW = { center: [-126.705, 20], zoom: 1.5, pitch: 10, bearing: 0 };
+const HOME_CASE_LONGITUDE_RANGE = 45;
+const DRAG_THRESHOLD = 6;
+const PARADISE_AOI_BOUNDS = [-121.78, 39.68, -121.63, 39.79];
+const PARADISE_REFERENCE_ZOOM = 11.4;
+const MONITORING_ZOOM_OUTSET = 0.5;
+const EARTH_KM_PER_DEGREE = 111.32;
 
 const vid = (v) => `vec:${v.id}`;
 const extentCoords = ([w, s, e, n]) => [[w, n], [e, n], [e, s], [w, s]];
 const redact = (s) => String(s || '').replace(/access_token=[^&\s"')]+/g, 'access_token=…');
+const smoothStep = (t) => t * t * (3 - 2 * t);
+const longitudeDistance = (a, b) => Math.abs((((a - b + 180) % 360) + 360) % 360 - 180);
+const boundsAreaKm2 = ([west, south, east, north]) => {
+  const width = EARTH_KM_PER_DEGREE * Math.cos(((south + north) / 2) * Math.PI / 180) * (east - west);
+  const height = EARTH_KM_PER_DEGREE * (north - south);
+  return width * height;
+};
+
+function getAoiBounds(def) {
+  const aoi = def.vectors.find((vector) => vector.id === 'aoi')?.data;
+  const bounds = [Infinity, Infinity, -Infinity, -Infinity];
+  const visit = (coordinates) => {
+    if (!Array.isArray(coordinates)) return;
+    if (Number.isFinite(coordinates[0]) && Number.isFinite(coordinates[1])) {
+      bounds[0] = Math.min(bounds[0], coordinates[0]);
+      bounds[1] = Math.min(bounds[1], coordinates[1]);
+      bounds[2] = Math.max(bounds[2], coordinates[0]);
+      bounds[3] = Math.max(bounds[3], coordinates[1]);
+      return;
+    }
+    coordinates.forEach(visit);
+  };
+  (aoi?.features ?? []).forEach((feature) => visit(feature.geometry?.coordinates));
+  return bounds.every(Number.isFinite) ? bounds : null;
+}
+
+function getMonitoringZoom(def) {
+  const bounds = getAoiBounds(def);
+  if (!bounds) return (def.view.zoom ?? 10) - MONITORING_ZOOM_OUTSET;
+  const areaRatio = boundsAreaKm2(bounds) / boundsAreaKm2(PARADISE_AOI_BOUNDS);
+  if (!Number.isFinite(areaRatio) || areaRatio <= 0) {
+    return (def.view.zoom ?? 10) - MONITORING_ZOOM_OUTSET;
+  }
+  const equivalentSideRatio = Math.sqrt(areaRatio);
+  return PARADISE_REFERENCE_ZOOM - MONITORING_ZOOM_OUTSET - Math.log2(equivalentSideRatio);
+}
 
 export class MapController {
   constructor({ container, token, onStatus }) {
@@ -32,14 +73,21 @@ export class MapController {
     this.onStatus = onStatus || (() => {});
     this.onFeature = () => {};
     this.onCasePick = () => {};
+    this.onWorldClick = () => {};
+    this.onWorldTransitionEnd = () => {};
+    this.onVisibleCasesChange = () => {};
     this.onDatasetState = () => {};
     this.current = null;
     this.cases = [];
     this.time = null;
-    this.datasets = new Map(); // id → estado de ejecución del dataset (el JSON del caso no se modifica)
+    this.caseSeq = 0;
+    this.layerSeq = 0;
+    this.swipeSeq = 0;
+    this.datasets = new Map(); // id -> runtime dataset state (case JSON stays untouched)
     this.visibleVec = new Set();
-    this.cache = new Map(); // frames ya renderizados (canvas + url)
     this.swipe = null;
+    this._swipeCanvas = null;
+    this._raf = 0;
     this.errSeen = new Map();
 
     this.basemap = 'satellite';
@@ -47,48 +95,134 @@ export class MapController {
     this.exaggeration = 1.5;
     this.sunAzimuth = 315;
     this.hillshadeOn = true;
+    this.orbitEnabled = true;
+    this.orbitTimer = null;
+    this.monitoringMode = false;
+    this.monitoringOrbitEnabled = false;
+    this.monitoringOrbitTimer = null;
+    this.mapInteractionEnabled = true;
+    this.scrollZoomAllowed = false;
+    this.lastVisibleCaseCheck = 0;
+    this.homeTransitionId = 0;
+    this.caseFocusTransitionId = 0;
+    this.homeLeftPadding = Math.max(0, Math.min(Math.round(container.clientWidth * 1), 500) - 500);
 
     this.map = new mapboxgl.Map({
-      container, style: BASEMAPS[this.basemap].style,
-      center: WORLD_VIEW.center, zoom: WORLD_VIEW.zoom, projection: 'globe',
+      container,
+      style: BASEMAPS[this.basemap].style,
+      center: WORLD_VIEW.center,
+      zoom: WORLD_VIEW.zoom,
+      pitch: WORLD_VIEW.pitch,
+      projection: 'globe',
     });
-    this.map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'top-right');
+    this.map.setPadding({ left: this.homeLeftPadding, top: 0, right: 0, bottom: 0 });
+    this.map.scrollZoom.disable();
+    this.map.dragRotate.disable();
+    this.map.getCanvasContainer().addEventListener('contextmenu', (event) => event.preventDefault());
+
+    const isInteractiveTarget = (target) => target instanceof Element
+      && target.closest('button, a, input, select, textarea, [role="button"], [role="link"], [contenteditable="true"], .mapboxgl-ctrl');
+    let mapPointerGesture = null;
+    this.map.getContainer().addEventListener('pointerdown', (event) => {
+      if (this.mapInteractionEnabled || event.button !== 0 || event.isPrimary === false || isInteractiveTarget(event.target)) {
+        mapPointerGesture = null;
+        return;
+      }
+      mapPointerGesture = {
+        x: event.clientX,
+        y: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
+        pointerId: event.pointerId,
+        moved: false,
+        monitoring: this.monitoringMode,
+        rotatable: this.monitoringMode && this.mode === 'terrain',
+      };
+      if (mapPointerGesture.rotatable) this.map.getCanvas().style.cursor = 'grabbing';
+    });
+    window.addEventListener('pointermove', (event) => {
+      if (!mapPointerGesture || event.pointerId !== mapPointerGesture.pointerId) return;
+      const deltaX = event.clientX - mapPointerGesture.lastX;
+      const deltaY = event.clientY - mapPointerGesture.lastY;
+      if (Math.hypot(event.clientX - mapPointerGesture.x, event.clientY - mapPointerGesture.y) >= DRAG_THRESHOLD) {
+        mapPointerGesture.moved = true;
+      }
+      if (mapPointerGesture.rotatable && mapPointerGesture.moved) {
+        if (this.monitoringOrbitEnabled) this.setMonitoringOrbitEnabled(false);
+        const bearing = ((this.map.getBearing() + deltaX * 0.35) % 360 + 360) % 360;
+        const pitch = Math.max(20, Math.min(80, this.map.getPitch() - deltaY * 0.25));
+        this.map.jumpTo({ bearing, pitch });
+        this.map.getCanvas().style.cursor = 'grabbing';
+      }
+      mapPointerGesture.lastX = event.clientX;
+      mapPointerGesture.lastY = event.clientY;
+    });
+    window.addEventListener('pointerup', (event) => {
+      if (!mapPointerGesture || event.pointerId !== mapPointerGesture.pointerId) return;
+      const { moved, monitoring } = mapPointerGesture;
+      mapPointerGesture = null;
+      if (monitoring && this.monitoringMode) {
+        this.map.getCanvas().style.cursor = this.mode === 'terrain' ? 'grab' : '';
+      }
+      if (moved && !monitoring && !isInteractiveTarget(event.target) && !this.mapInteractionEnabled && !this.orbitEnabled) {
+        this.onWorldClick(event);
+      }
+    });
+    window.addEventListener('pointercancel', () => {
+      mapPointerGesture = null;
+      if (this.monitoringMode) this.map.getCanvas().style.cursor = this.mode === 'terrain' ? 'grab' : '';
+    });
+
+    this.map.on('dragstart', () => this.setOrbitEnabled(false));
     this.map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
     this.map.addControl(new mapboxgl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
     this.ready = new Promise((res) => { if (this.map.isStyleLoaded()) res(); else this.map.once('style.load', res); });
+    this.map.once('load', () => this.#startOrbit());
     this.map.on('style.load', () => this.#applyAll());
     this.map.on('error', (e) => this.#onError(e));
     this.map.on('click', (e) => this.#click(e));
     this.map.on('mousemove', (e) => {
+      if (!this.mapInteractionEnabled) {
+        this.map.getCanvas().style.cursor = this.monitoringMode
+          ? this.mode === 'terrain' ? 'grab' : ''
+          : this.orbitEnabled ? '' : 'pointer';
+        return;
+      }
       const ids = [...this.#vectorIds(), ...this.#worldIds()];
       const hit = ids.length && this.map.queryRenderedFeatures(e.point, { layers: ids }).length;
       this.map.getCanvas().style.cursor = hit ? 'pointer' : '';
     });
+    this.map.on('render', () => {
+      const now = performance.now();
+      if (now - this.lastVisibleCaseCheck < 350) return;
+      this.lastVisibleCaseCheck = now;
+      this.#reportVisibleCases();
+    });
   }
 
-  // ───────────── Errores: específicos, deduplicados y sin reintentos automáticos ─────────────
+  // ───────────── Errors: specific, deduplicated, and never auto-retried ─────────────
   #onError(e) {
     const err = e?.error || {};
     if (err.name === 'AbortError') return;
     const status = err.status;
     const sourceId = e?.sourceId || '';
-    const detail = redact(err.message) || 'sin detalle';
+    const detail = redact(err.message) || 'no details';
     const key = `${sourceId}|${status}|${detail}`;
     const now = Date.now();
-    if (now - (this.errSeen.get(key) || 0) < 15000) return; // evita inundar la interfaz con el mismo error
+    if (now - (this.errSeen.get(key) || 0) < 15000) return; // avoid flooding the UI with duplicate errors
     this.errSeen.set(key, now);
-    const http = status === 429 ? 'HTTP 429: el servidor limitó las peticiones; espera un momento y reintenta'
+    const http = status === 429 ? 'HTTP 429: server rate-limited requests; wait a moment and retry'
       : status ? `HTTP ${status}` : detail;
 
     if (sourceId.startsWith('ds:')) {
-      if (status === 404) return; // teselas fuera de cobertura: normal
+      if (status === 404) return; // out-of-bounds tiles are expected
       const st = this.datasets.get(sourceId.split(':')[1]);
-      if (st) this.#emit(st, 'error', `No cargó: ${http}`);
+      if (st) this.#emit(st, 'error', `Failed to load: ${http}`);
       return;
     }
     if (sourceId === DEM_SOURCE) {
-      this.onStatus('warn', `Relieve (DEM) no disponible: ${http}.`, 'retry-base');
+      this.onStatus('warn', `Terrain (DEM) unavailable: ${http}.`, 'retry-base');
       return;
     }
     if (sourceId === 'mapbox-satellite' && status === 429) {
@@ -96,10 +230,78 @@ export class MapController {
       if (this.map.getLayer('satellite')) this.map.setLayoutProperty('satellite', 'visibility', 'none');
       return;
     }
-    this.onStatus('error', `Mapa base: ${http}${sourceId ? ` (fuente ${sourceId})` : ''}.`, status === 429 ? 'retry-base' : null);
+    this.onStatus('error', `Basemap: ${http}${sourceId ? ` (source ${sourceId})` : ''}.`, status === 429 ? 'retry-base' : null);
   }
 
-  // ───────────── Capas propias (se reaplican tras cada cambio de estilo) ─────────────
+  // ───────────── Globe orbit and interaction guards ─────────────
+  #startOrbit() {
+    if (!this.orbitEnabled || this.orbitTimer !== null) return;
+    let previousTime = performance.now();
+    this.orbitTimer = window.setInterval(() => {
+      const now = performance.now();
+      const elapsed = now - previousTime;
+      previousTime = now;
+      if (this.map.isMoving()) return;
+
+      const center = this.map.getCenter();
+      const longitude = ((center.lng + elapsed * 0.005 + 180) % 360 + 360) % 360 - 180;
+      this.map.setCenter([longitude, center.lat]);
+    }, 40);
+  }
+
+  #stopOrbit() {
+    if (this.orbitTimer === null) return;
+    window.clearInterval(this.orbitTimer);
+    this.orbitTimer = null;
+  }
+
+  #startMonitoringOrbit() {
+    if (!this.monitoringOrbitEnabled || this.monitoringOrbitTimer !== null) return;
+    let previousTime = performance.now();
+    this.monitoringOrbitTimer = window.setInterval(() => {
+      const now = performance.now();
+      const elapsed = now - previousTime;
+      previousTime = now;
+      if (this.map.isMoving()) return;
+
+      const bearing = (this.map.getBearing() + elapsed * 0.005) % 360;
+      this.map.setBearing(bearing);
+    }, 40);
+  }
+
+  #stopMonitoringOrbit() {
+    if (this.monitoringOrbitTimer === null) return;
+    window.clearInterval(this.monitoringOrbitTimer);
+    this.monitoringOrbitTimer = null;
+  }
+
+  setOrbitEnabled(enabled) {
+    this.orbitEnabled = enabled;
+    if (enabled) this.#startOrbit();
+    else this.#stopOrbit();
+  }
+
+  setMonitoringOrbitEnabled(enabled) {
+    this.monitoringOrbitEnabled = enabled;
+    if (enabled) this.#startMonitoringOrbit();
+    else this.#stopMonitoringOrbit();
+  }
+
+  setMapInteractionEnabled(enabled) {
+    this.mapInteractionEnabled = enabled;
+    ['dragPan', 'boxZoom', 'keyboard', 'doubleClickZoom', 'touchZoomRotate', 'touchPitch'].forEach((name) => {
+      const handler = this.map[name];
+      if (handler) handler[enabled ? 'enable' : 'disable']();
+    });
+    this.map.scrollZoom[this.scrollZoomAllowed && enabled ? 'enable' : 'disable']();
+  }
+
+  setScrollZoomEnabled(enabled) {
+    this.scrollZoomAllowed = enabled;
+    this.map.scrollZoom[this.mapInteractionEnabled && enabled ? 'enable' : 'disable']();
+  }
+
+  // ───────────── Managed layers (re-applied after every style change) ─────────────
   #applyAll() {
     this.#addTerrainBase();
     this.#addWorldMarkers();
@@ -108,7 +310,6 @@ export class MapController {
     this.#renderSwipe();
     this.#applyMode();
     this.#applyVectorTime();
-
     this.#updateRasters();
   }
 
@@ -124,7 +325,7 @@ export class MapController {
       const before = m.getLayer('satellite') ? 'satellite' : undefined;
       m.addLayer({ id: 'esri-fallback', type: 'raster', source: 'esri-fallback', layout: { visibility: 'visible' } }, before);
     }
-    // Sombreado: TERRENO BASE, no es dato SAR. minzoom evita pedir teselas DEM de todo el planeta en la vista de globo.
+    // Hillshade: BASE TERRAIN, not SAR data. minzoom avoids requesting global DEM tiles on the globe view.
     if (!m.getLayer(HILLSHADE_LAYER)) {
       m.addLayer({
         id: HILLSHADE_LAYER, type: 'hillshade', source: DEM_SOURCE, minzoom: 5,
@@ -157,6 +358,19 @@ export class MapController {
     };
   }
 
+  #reportVisibleCases() {
+    if (!this.map.getLayer(WORLD_DOT)) return;
+    const centerLongitude = this.map.getCenter().lng;
+    const ids = this.cases
+      .filter((def) => {
+        const longitude = Number(def.view?.center?.[0]);
+        return Number.isFinite(longitude)
+          && longitudeDistance(longitude, centerLongitude) <= HOME_CASE_LONGITUDE_RANGE;
+      })
+      .map((def) => def.id);
+    this.onVisibleCasesChange(ids);
+  }
+
   setCases(cases) {
     this.cases = cases;
     this.map.getSource(WORLD_SOURCE)?.setData(this.#worldData());
@@ -170,9 +384,11 @@ export class MapController {
   }
   #worldIds() { return this.map.getLayer(WORLD_DOT) ? [WORLD_DOT] : []; }
 
-  // ───────────── Casos ─────────────
+  // ───────────── Cases & camera transitions ─────────────
   clear() {
     const m = this.map;
+    if (this._raf) { cancelAnimationFrame(this._raf); this._raf = 0; }
+    this.swipeSeq += 1;
     if (this.swipe) { this.swipe = null; this.#removeSwipeLayers(); }
     this.datasets.forEach((st) => this.#removeDatasetLayers(st));
     this.datasets.clear();
@@ -185,42 +401,152 @@ export class MapController {
     this.current = null;
   }
 
-  async loadCase(def) {
+  async loadCase(def, { globeOverview = false, hideDatasets = false, initial = null } = {}) {
+    const cSeq = ++this.caseSeq;
+    this.caseFocusTransitionId += 1;
+    this.monitoringMode = false;
+    this.setMonitoringOrbitEnabled(false);
     await this.ready;
+    if (cSeq !== this.caseSeq) return;
     this.clear();
     this.current = def;
-    this.time = def.axis[0]?.ms ?? null;
+    this.time = initial?.timeMs ?? def.axis[0]?.ms ?? null;
     this.visibleVec = new Set(def.vectors.filter((v) => v.defaultVisible !== false).map((v) => v.id));
     def.datasets.forEach((d) => {
+      const isTarget = !hideDatasets && (initial?.datasetId ? d.id === initial.datasetId : d.defaultVisible !== false);
+      const sel = isTarget && initial?.selection ? initial.selection : d.variables[0].id;
+      const opacity = isTarget && initial?.opacity != null ? initial.opacity : d.render.opacity;
       this.datasets.set(d.id, {
-        def: d, visible: d.defaultVisible !== false, opacity: d.render.opacity,
-        selection: d.variables[0].id, frame: null, status: 'none', error: null, req: 0, tileKeys: new Set(),
+        def: d, visible: isTarget, opacity,
+        selection: sel, frame: null, status: 'none', error: null, req: 0, tileKeys: new Set(),
       });
     });
     this.#addVectors();
     this.#applyVectorTime();
 
-    this.#updateRasters();
-    this.mode = 'terrain';
+    this.mode = globeOverview ? 'globe' : 'terrain';
     this.#applyMode();
-    this.flyToCase();
+    if (globeOverview) {
+      const containerWidth = this.map.getContainer().clientWidth || window.innerWidth;
+      const isNarrowViewport = containerWidth <= 900;
+      this.flyToWorld(def.view.center, {
+        zoom: isNarrowViewport ? WORLD_VIEW.zoom : WORLD_VIEW.zoom + Math.log2(1.3),
+        leftPadding: isNarrowViewport ? 0 : 1300,
+      });
+    } else {
+      this.flyToCase();
+    }
+    await this.#updateRasters();
   }
 
   async showWorld() {
+    const cSeq = ++this.caseSeq;
+    this.caseFocusTransitionId += 1;
+    this.monitoringMode = false;
+    this.setMonitoringOrbitEnabled(false);
     await this.ready;
+    if (cSeq !== this.caseSeq) return;
     this.clear();
-    this.map.flyTo({ ...WORLD_VIEW, duration: 2200, essential: true });
-    if (this.mode === 'terrain') this.setMode('globe');
+    this.mode = 'globe';
+    this.#applyMode();
+    const transitionId = ++this.homeTransitionId;
+    this.setMapInteractionEnabled(false);
+    this.flyToWorld(WORLD_VIEW.center, { leftPadding: this.homeLeftPadding });
+    const finishWorldTransition = () => {
+      if (transitionId !== this.homeTransitionId) return;
+      if (this.orbitEnabled) this.setMapInteractionEnabled(true);
+      this.#reportVisibleCases();
+      this.onWorldTransitionEnd();
+    };
+    this.map.once('moveend', finishWorldTransition);
+    if (!this.map.isMoving()) {
+      this.map.off('moveend', finishWorldTransition);
+      finishWorldTransition();
+    }
   }
 
-  flyToCase() {
+  flyToWorld(center = WORLD_VIEW.center, { zoom = WORLD_VIEW.zoom, leftPadding = this.homeLeftPadding } = {}) {
+    this.map.flyTo({
+      ...WORLD_VIEW,
+      center,
+      zoom,
+      padding: { left: leftPadding, top: 0, right: 0, bottom: 0 },
+      duration: 2000,
+      easing: smoothStep,
+      essential: true,
+    });
+  }
+
+  flyToCase({ zoomOffset = 0, padding } = {}) {
     if (!this.current) return this.map.flyTo({ ...WORLD_VIEW, duration: 1800 });
     const { center, zoom = 10, pitch = 0, bearing = 0 } = this.current.view;
     const tilt = this.mode === 'terrain' ? Math.max(pitch, 55) : this.mode === 'flat' ? 0 : Math.min(pitch, 20);
-    this.map.flyTo({ center, zoom, pitch: tilt, bearing, duration: 3200, curve: 1.6, essential: true });
+    this.map.flyTo({
+      center,
+      zoom: Math.max(1, zoom + zoomOffset),
+      pitch: tilt,
+      bearing,
+      ...(padding && { padding }),
+      duration: 3200,
+      curve: 1.6,
+      essential: true,
+    });
   }
 
-  // ───────────── Vectores (GeoJSON), independientes de los rásteres ─────────────
+  async focusCurrentCase() {
+    await this.ready;
+    const def = this.current;
+    if (!def) return;
+    this.monitoringMode = false;
+    this.setMonitoringOrbitEnabled(false);
+    const transitionId = ++this.caseFocusTransitionId;
+    const container = this.map.getContainer();
+    const containerWidth = container.clientWidth || window.innerWidth;
+    const containerHeight = container.clientHeight || window.innerHeight;
+    const isMobileViewport = containerWidth <= 768;
+    const targetPadding = isMobileViewport
+      ? { top: 56, bottom: Math.round(containerHeight * 0.42), left: 0, right: 0 }
+      : { left: 0, top: 0, right: 0, bottom: 0 };
+    const centered = new Promise((resolve) => {
+      this.map.easeTo({
+        padding: targetPadding,
+        duration: 700,
+        easing: smoothStep,
+        essential: true,
+      });
+      if (!this.map.isMoving()) {
+        resolve();
+        return;
+      }
+      this.map.once('moveend', resolve);
+    });
+    await centered;
+    if (transitionId !== this.caseFocusTransitionId || this.current !== def) return;
+    this.mode = 'flat';
+    this.setHillshade(false);
+    this.#applyMode();
+    const mobileZoomAdjust = isMobileViewport
+      ? -Math.max(0.45, Math.min(1.25, Math.log2(740 / Math.max(containerWidth, 320))))
+      : 0;
+    const zoomOffset = getMonitoringZoom(def) + mobileZoomAdjust - (def.view.zoom ?? 10);
+    this.flyToCase({ zoomOffset, padding: targetPadding });
+    if (this.map.isMoving()) {
+      await new Promise((resolve) => this.map.once('moveend', resolve));
+    }
+    if (transitionId === this.caseFocusTransitionId && this.current === def) {
+      this.monitoringMode = true;
+      this.map.getCanvas().style.cursor = '';
+    }
+  }
+
+  cancelCaseFocus() {
+    this.caseFocusTransitionId += 1;
+    this.monitoringMode = false;
+    this.setMonitoringOrbitEnabled(false);
+    this.map.getCanvas().style.cursor = '';
+  }
+
+  // ───────────── Vectors (GeoJSON), independent from rasters ─────────────
   #addVectors() {
     if (!this.current) return;
     const m = this.map;
@@ -258,7 +584,7 @@ export class MapController {
   }
   isVectorVisible(id) { return this.visibleVec.has(id); }
 
-  // ───────────── Tiempo y rásteres por frame ─────────────
+  // ───────────── Time & per-frame rasters ─────────────
   setTime(ms) {
     this.time = ms;
     this.#applyVectorTime();
@@ -289,47 +615,20 @@ export class MapController {
     st.frame = frame;
     if (!frame) { this.#hideDataset(st); return this.#emit(st, 'none'); }
     const missing = this.#missingVariable(st, frame);
-    if (missing) { this.#hideDataset(st); return this.#emit(st, 'novar', `La variable ${missing} no viene en este frame`); }
+    if (missing) { this.#hideDataset(st); return this.#emit(st, 'novar', `Variable ${missing} is missing in this frame`); }
     if (!st.visible || this.swipe?.st === st) { this.#hideDataset(st); return this.#emit(st, 'ok'); }
     try {
       if (st.def.source.type === 'image') {
-        const r = await this.#rendered(st, frame, st.selection);
-        if (req !== st.req) return;
+        const r = await renderFrameCanvas(st.def, frame, st.selection);
+        if (req !== st.req || this.datasets.get(st.def.id) !== st) return;
         this.#showImage(st, r.url);
       } else {
         this.#showTiles(st, frame);
       }
       if (req === st.req) this.#emit(st, 'ok');
     } catch (err) {
-      if (req === st.req) { this.#hideDataset(st); this.#emit(st, 'error', `No cargó: ${err.message}`); }
+      if (req === st.req) { this.#hideDataset(st); this.#emit(st, 'error', `Failed to load: ${err.message}`); }
     }
-  }
-
-  /** Imagen coloreada de un frame (con caché). Con encoding "rgba" se usa el archivo tal cual. */
-  async #rendered(st, frame, sel) {
-    const key = `${st.def.id}|${frame.id}|${sel}`;
-    if (!this.cache.has(key)) {
-      const d = st.def;
-      const nodata = d.source.nodata === undefined ? 0 : d.source.nodata;
-      const job = (async () => {
-        if (d.source.encoding === 'rgba') { const url = resolveUrl(frame.files[sel]); return { canvas: await loadRgbaCanvas(url), url }; }
-        const comp = d.composites.find((c) => c.id === sel);
-        let canvas;
-        if (comp) {
-          const grays = {};
-          for (const ch of ['r', 'g', 'b']) grays[ch] = comp.channels[ch] ? await loadGray(resolveUrl(frame.files[comp.channels[ch]])) : null;
-          canvas = composeRgb(grays, nodata);
-        } else {
-          const v = d.variables.find((x) => x.id === sel);
-          canvas = colorizeGray(await loadGray(resolveUrl(frame.files[sel])), v.legend.colors, nodata);
-        }
-        return { canvas, url: canvas.toDataURL('image/png') };
-      })();
-      this.cache.set(key, job);
-      job.catch(() => this.cache.delete(key));
-      if (this.cache.size > MAX_CACHE) this.cache.delete(this.cache.keys().next().value);
-    }
-    return this.cache.get(key);
   }
 
   #paintOf(st) {
@@ -344,7 +643,7 @@ export class MapController {
       m.addSource(id, { type: 'image', url, coordinates });
       m.addLayer({ id, type: 'raster', source: id, paint: this.#paintOf(st) }, ANCHOR_VEC);
     } else {
-      m.getSource(id).updateImage({ url, coordinates }); // reutiliza fuente y capa: no se duplican
+      m.getSource(id).updateImage({ url, coordinates });
     }
     m.setPaintProperty(id, 'raster-opacity', st.opacity);
     m.setLayoutProperty(id, 'visibility', 'visible');
@@ -391,41 +690,81 @@ export class MapController {
     st.tileKeys.clear();
   }
 
-  /** Precarga el siguiente frame (colorizado o capa de teselas oculta) para una reproducción fluida. */
+  /** Preload the next frame (colorized canvas or hidden tile layer) for smooth playback. */
   prefetch(ms) {
     for (const st of this.datasets.values()) {
       const f = frameAt(st.def, ms);
       if (!f || f === st.frame || this.#missingVariable(st, f)) continue;
-      if (st.def.source.type === 'image') this.#rendered(st, f, st.selection).catch(() => {});
+      if (st.def.source.type === 'image') renderFrameCanvas(st.def, f, st.selection).catch(() => {});
       else this.#ensureTileLayer(st, f, st.selection);
     }
   }
 
-  setDatasetVisible(id, on) { const st = this.datasets.get(id); st.visible = on; return this.#applyDataset(st); }
-  setDatasetSelection(id, sel) { const st = this.datasets.get(id); st.selection = sel; return this.#applyDataset(st); }
-  retryDataset(id) { const st = this.datasets.get(id); this.errSeen.clear(); this.#removeDatasetLayers(st); return this.#applyDataset(st); }
+  setDatasetVisible(id, on) { const st = this.datasets.get(id); if (!st) return; st.visible = on; return this.#applyDataset(st); }
+  setDatasetSelection(id, sel) { const st = this.datasets.get(id); if (!st) return; st.selection = sel; return this.#applyDataset(st); }
+  retryDataset(id) { const st = this.datasets.get(id); if (!st) return; this.errSeen.clear(); this.#removeDatasetLayers(st); return this.#applyDataset(st); }
   setDatasetOpacity(id, value) {
     const st = this.datasets.get(id);
+    if (!st) return;
     st.opacity = value;
     [`ds:${id}`, ...st.tileKeys].forEach((l) => { if (this.map.getLayer(l)) this.map.setPaintProperty(l, 'raster-opacity', value); });
     if (this.swipe?.st === st && this.map.getLayer(SWIPE_SOURCE)) this.map.setPaintProperty(SWIPE_SOURCE, 'raster-opacity', value);
   }
 
-  // ───────────── Comparador antes/después (swipe) ─────────────
-  // Se divide la ZONA (columnas de la imagen), no la pantalla: funciona con globo, terreno y rotación.
+  /** Apply dataset visibility, variable selection, opacity, time, and swipe in one pass. */
+  async applyLayerState({ datasetId, selection, opacity, timeMs, swipe } = {}) {
+    if (!this.current) return;
+    const lSeq = ++this.layerSeq;
+    if (timeMs != null && timeMs !== this.time) {
+      this.time = timeMs;
+      this.#applyVectorTime();
+    }
+    for (const [id, st] of this.datasets) {
+      if (datasetId != null) st.visible = id === datasetId;
+      if (st.visible && selection != null) st.selection = selection;
+      if (st.visible && opacity != null) {
+        st.opacity = opacity;
+        [`ds:${id}`, ...st.tileKeys].forEach((l) => {
+          if (this.map.getLayer(l)) this.map.setPaintProperty(l, 'raster-opacity', opacity);
+        });
+        if (this.swipe?.st === st && this.map.getLayer(SWIPE_SOURCE)) {
+          this.map.setPaintProperty(SWIPE_SOURCE, 'raster-opacity', opacity);
+        }
+      }
+    }
+    if (swipe) {
+      await this.setSwipe(swipe);
+      if (lSeq !== this.layerSeq) return;
+    } else if (this.swipe) {
+      this.swipeSeq += 1;
+      this.swipe = null;
+      this.#removeSwipeLayers();
+    }
+    await this.#updateRasters();
+  }
+
+  // ───────────── Before/After comparison (swipe) ─────────────
+  // Splits the GEOGRAPHIC EXTENT (image columns), not the screen: works across globe, terrain, and rotation.
   async setSwipe(opts) {
+    const sSeq = ++this.swipeSeq;
     if (!opts) {
       const st = this.swipe?.st;
       this.swipe = null;
       this.#removeSwipeLayers();
-      if (st) await this.#applyDataset(st);
+      if (st && this.datasets.get(st.def.id) === st) await this.#applyDataset(st);
       return;
     }
     const st = this.datasets.get(opts.datasetId);
+    if (!st) return;
     const fb = st.def.frames.find((f) => f.id === opts.beforeId);
     const fa = st.def.frames.find((f) => f.id === opts.afterId);
-    const [rb, ra] = await Promise.all([this.#rendered(st, fb, opts.selection), this.#rendered(st, fa, opts.selection)]);
-    if (!rb.canvas || !ra.canvas) throw new Error('El swipe requiere un ráster local (image + gray8)');
+    if (!fb || !fa) throw new Error('Swipe requires valid Before and After frames');
+    const [rb, ra] = await Promise.all([
+      renderFrameCanvas(st.def, fb, opts.selection),
+      renderFrameCanvas(st.def, fa, opts.selection),
+    ]);
+    if (sSeq !== this.swipeSeq || this.datasets.get(opts.datasetId) !== st) return;
+    if (!rb.canvas || !ra.canvas) throw new Error('Swipe requires a local raster (image + gray8/rgba)');
     this.swipe = { st, cb: rb.canvas, ca: ra.canvas, split: opts.split ?? 0.5 };
     this.#hideDataset(st);
     this.#renderSwipe();
@@ -445,11 +784,14 @@ export class MapController {
     const W = cb.width;
     const H = cb.height;
     const sx = Math.round(this.swipe.split * W);
-    const f = sx / W; // fracción cuantizada: el corte de la imagen y la línea coinciden
-    const out = document.createElement('canvas');
-    out.width = W;
-    out.height = H;
+    const f = sx / W; // quantized fraction so image split and divider line stay aligned
+    const out = this._swipeCanvas || (this._swipeCanvas = document.createElement('canvas'));
+    if (out.width !== W || out.height !== H) {
+      out.width = W;
+      out.height = H;
+    }
     const ctx = out.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
     if (sx > 0) ctx.drawImage(cb, 0, 0, cb.width * f, cb.height, 0, 0, sx, H);
     if (sx < W) ctx.drawImage(ca, ca.width * f, 0, ca.width * (1 - f), ca.height, sx, 0, W - sx, H);
     const url = out.toDataURL('image/png');
@@ -478,7 +820,7 @@ export class MapController {
     });
   }
 
-  // ───────────── Valor de los rásteres en un punto ─────────────
+  // ───────────── Raster pixel sampling ─────────────
   async sampleAt({ lng, lat }) {
     const out = [];
     for (const st of this.datasets.values()) {
@@ -510,11 +852,11 @@ export class MapController {
     return out;
   }
 
-  // ───────────── Base: mapa base, vista, relieve y luz ─────────────
+  // ───────────── Basemap, view mode, terrain, and lighting ─────────────
   setBasemap(key) {
     if (!BASEMAPS[key] || key === this.basemap) return;
     this.basemap = key;
-    this.map.setStyle(BASEMAPS[key].style); // 'style.load' reaplica terreno, cielo, vectores y rásteres
+    this.map.setStyle(BASEMAPS[key].style); // 'style.load' reapplies terrain, sky, vectors, and rasters
   }
 
   setMode(mode) {
@@ -534,12 +876,12 @@ export class MapController {
     m.setTerrain(this.mode === 'terrain' ? { source: DEM_SOURCE, exaggeration: this.exaggeration } : null);
     m.setFog(this.mode === 'flat' ? null : {
       color: 'rgb(186, 210, 235)', 'high-color': 'rgb(36, 92, 223)', 'horizon-blend': 0.03,
-      'space-color': 'rgb(11, 11, 25)', 'star-intensity': this.basemap === 'light' ? 0 : 0.5,
+      'space-color': 'rgb(11, 11, 25)', 'star-intensity': this.basemap === 'light' ? 0 : 0.2,
     });
     if (m.getLayer(SKY_LAYER)) m.setLayoutProperty(SKY_LAYER, 'visibility', this.mode === 'terrain' ? 'visible' : 'none');
   }
 
-  /** Reintento manual (nunca automático) del relieve tras un error o un 429. */
+  /** Manual retry (never automatic) for terrain after an error or HTTP 429. */
   retryBase() {
     const m = this.map;
     this.errSeen.clear();
@@ -567,8 +909,12 @@ export class MapController {
     if (this.map.getLayer(HILLSHADE_LAYER)) this.map.setLayoutProperty(HILLSHADE_LAYER, 'visibility', on ? 'visible' : 'none');
   }
 
-  // ───────────── Interacción ─────────────
+  // ───────────── Interaction ─────────────
   #click(e) {
+    if (!this.mapInteractionEnabled) {
+      if (!this.orbitEnabled && !this.monitoringMode) this.onWorldClick(e);
+      return;
+    }
     const m = this.map;
     const world = this.#worldIds();
     if (world.length) {
@@ -577,7 +923,7 @@ export class MapController {
     }
     const ids = this.#vectorIds();
     const f = ids.length ? m.queryRenderedFeatures(e.point, { layers: ids })[0] : null;
-    const layer = f ? this.current.vectors.find((v) => vid(v) === f.layer.id) : null;
+    const layer = f && this.current ? this.current.vectors.find((v) => vid(v) === f.layer.id) : null;
     this.onFeature(layer, f, e.lngLat);
   }
 }

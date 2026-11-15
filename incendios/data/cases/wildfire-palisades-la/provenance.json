@@ -1,0 +1,213 @@
+{
+  "model": "threshold-baseline-v0.1.0",
+  "engine": "wildfire-monitor · GeoPulse physics baseline",
+  "before": "2024-12-01/2025-01-06",
+  "after": "2025-02-01/2025-03-31",
+  "sensors": {
+    "s2_pre": [
+      "S2A_MSIL2A_20241213T183801_R027_T11SLT_20241213T220549",
+      "S2B_MSIL2A_20241218T183709_R027_T11SLT_20241218T222347",
+      "S2A_MSIL2A_20250102T183751_R027_T11SLT_20250102T221646"
+    ],
+    "s2_post": [
+      "S2C_MSIL2A_20250201T183631_R027_T11SLT_20250201T210315",
+      "S2C_MSIL2A_20250221T183421_R027_T11SLT_20250222T001111",
+      "S2B_MSIL2A_20250226T183229_R027_T11SLT_20250226T215352",
+      "S2C_MSIL2A_20250303T183311_R027_T11SLT_20250303T232011"
+    ],
+    "s1_pre": [
+      "S1A_IW_GRDH_1SDV_20241221T015851_20241221T015916_057084_07044E_rtc",
+      "S1A_IW_GRDH_1SDV_20241228T015042_20241228T015107_057186_070853_rtc",
+      "S1A_IW_GRDH_1SDV_20250102T015850_20250102T015915_057259_070B31_rtc",
+      "S1A_IW_GRDH_1SDV_20250102T140045_20250102T140110_057266_070B76_rtc"
+    ],
+    "s1_post": [
+      "S1A_IW_GRDH_1SDV_20250202T015031_20250202T015056_057711_071D19_rtc",
+      "S1A_IW_GRDH_1SDV_20250202T135247_20250202T135312_057718_071D69_rtc",
+      "S1A_IW_GRDH_1SDV_20250207T015848_20250207T015913_057784_072001_rtc",
+      "S1A_IW_GRDH_1SDV_20250207T140054_20250207T140123_057791_072048_rtc"
+    ],
+    "dem": [
+      "Copernicus_DSM_COG_10_N34_00_W119_00_DEM"
+    ]
+  },
+  "scenes": {
+    "s2_pre": [
+      {
+        "id": "S2A_MSIL2A_20241213T183801_R027_T11SLT_20241213T220549",
+        "collection": "sentinel-2-l2a",
+        "datetime": "2024-12-13T18:38:01.024000Z",
+        "cloud_cover": 21.520735,
+        "orbit": "descending",
+        "relative_orbit": 27,
+        "platform": "Sentinel-2A",
+        "valid_fraction": 0.5744
+      },
+      {
+        "id": "S2B_MSIL2A_20241218T183709_R027_T11SLT_20241218T222347",
+        "collection": "sentinel-2-l2a",
+        "datetime": "2024-12-18T18:37:09.024000Z",
+        "cloud_cover": 0.004997,
+        "orbit": "descending",
+        "relative_orbit": 27,
+        "platform": "Sentinel-2B",
+        "valid_fraction": 0.9999
+      },
+      {
+        "id": "S2A_MSIL2A_20250102T183751_R027_T11SLT_20250102T221646",
+        "collection": "sentinel-2-l2a",
+        "datetime": "2025-01-02T18:37:51.024000Z",
+        "cloud_cover": 3.015763,
+        "orbit": "descending",
+        "relative_orbit": 27,
+        "platform": "Sentinel-2A",
+        "valid_fraction": 1.0
+      }
+    ],
+    "s2_post": [
+      {
+        "id": "S2C_MSIL2A_20250201T183631_R027_T11SLT_20250201T210315",
+        "collection": "sentinel-2-l2a",
+        "datetime": "2025-02-01T18:36:31.025000Z",
+        "cloud_cover": 15.756986,
+        "orbit": "descending",
+        "relative_orbit": 27,
+        "platform": "Sentinel-2C",
+        "valid_fraction": 0.9491
+      },
+      {
+        "id": "S2C_MSIL2A_20250221T183421_R027_T11SLT_20250222T001111",
+        "collection": "sentinel-2-l2a",
+        "datetime": "2025-02-21T18:34:21.025000Z",
+        "cloud_cover": 4.984134,
+        "orbit": "descending",
+        "relative_orbit": 27,
+        "platform": "Sentinel-2C",
+        "valid_fraction": 1.0
+      },
+      {
+        "id": "S2B_MSIL2A_20250226T183229_R027_T11SLT_20250226T215352",
+        "collection": "sentinel-2-l2a",
+        "datetime": "2025-02-26T18:32:29.024000Z",
+        "cloud_cover": 54.565293,
+        "orbit": "descending",
+        "relative_orbit": 27,
+        "platform": "Sentinel-2B",
+        "valid_fraction": 0.9224
+      },
+      {
+        "id": "S2C_MSIL2A_20250303T183311_R027_T11SLT_20250303T232011",
+        "collection": "sentinel-2-l2a",
+        "datetime": "2025-03-03T18:33:11.025000Z",
+        "cloud_cover": 2.40253,
+        "orbit": "descending",
+        "relative_orbit": 27,
+        "platform": "Sentinel-2C",
+        "valid_fraction": 0.9352
+      }
+    ],
+    "s1_pre": [
+      {
+        "id": "S1A_IW_GRDH_1SDV_20241221T015851_20241221T015916_057084_07044E_rtc",
+        "collection": "sentinel-1-rtc",
+        "datetime": "2024-12-21T01:59:04.127269Z",
+        "cloud_cover": null,
+        "orbit": "ascending",
+        "relative_orbit": 137,
+        "platform": "SENTINEL-1A",
+        "valid_fraction": 1.0
+      },
+      {
+        "id": "S1A_IW_GRDH_1SDV_20241228T015042_20241228T015107_057186_070853_rtc",
+        "collection": "sentinel-1-rtc",
+        "datetime": "2024-12-28T01:50:54.750933Z",
+        "cloud_cover": null,
+        "orbit": "ascending",
+        "relative_orbit": 64,
+        "platform": "SENTINEL-1A",
+        "valid_fraction": 1.0
+      },
+      {
+        "id": "S1A_IW_GRDH_1SDV_20250102T015850_20250102T015915_057259_070B31_rtc",
+        "collection": "sentinel-1-rtc",
+        "datetime": "2025-01-02T01:59:03.159547Z",
+        "cloud_cover": null,
+        "orbit": "ascending",
+        "relative_orbit": 137,
+        "platform": "SENTINEL-1A",
+        "valid_fraction": 1.0
+      },
+      {
+        "id": "S1A_IW_GRDH_1SDV_20250102T140045_20250102T140110_057266_070B76_rtc",
+        "collection": "sentinel-1-rtc",
+        "datetime": "2025-01-02T14:00:57.772701Z",
+        "cloud_cover": null,
+        "orbit": "descending",
+        "relative_orbit": 144,
+        "platform": "SENTINEL-1A",
+        "valid_fraction": 1.0
+      }
+    ],
+    "s1_post": [
+      {
+        "id": "S1A_IW_GRDH_1SDV_20250202T015031_20250202T015056_057711_071D19_rtc",
+        "collection": "sentinel-1-rtc",
+        "datetime": "2025-02-02T01:50:43.611494Z",
+        "cloud_cover": null,
+        "orbit": "ascending",
+        "relative_orbit": 64,
+        "platform": "SENTINEL-1A",
+        "valid_fraction": 1.0
+      },
+      {
+        "id": "S1A_IW_GRDH_1SDV_20250202T135247_20250202T135312_057718_071D69_rtc",
+        "collection": "sentinel-1-rtc",
+        "datetime": "2025-02-02T13:53:00.062714Z",
+        "cloud_cover": null,
+        "orbit": "descending",
+        "relative_orbit": 71,
+        "platform": "SENTINEL-1A",
+        "valid_fraction": 1.0
+      },
+      {
+        "id": "S1A_IW_GRDH_1SDV_20250207T015848_20250207T015913_057784_072001_rtc",
+        "collection": "sentinel-1-rtc",
+        "datetime": "2025-02-07T01:59:00.984762Z",
+        "cloud_cover": null,
+        "orbit": "ascending",
+        "relative_orbit": 137,
+        "platform": "SENTINEL-1A",
+        "valid_fraction": 1.0
+      },
+      {
+        "id": "S1A_IW_GRDH_1SDV_20250207T140054_20250207T140123_057791_072048_rtc",
+        "collection": "sentinel-1-rtc",
+        "datetime": "2025-02-07T14:01:08.628971Z",
+        "cloud_cover": null,
+        "orbit": "descending",
+        "relative_orbit": 144,
+        "platform": "SENTINEL-1A",
+        "valid_fraction": 1.0
+      }
+    ],
+    "dem": [
+      {
+        "id": "Copernicus_DSM_COG_10_N34_00_W119_00_DEM",
+        "collection": "cop-dem-glo-30",
+        "datetime": "2021-04-22T00:00:00Z",
+        "cloud_cover": null,
+        "orbit": null,
+        "relative_orbit": null,
+        "platform": "TanDEM-X"
+      }
+    ]
+  },
+  "target_crs": "EPSG:4326",
+  "bounds_wgs84": [
+    -118.62,
+    34.03,
+    -118.5,
+    34.12
+  ],
+  "created": "2026-11-14T21:37:59Z"
+}

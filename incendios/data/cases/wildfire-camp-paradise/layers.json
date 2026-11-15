@@ -1,0 +1,20 @@
+{
+  "bounds": [
+    -121.78,
+    39.68,
+    -121.63,
+    39.79
+  ],
+  "layers": [
+    "s2_pre",
+    "s1_pre",
+    "s2_post",
+    "s1_post",
+    "change_probability",
+    "uncertainty",
+    "burn_severity",
+    "burn_probability"
+  ],
+  "target": "burn",
+  "extent": "burn_extent.geojson"
+}

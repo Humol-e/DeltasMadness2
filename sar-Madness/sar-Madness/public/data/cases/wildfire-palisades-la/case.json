@@ -1,0 +1,680 @@
+{
+  "simulated": false,
+  "category": "incendio",
+  "metrics": {
+    "preWindow": "2024-12-01/2025-01-06",
+    "postWindow": "2025-02-01/2025-03-31",
+    "affectedKm2": 70.146,
+    "observedKm2": 110.113
+  },
+  "downloads": [
+    {
+      "id": "s2-pre-nbr-tif",
+      "label": "Sentinel-2 NBR Antes (.tif)",
+      "datasetId": "s2_nbr",
+      "phase": "before",
+      "format": "geotiff",
+      "url": "data/cases/wildfire-palisades-la/geotiffs/wildfire-palisades-la_s2_pre_nbr.tif",
+      "sizeBytes": 942366
+    },
+    {
+      "id": "s2-post-nbr-tif",
+      "label": "Sentinel-2 NBR Después (.tif)",
+      "datasetId": "s2_nbr",
+      "phase": "after",
+      "format": "geotiff",
+      "url": "data/cases/wildfire-palisades-la/geotiffs/wildfire-palisades-la_s2_post_nbr.tif",
+      "sizeBytes": 942366
+    },
+    {
+      "id": "s1-pre-vh-tif",
+      "label": "Sentinel-1 VH Antes (.tif)",
+      "datasetId": "s1_sar",
+      "phase": "before",
+      "format": "geotiff",
+      "url": "data/cases/wildfire-palisades-la/geotiffs/wildfire-palisades-la_s1_pre_vh.tif",
+      "sizeBytes": 942366
+    },
+    {
+      "id": "s1-post-vh-tif",
+      "label": "Sentinel-1 VH Después (.tif)",
+      "datasetId": "s1_sar",
+      "phase": "after",
+      "format": "geotiff",
+      "url": "data/cases/wildfire-palisades-la/geotiffs/wildfire-palisades-la_s1_post_vh.tif",
+      "sizeBytes": 942366
+    },
+    {
+      "id": "burn-severity-tif",
+      "label": "Severidad dNBR (.tif)",
+      "datasetId": "geopulse_burn",
+      "phase": "change",
+      "format": "geotiff",
+      "url": "data/cases/wildfire-palisades-la/geotiffs/wildfire-palisades-la_burn_severity.tif",
+      "sizeBytes": 235786
+    },
+    {
+      "id": "burn-probability-tif",
+      "label": "Probabilidad de quema (.tif)",
+      "datasetId": "geopulse_burn",
+      "phase": "change",
+      "format": "geotiff",
+      "url": "data/cases/wildfire-palisades-la/geotiffs/wildfire-palisades-la_burn_probability.tif",
+      "sizeBytes": 942366
+    },
+    {
+      "id": "change-probability-tif",
+      "label": "Probabilidad de cambio (.tif)",
+      "datasetId": "geopulse_burn",
+      "phase": "change",
+      "format": "geotiff",
+      "url": "data/cases/wildfire-palisades-la/geotiffs/wildfire-palisades-la_change_probability.tif",
+      "sizeBytes": 942366
+    },
+    {
+      "id": "uncertainty-tif",
+      "label": "Incertidumbre (.tif)",
+      "datasetId": "geopulse_burn",
+      "phase": "change",
+      "format": "geotiff",
+      "url": "data/cases/wildfire-palisades-la/geotiffs/wildfire-palisades-la_uncertainty.tif",
+      "sizeBytes": 942366
+    },
+    {
+      "id": "dem-elevation-tif",
+      "label": "Copernicus DEM (.tif)",
+      "datasetId": "reference",
+      "phase": "reference",
+      "format": "geotiff",
+      "url": "data/cases/wildfire-palisades-la/geotiffs/wildfire-palisades-la_dem_elevation.tif",
+      "sizeBytes": 942366
+    }
+  ],
+  "schemaVersion": 2,
+  "id": "wildfire-palisades-la",
+  "status": "real",
+  "title": "Palisades Fire — Los Angeles, CA (2025)",
+  "description": "Incendio urbano-forestal en Pacific Palisades y montañas de Santa Mónica (enero 2025). Combina Sentinel-2 L2A (dNBR/NDVI), Sentinel-1 RTC (retrodispersión VH/VV) y DEM Copernicus 30 m. [Superficie quemada estimada: 70.15 km² de 110.1 km² observados; zona de revisión por incertidumbre: 7.25 km²].",
+  "view": {
+    "center": [
+      -118.56,
+      34.075
+    ],
+    "zoom": 11.4,
+    "pitch": 46,
+    "bearing": 14
+  },
+  "datasets": [
+    {
+      "id": "geopulse_burn",
+      "name": "GeoPulse · Fusión SAR + Óptico",
+      "kind": "raster",
+      "status": "real",
+      "platform": "Sentinel-2 L2A + Sentinel-1 RTC",
+      "sensor": "MSI + C-SAR",
+      "provider": "Microsoft Planetary Computer",
+      "product": "GeoPulse Physics Baseline v0.1.0",
+      "attribution": "Copernicus Sentinel-1/2 · GeoPulse",
+      "variables": [
+        {
+          "id": "burn_prob",
+          "label": "Probabilidad de quemado",
+          "quantity": "burn_probability",
+          "polarization": null,
+          "unit": "prob (0–1)",
+          "legend": {
+            "min": 0,
+            "max": 1,
+            "colors": [
+              "#eb461e",
+              "#c8140a"
+            ],
+            "stops": [
+              [
+                0.2,
+                "#eb461e00"
+              ],
+              [
+                0.5,
+                "#eb461e96"
+              ],
+              [
+                1.0,
+                "#c8140aeb"
+              ]
+            ],
+            "nodata_label": "Transparente = sin quemado (< 0.2)"
+          }
+        },
+        {
+          "id": "burn_sev",
+          "label": "Severidad dNBR (Key & Benson)",
+          "quantity": "burn_severity",
+          "polarization": null,
+          "unit": "clase 0–4",
+          "legend": {
+            "min": 0,
+            "max": 4,
+            "colors": [
+              "#7fffd4",
+              "#ffff00",
+              "#ff8c00",
+              "#ff0000"
+            ],
+            "discrete": {
+              "1": "#7fffd4dc",
+              "2": "#ffff00dc",
+              "3": "#ff8c00e6",
+              "4": "#ff0000eb"
+            },
+            "nodata_label": "1 Baja · 2 Mod-baja · 3 Mod-alta · 4 Alta"
+          }
+        },
+        {
+          "id": "change_prob",
+          "label": "Cambio multimodal S1/S2",
+          "quantity": "change_probability",
+          "polarization": null,
+          "unit": "prob (0–1)",
+          "legend": {
+            "min": 0,
+            "max": 1,
+            "colors": [
+              "#ffaa00",
+              "#ff7800"
+            ],
+            "stops": [
+              [
+                0.2,
+                "#ffaa0000"
+              ],
+              [
+                0.5,
+                "#ffaa008c"
+              ],
+              [
+                1.0,
+                "#ff7800e6"
+              ]
+            ],
+            "nodata_label": "Transparente = sin cambio (< 0.2)"
+          }
+        },
+        {
+          "id": "uncertainty",
+          "label": "Incertidumbre Shannon H(p)",
+          "quantity": "uncertainty",
+          "polarization": null,
+          "unit": "bits (0–1)",
+          "legend": {
+            "min": 0,
+            "max": 1,
+            "colors": [
+              "#3c145a",
+              "#78288c",
+              "#e6505a",
+              "#ffd23c"
+            ],
+            "stops": [
+              [
+                0.0,
+                "#3c145a00"
+              ],
+              [
+                0.3,
+                "#78288c6e"
+              ],
+              [
+                0.7,
+                "#e6505abe"
+              ],
+              [
+                1.0,
+                "#ffd23ce6"
+              ]
+            ],
+            "nodata_label": "≥ 0.80 bits = revisión · ≥ 0.50 = solo-SAR"
+          }
+        }
+      ],
+      "source": {
+        "type": "image",
+        "encoding": "gray8",
+        "nodata": 0
+      },
+      "extent": [
+        -118.62,
+        34.03,
+        -118.5,
+        34.12
+      ],
+      "crs": "EPSG:4326",
+      "resolution": {
+        "value": 30,
+        "unit": "m"
+      },
+      "render": {
+        "opacity": 0.88,
+        "resampling": "linear"
+      },
+      "defaultVisible": true,
+      "frames": [
+        {
+          "id": "gp-post",
+          "datetime": "2025-03-31",
+          "files": {
+            "burn_prob": "data/cases/wildfire-palisades-la/rasters/burn_prob.png",
+            "burn_sev": "data/cases/wildfire-palisades-la/rasters/burn_sev.png",
+            "change_prob": "data/cases/wildfire-palisades-la/rasters/change_prob.png",
+            "uncertainty": "data/cases/wildfire-palisades-la/rasters/uncertainty.png"
+          }
+        }
+      ]
+    },
+    {
+      "id": "s2_rgb",
+      "name": "Sentinel-2 L2A · Óptico RGB",
+      "kind": "raster",
+      "status": "real",
+      "platform": "Sentinel-2A/2B/2C",
+      "sensor": "MSI",
+      "provider": "Microsoft Planetary Computer",
+      "product": "True Color B04/B03/B02 (gamma 1.4)",
+      "attribution": "ESA Copernicus Sentinel-2",
+      "variables": [
+        {
+          "id": "rgb",
+          "label": "Color verdadero (B04/B03/B02)",
+          "quantity": "reflectance",
+          "polarization": null,
+          "unit": "RGB"
+        }
+      ],
+      "source": {
+        "type": "image",
+        "encoding": "rgba"
+      },
+      "extent": [
+        -118.62,
+        34.03,
+        -118.5,
+        34.12
+      ],
+      "crs": "EPSG:4326",
+      "resolution": {
+        "value": 30,
+        "unit": "m"
+      },
+      "render": {
+        "opacity": 1.0,
+        "resampling": "linear"
+      },
+      "defaultVisible": true,
+      "frames": [
+        {
+          "id": "s2-pre",
+          "datetime": "2025-01-06",
+          "label": "Antes · 2024-12-01/2025-01-06",
+          "phase": "before",
+          "files": {
+            "rgb": "data/cases/wildfire-palisades-la/rasters/s2_pre.png"
+          }
+        },
+        {
+          "id": "s2-post",
+          "datetime": "2025-03-31",
+          "label": "Después · 2025-02-01/2025-03-31",
+          "phase": "after",
+          "files": {
+            "rgb": "data/cases/wildfire-palisades-la/rasters/s2_post.png"
+          }
+        }
+      ]
+    },
+    {
+      "id": "s2_nbr",
+      "name": "Sentinel-2 · Índice NBR (Vegetación/Quemado)",
+      "kind": "raster",
+      "status": "real",
+      "platform": "Sentinel-2",
+      "sensor": "MSI B8A/B12",
+      "provider": "Microsoft Planetary Computer",
+      "product": "Normalized Burn Ratio",
+      "attribution": "ESA Copernicus Sentinel-2",
+      "variables": [
+        {
+          "id": "NBR",
+          "label": "Índice NBR",
+          "quantity": "spectral_index",
+          "polarization": null,
+          "unit": "índice",
+          "legend": {
+            "min": -1,
+            "max": 1,
+            "colors": [
+              "#7a1f1f",
+              "#e4572e",
+              "#f4e9a8",
+              "#66bb6a",
+              "#1b5e20"
+            ],
+            "nodata_label": "Transparente = nube / sin dato óptico"
+          }
+        }
+      ],
+      "source": {
+        "type": "image",
+        "encoding": "gray8",
+        "nodata": 0
+      },
+      "extent": [
+        -118.62,
+        34.03,
+        -118.5,
+        34.12
+      ],
+      "crs": "EPSG:4326",
+      "resolution": {
+        "value": 30,
+        "unit": "m"
+      },
+      "render": {
+        "opacity": 0.8,
+        "resampling": "linear"
+      },
+      "defaultVisible": false,
+      "frames": [
+        {
+          "id": "nbr-pre",
+          "datetime": "2025-01-06",
+          "label": "Antes · 2024-12-01/2025-01-06",
+          "phase": "before",
+          "files": {
+            "NBR": "data/cases/wildfire-palisades-la/rasters/s2_pre_nbr.png"
+          }
+        },
+        {
+          "id": "nbr-post",
+          "datetime": "2025-03-31",
+          "label": "Después · 2025-02-01/2025-03-31",
+          "phase": "after",
+          "files": {
+            "NBR": "data/cases/wildfire-palisades-la/rasters/s2_post_nbr.png"
+          }
+        }
+      ]
+    },
+    {
+      "id": "s1_sar",
+      "name": "Sentinel-1 RTC · Radar SAR VH (Todo-Clima)",
+      "kind": "raster",
+      "status": "real",
+      "platform": "Sentinel-1A",
+      "sensor": "C-SAR",
+      "provider": "Microsoft Planetary Computer",
+      "product": "RTC Gamma0 VH",
+      "attribution": "ESA Copernicus Sentinel-1",
+      "variables": [
+        {
+          "id": "VH",
+          "label": "Retrodispersión VH",
+          "quantity": "backscatter",
+          "polarization": "VH",
+          "unit": "dB",
+          "legend": {
+            "min": -30,
+            "max": 0,
+            "colors": [
+              "#0b0f14",
+              "#64748b",
+              "#f8fafc"
+            ],
+            "nodata_label": "Transparente = sin dato"
+          }
+        }
+      ],
+      "source": {
+        "type": "image",
+        "encoding": "gray8",
+        "nodata": 0
+      },
+      "extent": [
+        -118.62,
+        34.03,
+        -118.5,
+        34.12
+      ],
+      "crs": "EPSG:4326",
+      "resolution": {
+        "value": 30,
+        "unit": "m"
+      },
+      "render": {
+        "opacity": 0.85,
+        "resampling": "linear"
+      },
+      "defaultVisible": false,
+      "frames": [
+        {
+          "id": "s1-pre",
+          "datetime": "2025-01-06",
+          "label": "Antes · 2024-12-01/2025-01-06",
+          "phase": "before",
+          "files": {
+            "VH": "data/cases/wildfire-palisades-la/rasters/s1_pre_vh.png"
+          }
+        },
+        {
+          "id": "s1-post",
+          "datetime": "2025-03-31",
+          "label": "Después · 2025-02-01/2025-03-31",
+          "phase": "after",
+          "files": {
+            "VH": "data/cases/wildfire-palisades-la/rasters/s1_post_vh.png"
+          }
+        }
+      ]
+    }
+  ],
+  "vectors": [
+    {
+      "id": "aoi",
+      "name": "Área de estudio (AOI)",
+      "type": "line",
+      "status": "real",
+      "simulated": false,
+      "source": {
+        "type": "geojson",
+        "data": "data/cases/wildfire-palisades-la/aoi.geojson"
+      },
+      "paint": {
+        "line-color": "#38bdf8",
+        "line-width": 2,
+        "line-dasharray": [
+          3,
+          2
+        ]
+      },
+      "description": "Polígono límite del incendio configurado en GeoPulse.",
+      "popupFields": [
+        [
+          "name",
+          "Área"
+        ]
+      ]
+    },
+    {
+      "id": "burn-extent-casing",
+      "name": "Perímetro quemado (contorno)",
+      "type": "line",
+      "status": "real",
+      "simulated": false,
+      "source": {
+        "type": "geojson",
+        "data": "data/cases/wildfire-palisades-la/burn_extent.geojson"
+      },
+      "time": {
+        "property": "date",
+        "mode": "asof"
+      },
+      "paint": {
+        "line-color": "#000000",
+        "line-opacity": 0.65,
+        "line-width": 3.4
+      },
+      "description": "Sombra base del perímetro GeoPulse (probabilidad ≥ 0.50)."
+    },
+    {
+      "id": "burn-extent-outline",
+      "name": "Perímetro de quemado (GeoPulse)",
+      "type": "line",
+      "status": "real",
+      "simulated": false,
+      "source": {
+        "type": "geojson",
+        "data": "data/cases/wildfire-palisades-la/burn_extent.geojson"
+      },
+      "time": {
+        "property": "date",
+        "mode": "asof"
+      },
+      "paint": {
+        "line-color": "#ffd60a",
+        "line-width": 1.8
+      },
+      "legend": {
+        "title": "Perímetro GeoPulse",
+        "items": [
+          {
+            "color": "#ffd60a",
+            "label": "Probabilidad ≥ 0.50"
+          }
+        ]
+      },
+      "description": "Contorno amarillo GeoPulse donde la probabilidad de quemado supera 0.50.",
+      "popupFields": [
+        [
+          "area_km2",
+          "Área del polígono",
+          "km²"
+        ],
+        [
+          "threshold",
+          "Umbral P(quemado)"
+        ]
+      ]
+    }
+  ],
+  "wildfire": {
+    "kind": "geopulse-real",
+    "beforeWindow": "2024-12-01/2025-01-06",
+    "afterWindow": "2025-02-01/2025-03-31",
+    "summary": {
+      "task": "wildfire",
+      "target": "burn",
+      "affected_label": "burned",
+      "model": {
+        "id": "threshold-baseline",
+        "version": "0.1.0"
+      },
+      "aoi_km2": 110.113,
+      "observed_km2": 110.113,
+      "affected_km2": 70.146,
+      "review_km2": 7.249,
+      "mean_confidence_affected": 0.977,
+      "mean_uncertainty": 0.148,
+      "modality_weights": null,
+      "scenes": {
+        "s1_pre": 4,
+        "s1_post": 4,
+        "s2_pre": 3,
+        "s2_post": 4
+      },
+      "warnings": [],
+      "runtime_s": 72.63,
+      "engine": "wildfire-monitor · GeoPulse physics baseline",
+      "decision_policy": {
+        "threshold": 0.5,
+        "review_if_uncertainty_ge": 0.8
+      },
+      "files": {
+        "probability": "burn_probability.tif",
+        "extent": "burn_extent.geojson"
+      },
+      "severity_km2": {
+        "low": 11.845,
+        "moderate-low": 11.454,
+        "moderate-high": 24.105,
+        "high": 22.743
+      }
+    },
+    "provenance": {
+      "model": "threshold-baseline-v0.1.0",
+      "engine": "wildfire-monitor · GeoPulse physics baseline",
+      "before": "2024-12-01/2025-01-06",
+      "after": "2025-02-01/2025-03-31",
+      "sensors": {
+        "s2_pre": [
+          "S2A_MSIL2A_20241213T183801_R027_T11SLT_20241213T220549",
+          "S2B_MSIL2A_20241218T183709_R027_T11SLT_20241218T222347",
+          "S2A_MSIL2A_20250102T183751_R027_T11SLT_20250102T221646"
+        ],
+        "s2_post": [
+          "S2C_MSIL2A_20250201T183631_R027_T11SLT_20250201T210315",
+          "S2C_MSIL2A_20250221T183421_R027_T11SLT_20250222T001111",
+          "S2B_MSIL2A_20250226T183229_R027_T11SLT_20250226T215352",
+          "S2C_MSIL2A_20250303T183311_R027_T11SLT_20250303T232011"
+        ],
+        "s1_pre": [
+          "S1A_IW_GRDH_1SDV_20241221T015851_20241221T015916_057084_07044E_rtc",
+          "S1A_IW_GRDH_1SDV_20241228T015042_20241228T015107_057186_070853_rtc",
+          "S1A_IW_GRDH_1SDV_20250102T015850_20250102T015915_057259_070B31_rtc",
+          "S1A_IW_GRDH_1SDV_20250102T140045_20250102T140110_057266_070B76_rtc"
+        ],
+        "s1_post": [
+          "S1A_IW_GRDH_1SDV_20250202T015031_20250202T015056_057711_071D19_rtc",
+          "S1A_IW_GRDH_1SDV_20250202T135247_20250202T135312_057718_071D69_rtc",
+          "S1A_IW_GRDH_1SDV_20250207T015848_20250207T015913_057784_072001_rtc",
+          "S1A_IW_GRDH_1SDV_20250207T140054_20250207T140123_057791_072048_rtc"
+        ],
+        "dem": [
+          "Copernicus_DSM_COG_10_N34_00_W119_00_DEM"
+        ]
+      },
+      "bounds_wgs84": [
+        -118.62,
+        34.03,
+        -118.5,
+        34.12
+      ]
+    },
+    "extent": [
+      -118.62,
+      34.03,
+      -118.5,
+      34.12
+    ],
+    "demRange": [
+      0.0,
+      706.0
+    ],
+    "nbrRange": [
+      -1.0,
+      1.0
+    ],
+    "vhRange": [
+      -30.0,
+      0.0
+    ],
+    "physicsFiles": {
+      "s2_pre_nbr": "data/cases/wildfire-palisades-la/rasters/s2_pre_nbr.png",
+      "s2_post_nbr": "data/cases/wildfire-palisades-la/rasters/s2_post_nbr.png",
+      "s1_pre_vh": "data/cases/wildfire-palisades-la/rasters/s1_pre_vh.png",
+      "s1_post_vh": "data/cases/wildfire-palisades-la/rasters/s1_post_vh.png",
+      "dem_elevation": "data/cases/wildfire-palisades-la/rasters/dem_elevation.png",
+      "burn_prob": "data/cases/wildfire-palisades-la/rasters/burn_prob.png",
+      "burn_sev": "data/cases/wildfire-palisades-la/rasters/burn_sev.png",
+      "uncertainty": "data/cases/wildfire-palisades-la/rasters/uncertainty.png"
+    }
+  }
+}

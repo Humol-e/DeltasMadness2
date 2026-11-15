@@ -1,0 +1,39 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "glacier-langtang",
+        "name": "Valle de Langtang · Deshielo glaciar"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              85.5,
+              28.18
+            ],
+            [
+              85.74,
+              28.18
+            ],
+            [
+              85.74,
+              28.3
+            ],
+            [
+              85.5,
+              28.3
+            ],
+            [
+              85.5,
+              28.18
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

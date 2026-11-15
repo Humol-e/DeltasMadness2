@@ -4,7 +4,7 @@ export const UI_COPY = {
   en: {
     meta: {
       htmlLang: 'en',
-      title: 'Delta · Earth Radar',
+      title: 'Delta · DELTA\'S SAR',
       logoAria: 'Delta Anahuac website',
       logoAlt: 'Delta logo',
       navAria: 'Main navigation',
@@ -37,8 +37,8 @@ export const UI_COPY = {
     },
     pages: {
       home: {
-        title: 'Earth Radar',
-        description: 'When Earth changes irreversibly, every second of anticipation saves ecosystems.',
+        title: 'DELTA\'S SAR',
+        description: 'When Earth changes irreversibly, every second of anticipation saves ecosystems and lifes.',
       },
       permafrost: {
         title: 'Cryosphere & Glaciers',
@@ -262,7 +262,7 @@ export const UI_COPY = {
   es: {
     meta: {
       htmlLang: 'es',
-      title: 'Delta · Radar Terrestre',
+      title: 'Delta · DELTA\'S SAR',
       logoAria: 'Sitio web de Delta Anahuac',
       logoAlt: 'Logo de Delta',
       navAria: 'Navegación principal',
@@ -295,8 +295,8 @@ export const UI_COPY = {
     },
     pages: {
       home: {
-        title: 'Radar Terrestre',
-        description: 'Cuando la Tierra cambia de forma irreversible, cada segundo de anticipación salva ecosistemas.',
+        title: 'DELTA\'S SAR',
+        description: 'Cuando la Tierra cambia de forma irreversible, cada segundo de anticipación salva ecosistemas y vidas.',
       },
       permafrost: {
         title: 'Criosfera y Glaciares',

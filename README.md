@@ -1,21 +1,30 @@
 # Delta Madness (`DeltasMadness2` · `sar-Madness`)
 
-**All-weather multi-sensor geospatial satellite monitoring platform (SAR + optical + thermal + DEM) powered by 100% real data for Before / After analysis.**
+**All-weather multi-sensor geospatial satellite monitoring platform (SAR + optical + thermal + DEM) powered by deterministic physical models for Before / After analysis.**
 
 [![NASA Space Apps](https://img.shields.io/badge/NASA_Space_Apps_2026-Dancing_with_the_SARs-0B3D91)](./Delta_Madness_Documentation_English_Version.pdf)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB)](#installation-and-quick-start)
 [![Frontend](https://img.shields.io/badge/Viewer-Mapbox_GL_JS_v3.9_%2B_Vite_5-1E293B)](#4-3d-web-viewer-sar-madnesssar-madness)
-[![Catalog Schema v2](https://img.shields.io/badge/Catalog-6%2F6_Real_Cases_Validated-15803D)](#validated-real-study-cases)
+[![Catalog Schema v2](https://img.shields.io/badge/Catalog-6%2F6_Cases_Validated-15803D)](#validated-study-cases)
 
-> **Official NASA Space Apps Challenge documentation (English / PDF):** see [Delta_Madness_Documentation_English_Version.pdf](./Delta_Madness_Documentation_English_Version.pdf).  
-> **ETL & NISAR Cookbook technical reference:** [Articulo Tecnico Ingesta Geoespacial y NISAR Cookbook.pdf](./Articulo%20Tecnico%20Ingesta%20Geoespacial%20y%20NISAR%20Cookbook.pdf).
+> **Official NASA Space Apps Challenge Documentation (English PDF):** [Delta_Madness_Documentation_English_Version.pdf](./Delta_Madness_Documentation_English_Version.pdf)  
+> **Technical Article & NISAR Traceability (English PDF):** [Technical_Article_Geospatial_Ingestion_and_NISAR_Cookbook.pdf](./Technical_Article_Geospatial_Ingestion_and_NISAR_Cookbook.pdf)
+
+---
+
+## Project Submission Links
+
+* **Primary Source Code & Data Repository:** `https://github.com/Humol-e/DeltasMadness2`
+* **Public 7-Slide Presentation / <= 30-Second Demo Video:** `[PENDING — INSERT PUBLIC PRESENTATION OR <= 30-SECOND VIDEO LINK]`
+* **Public Hosted Web Viewer (Optional):** `[OPTIONAL — INSERT PUBLIC WEB VIEWER URL IF PUBLISHED]`
 
 ---
 
 ## Table of Contents
 
 1. [Project Overview](#project-overview)
-2. [Validated Real Study Cases](#validated-real-study-cases)
+2. [Validated Study Cases](#validated-study-cases)
 3. [Repository Architecture](#repository-architecture)
 4. [Scientific Pipelines & Web Viewer](#scientific-pipelines--web-viewer)
 5. [Mathematical & Physical Formulation](#mathematical--physical-formulation)
@@ -24,6 +33,7 @@
 8. [Testing and Validation](#testing-and-validation)
 9. [AI / Super Intelligence Transparency](#ai--super-intelligence-transparency)
 10. [Team & Contributors](#team--contributors)
+11. [License](#license)
 
 ---
 
@@ -31,26 +41,28 @@
 
 **Delta Madness** (`DeltasMadness2`) unifies **three Python scientific engines** and an **interactive 3D web viewer built with Mapbox GL JS (`sar-Madness`)** designed to monitor critical environmental changes without relying solely on clear-sky optical imagery:
 
-* **Wildfires (`incendios` / `wildfire-monitor`):** deterministic physical fusion between optical spectral indices (`dNBR`, `NDVI`, `MNDWI` from Sentinel-2) and polarimetric SAR backscatter drops (`VH`/`VV` from Sentinel-1 RTC), combined with Copernicus DEM terrain, Key & Benson (2006) severity classes, a pre-event physical water mask, and Shannon binary-entropy uncertainty.
-* **Glacier melt & alpine hydrology (`hola` / `glacier-monitor`):** multi-source composition in Google Earth Engine (Sentinel-1 GRD, Sentinel-2 SR, MODIS snow cover & land surface temperature) plus direct connectivity to NASA ASF Search / HyP3 (`SENTINEL1`, `NISAR`, `NISAR_SCIENCE_PRODUCTS`, `UAVSAR`, `OPERA_S1`) and optional upload to GCS/GEE Assets.
-* **Forest biomass & carbon (`biomasa` / `nisar-biomass-monitor`):** vectorized NumPy/SciPy implementation of the **NISAR L3 AGB ATBD** semi-empirical model using calibrated coefficients from `NISAR_Biomass/config/config.ini`, processing L-band L2 GCOV scenes (`20 m → 1 ha`) to estimate aboveground biomass (`Mg/ha`), carbon density (`0.47 * AGB`), and severe forest loss against PlanetScope validation.
+* **Forest biomass & carbon (`biomasa` / `nisar-biomass-monitor`):** vectorized NumPy/SciPy implementation of the **NISAR L3 AGB ATBD** semi-empirical model using calibrated coefficients from `NISAR_Biomass/config/config.ini`. It processes **official NASA pre-launch simulated NISAR L2 GCOV** (`20 m → 1 ha`, derived from UAVSAR/ALOS-2 over NEON LENO, Alabama) to estimate aboveground biomass (`Mg/ha`), carbon density (`0.47 * AGB`), and severe forest loss (`ΔAGB <= -40 Mg/ha`) compared against PlanetScope disturbance validation.
+* **Wildfires (`incendios` / `wildfire-monitor`):** deterministic physical baseline combining optical spectral indices (`dNBR`, `NDVI`, `MNDWI` from Sentinel-2 L2A) with an all-weather polarimetric SAR fallback (`VH` drop from Sentinel-1 RTC where optical observations are obscured/`NaN`), Copernicus DEM terrain slope, Key & Benson (2006) severity classes, a pre-event physical water mask, and Shannon binary-entropy uncertainty.
+* **Glacier melt & alpine hydrology (`hola` / `glacier-monitor`):** multi-source composition in Google Earth Engine (Sentinel-1 GRD, Sentinel-2 SR `NDSI`, MODIS `MOD10A1` snow cover & `MOD11A1` land surface temperature) plus connectivity to NASA ASF Search / HyP3 (`SENTINEL1`, `NISAR`, `NISAR_SCIENCE_PRODUCTS`, `UAVSAR`, `OPERA_S1`) and optional upload to GCS/GEE Assets.
 
-All components publish standardized products under **`schemaVersion: 2`** inside `sar-Madness/sar-Madness/public/data/`, where real-data compliance (`status: "real"`) is strictly validated before rendering or building.
+All components publish standardized products under **`schemaVersion: 2`** inside `sar-Madness/sar-Madness/public/data/`, where real-observation provenance (`status: "real"`) is strictly validated before rendering or building.
 
 ---
 
-## Validated Real Study Cases
+## Validated Study Cases
 
-The active catalog [`sar-Madness/sar-Madness/public/data/catalog.json`](./sar-Madness/sar-Madness/public/data/catalog.json) integrates **6 verified real cases** across three domains:
+The active catalog [`sar-Madness/sar-Madness/public/data/catalog.json`](./sar-Madness/sar-Madness/public/data/catalog.json) integrates **6 validated cases** across three domains:
 
 | Case ID | Domain | Location & Window | Primary Sources | Verified Key Metrics |
 | :--- | :--- | :--- | :--- | :--- |
 | `wildfire-camp-paradise` | Wildfire | Paradise, California (2018) | Planetary Computer (`S1 RTC` 4+4, `S2 L2A` 4+4, `COP-DEM` 56.0–558.0 m) | `54.41 km²` affected / `156.186 km²` observed; `9.201 km²` under review; severity (km²): low `19.598`, mod-low `14.242`, mod-high `10.835`, high `8.267` |
 | `wildfire-martin-nv` | Wildfire | Martin Fire, Nevada (2018) | Planetary Computer (`S1 RTC` 4+4, `S2 L2A` 4+4, `COP-DEM` 1550.0–1801.0 m) | `57.675 km²` affected / `179.589 km²` observed; `13.012 km²` under review; severity (km²): low `45.085`, mod-low `12.521`, mod-high `0.069`, high `0.0` |
 | `wildfire-palisades-la` | Wildfire | Palisades, Los Angeles (2025) | Planetary Computer (`S1 RTC` 4+4, `S2 L2A` 3+4, `COP-DEM` 0.0–706.0 m) | `70.146 km²` affected / `110.113 km²` observed; `7.249 km²` under review; severity (km²): low `11.845`, mod-low `11.454`, mod-high `24.105`, high `22.743` |
-| `glacier-langtang` | Cryosphere | Langtang Valley, Nepal (Jan–Feb vs May–Aug 2026) | GEE (`S2 SR` 26/31, `S1 GRD IW` 14/27, `MODIS MOD10A1/MOD11A1` 58/108) | MODIS snow cover `38.9% -> 13.7%`; LST `-6.9 °C -> 6.6 °C`; melt extent `92.6 km²` |
-| `glacier-khumbu` | Cryosphere | Khumbu Glacier, Nepal (Jan–Feb vs May–Aug 2026) | GEE (`S2 SR` 30/33, `S1 GRD IW` 12/18, `MODIS MOD10A1/MOD11A1` 58/108) | MODIS snow cover `20.4% -> 8.4%`; LST `-5.3 °C -> 6.1 °C`; melt extent `26.42 km²` |
-| `biomass-leno-nisar` | Biomass | NEON LENO, Alabama (`2022-09-30` vs `2023-09-29`) | NISAR simulated GCOV (UAVSAR/ALOS-2 via Wasabi S3), USGS NLCD, PlanetScope | Observed `405.3 km²` (forest `270.89 km²`); mean AGB `72.7 -> 66.1 Mg/ha`; disturbed `87.3 -> 14.1 Mg/ha`; severe loss `17.53 km²` (Planet ref `5.9 km²`); carbon loss `50.79 Gg C`; HV `-11.57 -> -11.78 dB`; model RMSE `0.53 dB` |
+| `glacier-langtang` | Cryosphere | Langtang Valley, Nepal (Jan–Feb vs May–Aug 2026) | GEE (`S2 SR` 26/31, `S1 GRD IW` 14/27, `MODIS MOD10A1/MOD11A1` 58/108) | MODIS snow cover `38.9% -> 13.7%`; LST `-6.9 °C -> 6.6 °C`; net ΔNDSI melt extent `92.6 km²` |
+| `glacier-khumbu` | Cryosphere | Khumbu Glacier, Nepal (Jan–Feb vs May–Aug 2026) | GEE (`S2 SR` 30/33, `S1 GRD IW` 12/18, `MODIS MOD10A1/MOD11A1` 58/108) | MODIS snow cover `20.4% -> 8.4%`; LST `-5.3 °C -> 6.1 °C`; net ΔNDSI melt extent `26.42 km²` |
+| `biomass-leno-nisar` | Biomass | NEON LENO, Alabama (`2022-09-30` vs `2023-09-29`) | Simulated NISAR L2 GCOV (UAVSAR/ALOS-2 via Wasabi S3), USGS NLCD, PlanetScope | Observed `405.3 km²` (forest `270.89 km²`); mean AGB `72.7 -> 66.1 Mg/ha`; disturbed `87.3 -> 14.1 Mg/ha`; severe loss `17.53 km²` (`ΔAGB <= -40 Mg/ha`, Planet ref `5.9 km²`*); carbon loss `50.79 Gg C`; HV `-11.57 -> -11.78 dB`; model RMSE `0.53 dB` |
+
+*\*Note on `biomass-leno-nisar`: L-band SAR inversion (`17.53 km²` at `ΔAGB <= -40 Mg/ha`) responds to volumetric canopy structure, soil moisture variation (`s`), and 1 ha aggregation, making it more sensitive to partial/structural degradation than the PlanetScope optical disturbance mask (`5.9 km²`). Additional `2021-08-06` and `2024-08-30` GCOV scenes are cached under `biomasa/data/cache/` for extended CLI analysis.*
 
 ---
 
@@ -59,7 +71,7 @@ The active catalog [`sar-Madness/sar-Madness/public/data/catalog.json`](./sar-Ma
 ```text
 +-----------------------------------------------------------------------------+
 |                  SATELLITE SOURCES & EXTERNAL SERVICES                      |
-|  • Wasabi S3 (NISAR L2 GCOV .h5, NLCD, Planet)                              |
+|  • Wasabi S3 (Simulated NISAR L2 GCOV .h5, NLCD, Planet validation)         |
 |  • Google Earth Engine (S1_GRD, S2_SR_HARMONIZED, MODIS MOD10A1/MOD11A1)    |
 |  • NASA ASF Search & HyP3 (SENTINEL1, NISAR, UAVSAR, OPERA_S1)              |
 |  • Microsoft Planetary Computer STAC + TiTiler (S2 L2A, S1 RTC, COP-DEM)    |
@@ -99,9 +111,11 @@ The active catalog [`sar-Madness/sar-Madness/public/data/catalog.json`](./sar-Ma
 
 ```text
 DeltasMadness2/
+├── LICENSE                                                # MIT Open Source License
+├── .gitmodules                                            # Submodule mapping for NISAR_Biomass
 ├── README.md                                              # Main repository overview
 ├── Delta_Madness_Documentation_English_Version.pdf        # Official NASA Space Apps documentation (English)
-├── Articulo Tecnico Ingesta Geoespacial y NISAR Cookbook.pdf # ETL multi-sensor & NISAR technical paper
+├── Technical_Article_Geospatial_Ingestion_and_NISAR_Cookbook.pdf # English ETL & NISAR Cookbook reference
 ├── biomasa/                                               # Python package nisar-biomass-monitor (CLI: biomass-stage1)
 │   ├── README.md
 │   ├── pyproject.toml
@@ -138,19 +152,19 @@ DeltasMadness2/
 │   │   └── ingestion/ (geopulse_bridge.py, native_catalog.py, pipeline.py, platform_exporter.py)
 │   └── tests/                                             # 27 pytest tests
 ├── NISAR_Biomass/                                         # Reference L3 AGB ATBD science submodule (config.ini)
-├── sar-Madness/sar-Madness/                               # Active 3D web viewer (Mapbox GL JS v3.9.0 + Vite v5.4.21)
-│   ├── package.json
-│   ├── index.html
-│   ├── .env.example
-│   ├── docs/ (SCHEMA.md, case.example.jsonc, case.template.json)
-│   ├── scripts/validate-catalog.mjs
-│   ├── public/data/ (catalog.json + 6 real cases in cases/)
-│   └── src/
-│       ├── main.js
-│       ├── style.css
-│       └── lib/ (beforeAfterExport.js, mapController.js, placeSearch.js, rasterCanvas.js, registry.js, schema.js, timeline.js)
-├── sar-mapa/                                              # Earlier web prototype (kept for reference)
-└── JSDEMO/sar-cambios/                                    # Initial synthetic demo (superseded by sar-Madness)
+└── sar-Madness/sar-Madness/                               # Active 3D web viewer (Mapbox GL JS v3.9.0 + Vite v5.4.11)
+    ├── README.md
+    ├── package.json
+    ├── index.html
+    ├── .env.example
+    ├── docs/ (SCHEMA.md, case.example.jsonc, case.template.json)
+    ├── scripts/validate-catalog.mjs
+    ├── tests/placeSearch.test.mjs                         # 3 Node tests (utility module)
+    ├── public/data/ (catalog.json + 6 cases in cases/)
+    └── src/
+        ├── main.js
+        ├── style.css
+        └── lib/ (beforeAfterExport.js, i18n.js, mapController.js, placeSearch.js, rasterCanvas.js, registry.js, schema.js, timeline.js)
 ```
 
 ---
@@ -159,23 +173,23 @@ DeltasMadness2/
 
 ### 1. `biomasa` (`nisar-biomass-monitor` v0.1.0)
 * Reads the 13 calibrated `[NISAR]` parameters (`A_HV`, `A_HH`, `B_HV`, `B_HH`, `C_HV`, `C_HH`, `alpha_HV`, `alpha_HH`, `delta_HV`, `delta_HH`, `D_HV`, `D_HH`, `s`) from `NISAR_Biomass/config/config.ini`.
-* Ingests simulated real **NISAR L2 GCOV (`.h5`, 20 m)** scenes from Wasabi S3 (`https://s3.us-west-1.wasabisys.com/nisar-public-ebd`, prefix `ATBD/ecosystems/disturbance/sites/leno/`) over the NEON **LENO** site (Alabama, `EPSG:32616`, `210x193` ha = `405.30 km²` grid).
+* Ingests official NASA pre-launch simulated **NISAR L2 GCOV (`.h5`, 20 m)** scenes from Wasabi S3 (`https://s3.us-west-1.wasabisys.com/nisar-public-ebd`, prefix `ATBD/ecosystems/disturbance/sites/leno/`) over the NEON **LENO** site (Alabama, `EPSG:32616`, `210x193` ha = `405.30 km²` grid).
 * Aggregates to **1 ha (100 m)**, masks non-forest/water/urban NLCD classes `{11, 12, 22, 23, 24}`, and applies physical SAR thresholds (`HV > 0.01`, `HV < 1`, `HH < 1`).
-* Evaluates the forward backscatter model (`volume + double_bounce + surface`) and inverts aboveground biomass `AGB (Mg/ha)` in decibels with `(4, 1)` weights on `HV` and `HH` (65-point grid search + 24 golden-section refinement steps without requiring GDAL/osgeo). Estimates carbon at `0.47 * agb_mgha`, exports severe loss polygons (`ΔAGB <= -40 Mg/ha`) compared against `PLANET_VAL_FINALDIST_100M_LENO_*`, WGS84 GeoTIFFs, and PNGs to `sar-Madness`.
+* Evaluates the forward backscatter model (`volume + double_bounce + surface`) and inverts aboveground biomass `AGB (Mg/ha)` in decibels with `(4, 1)` weights on `HV` and `HH` (65-point grid search + 24 golden-section refinement steps without requiring GDAL/osgeo). Estimates carbon at `0.47 * agb_mgha`, exports severe loss polygons (`ΔAGB <= -40 Mg/ha`) compared against `PLANET_VAL_FINALDIST_100M_LENO_*`, WGS84 GeoTIFFs, and PNGs to `sar-Madness/sar-Madness`.
 
 ### 2. `hola` (`glacier-monitor` v0.1.0)
 * Queries **Google Earth Engine** (`COPERNICUS/S1_GRD`, `COPERNICUS/S2_SR_HARMONIZED`, `MODIS/061/MOD10A1`, `MODIS/061/MOD11A1`) and the **NASA ASF Search / HyP3** bridge (`SENTINEL1`, `NISAR`, `NISAR_SCIENCE_PRODUCTS`, `UAVSAR`, `OPERA_S1`), with optional support for `gee-community/sar-asf-to-gee` and GCS/GEE Asset uploads.
-* Exports real Before/After composites (`NDSI`, Sentinel-2 RGB, Sentinel-1 `VV`/`VH`, MODIS `% snow`, MODIS `LST °C`), snow-loss GeoJSON polygons (`ndsi_drop_thresh=0.16`, `pre_snow_min=0.28`), and GeoTIFFs for `langtang` and `khumbu` (Nepal).
+* Exports Before/After composites (`NDSI`, Sentinel-2 RGB, Sentinel-1 `VV`/`VH`, MODIS `% snow`, MODIS `LST °C`), snow-loss GeoJSON polygons (`ndsi_drop_thresh=0.16`, `pre_snow_min=0.28`), and GeoTIFFs for `langtang` and `khumbu` (Nepal).
 
 ### 3. `incendios` (`wildfire-monitor` v0.1.0)
 * Connects to **Microsoft Planetary Computer** STAC (`sentinel-2-l2a`, `sentinel-1-rtc`, `cop-dem-glo-30`) + TiTiler and monitors active Scout alerts (**NASA EONET v3**, **GDACS**, **Copernicus EMS**).
 * Includes a standalone pure-Python GeoTIFF codec and Krüger ($n^6$) UTM–WGS84 reprojection.
-* Runs the deterministic physical baseline `compute_wildfire_physics` (`GeoPulse Physics Baseline v0.1.0`): sigmoid fusion of `dNBR` (`DNBR_BURN=0.1`) and fuel `NDVI` (`NDVI_FUEL=0.1`) plus SAR `VH` drop (`VH_DROP_DB=2.0`, `VH_CANOPY_DB=-17.0`), pre-event physical water constraint (`MNDWI` / `VV`), 4 Key & Benson (2006) severity classes `(0.1, 0.27, 0.44, 0.66)`, Shannon binary-entropy uncertainty $H(p)$, and `burn_extent.geojson` polygons (`P >= 0.50`). Includes **11 preset AOIs** (`palisades`, `camp_paradise`, `martin_nv`, `maui_lahaina`, `jasper_ab`, `valparaiso_cl`, `evros_gr`, `tenerife_es`, `tarahumara_mx`, `pantanal_br`, `los_alerces_ar`).
+* Runs the deterministic physical baseline `compute_wildfire_physics` (`GeoPulse Physics Baseline v0.1.0`): sigmoid fusion of `dNBR` (`DNBR_BURN=0.1`) and fuel `NDVI` (`NDVI_FUEL=0.1`), all-weather Sentinel-1 `VH` drop fallback (`VH_DROP_DB=2.0`, `VH_CANOPY_DB=-17.0`) where `S2` is `NaN`, pre-event physical water constraint (`MNDWI` / `VV`), 4 Key & Benson (2006) severity classes `(0.1, 0.27, 0.44, 0.66)`, Shannon binary-entropy uncertainty $H(p)$, and `burn_extent.geojson` polygons (`P >= 0.50`). Includes **11 preset AOIs** (`palisades`, `camp_paradise`, `martin_nv`, `maui_lahaina`, `jasper_ab`, `valparaiso_cl`, `evros_gr`, `tenerife_es`, `tarahumara_mx`, `pantanal_br`, `los_alerces_ar`).
 
 ### 4. 3D Web Viewer (`sar-Madness/sar-Madness`)
 * Built with **Mapbox GL JS `^3.9.0`** and **Vite `^5.4.11`**.
-* Supports **3D Globe**, **Flat Map**, and **3D Terrain** views with `terrarium` elevation tiles, switchable basemaps, and **Esri World Imagery** fallback when no Mapbox token is configured.
-* Performs client-side scientific LUT rendering of `gray8` rasters and `rgba` composites, real timestamp stepping without artificial cross-date interpolation, interactive **Before / After** geographic swipe comparison, real cursor pixel probing, GeoJSON perimeter inspection, comparative `.png` plate exports (`src/lib/beforeAfterExport.js`), and raw `.tif` downloads.
+* Supports **3D Globe**, **Flat Map**, and **3D Terrain** views with `terrarium` elevation tiles, switchable basemaps, and runtime **Esri World Imagery** fallback when Mapbox tile requests hit HTTP `429` rate limits (requires `VITE_MAPBOX_ACCESS_TOKEN` in `.env` to initialize the 3D globe and Satellite Monitoring view).
+* Performs client-side scientific LUT rendering of `gray8` rasters and `rgba` composites, real timestamp stepping without artificial cross-date interpolation, interactive **Before / After** geographic swipe comparison, real cursor pixel probing, GeoJSON perimeter overlays, comparative `.png` plate exports (`src/lib/beforeAfterExport.js`), and raw `.tif` downloads. Note: `src/lib/placeSearch.js` is an offline search/coordinate parser utility (covered by Node tests) not yet wired to a search bar in `src/main.js`.
 
 ---
 
@@ -209,12 +223,12 @@ $$\text{NDSI} = \frac{B_3 - B_{11}}{B_3 + B_{11}}, \qquad \text{LST}\ [^\circ\te
 
 $$\text{MeltLoss (\%)} = \max\bigl(0,\; 100 \cdot (\text{NDSI}_{\text{pre}} - \text{NDSI}_{\text{post}})\bigr), \qquad \text{Melt} \iff (\text{NDSI}_{\text{pre}} \ge 0.28) \land (\text{NDSI}_{\text{pre}} - \text{NDSI}_{\text{post}} \ge 0.16)$$
 
-### 3. Wildfires: SAR + Optical Fusion & Uncertainty (`incendios`)
+### 3. Wildfires: Optical + SAR Fallback & Uncertainty (`incendios`)
 * **Normalized spectral indices (`Sentinel-2 L2A`) and bounded sigmoid** ($\sigma(x) = (1 + e^{-\operatorname{clip}(x, -30, 30)})^{-1}$):
 
 $$\text{NBR} = \frac{\text{NIR} - \text{SWIR}_2}{\text{NIR} + \text{SWIR}_2 + \epsilon}, \quad \Delta\text{NBR} = \text{NBR}_{\text{pre}} - \text{NBR}_{\text{post}}, \quad \text{NDVI} = \frac{\text{NIR} - \text{Red}}{\text{NIR} + \text{Red} + \epsilon}, \quad \text{MNDWI} = \frac{\text{Green} - \text{SWIR}_1}{\text{Green} + \text{SWIR}_1 + \epsilon}$$
 
-* **Optical burn probability (`S2`) and all-weather SAR `VH` drop fallback (`Sentinel-1 RTC`):**
+* **Optical burn probability (`S2`) and all-weather SAR `VH` drop fallback (`Sentinel-1 RTC`, used where optical pixels are `NaN`):**
 
 $$P_{\text{burn, S2}} = \sigma\!\left(\frac{\Delta\text{NBR} - 0.10}{0.025}\right) \cdot \sigma\!\left(\frac{\text{NDVI}_{\text{pre}} - 0.10}{0.03}\right), \qquad P_{\text{burn, S1}} = \sigma\!\left(\frac{(\text{VH}_{\text{pre}} - \text{VH}_{\text{post}}) - 2.0\text{ dB}}{0.6}\right) \cdot \sigma\!\left(\frac{\text{VH}_{\text{pre}} + 17.0\text{ dB}}{1.0}\right)$$
 
@@ -238,27 +252,22 @@ $$H(P) = -\bigl(q\log_2(q) + (1 - q)\log_2(1 - q)\bigr)\ \text{bits}, \qquad \De
 ## Data Sources (NASA, Partner Space Agencies & Third Parties)
 
 ### NASA Data & Resources
-* **Active across pipelines and web viewer:**
-  * **NASA-ISRO NISAR** ([NISAR mission](https://science.nasa.gov/mission/nisar/), L-band 20 m simulated L2 GCOV scenes over NEON LENO on Wasabi S3 [`nisar-public-ebd`](https://s3.us-west-1.wasabisys.com/nisar-public-ebd), calibrated L3 AGB ATBD algorithm integrated from submodule [`NISAR-Science-Algorithms/NISAR_Biomass`](https://github.com/NISAR-Science-Algorithms/NISAR_Biomass), and `asf-search` queries for `NISAR`, `NISAR_SCIENCE_PRODUCTS`, `UAVSAR`, `OPERA_S1`).
-  * **NASA MODIS** ([MOD10A1 v061](https://nsidc.org/data/mod10a1/versions/61) 500 m snow cover and [MOD11A1 v061](https://www.earthdata.nasa.gov/data/catalog/lpcloud-mod11a1-061) 1 km LST via GEE for cryosphere).
-  * **NASA ASF DAAC & HyP3** ([Vertex Search](https://search.asf.alaska.edu/#/) and [`asfadmin/Discovery-asf_search`](https://github.com/asfadmin/Discovery-asf_search) + [`ASFHyP3/hyp3-sdk`](https://github.com/ASFHyP3/hyp3-sdk) connectors in `hola`).
-  * **NASA EONET API v3** ([documentation](https://eonet.gsfc.nasa.gov/docs/v3) and [`/api/v3/events`](https://eonet.gsfc.nasa.gov/api/v3/events) endpoint for active wildfire alerts in `incendios` Scout).
-* **Documented in the ETL technical paper ([Technical Article](./Articulo%20Tecnico%20Ingesta%20Geoespacial%20y%20NISAR%20Cookbook.pdf)):**
-  * [NASA Earthdata CMR](https://cmr.earthdata.nasa.gov/), [NASA POWER (MERRA-2)](https://power.larc.nasa.gov/), [NASA GIBS WMS](https://gibs.earthdata.nasa.gov/) (`VIIRS` / `MODIS_Terra_NDSI_Snow_Cover`), and lineage to [`ASFOpenSARlab/NISAR_Cookbook`](https://github.com/ASFOpenSARlab/NISAR_Cookbook) (Lewandowski & White).
+* **NASA-ISRO NISAR:** ([NISAR mission](https://science.nasa.gov/mission/nisar/)) L-band 20 m simulated L2 GCOV scenes over NEON LENO on Wasabi S3 [`nisar-public-ebd`](https://s3.us-west-1.wasabisys.com/nisar-public-ebd), calibrated L3 AGB ATBD algorithm from [`NISAR-Science-Algorithms/NISAR_Biomass`](https://github.com/NISAR-Science-Algorithms/NISAR_Biomass), and `asf-search` queries for `NISAR`, `NISAR_SCIENCE_PRODUCTS`, `UAVSAR`, and `OPERA_S1`.
+* **NASA MODIS:** ([MOD10A1 v061](https://nsidc.org/data/mod10a1/versions/61) 500 m snow cover and [MOD11A1 v061](https://www.earthdata.nasa.gov/data/catalog/lpcloud-mod11a1-061) 1 km LST via GEE for cryosphere).
+* **NASA ASF DAAC & HyP3:** ([Vertex Search](https://search.asf.alaska.edu/#/), [`asfadmin/Discovery-asf_search`](https://github.com/asfadmin/Discovery-asf_search), and [`ASFHyP3/hyp3-sdk`](https://github.com/ASFHyP3/hyp3-sdk) connectors in `hola`).
+* **NASA EONET API v3:** ([documentation](https://eonet.gsfc.nasa.gov/docs/v3) and [`/api/v3/events`](https://eonet.gsfc.nasa.gov/api/v3/events) endpoint for active wildfire alerts in `incendios`).
+* **Methodological Alignment (`NISAR Cookbook`):** [`ASFOpenSARlab/NISAR_Cookbook`](https://github.com/ASFOpenSARlab/NISAR_Cookbook) (Lewandowski & White) concepts (`GCOV` covariance products, SAR subsetting, polarimetric metadata) documented in [`Technical_Article_Geospatial_Ingestion_and_NISAR_Cookbook.pdf`](./Technical_Article_Geospatial_Ingestion_and_NISAR_Cookbook.pdf).
 
 ### Partner Space Agencies (Space Apps Partners 2026), Repositories & Other References
 * **ESA (European Space Agency):** Copernicus **Sentinel-1** (`S1_GRD` and `sentinel-1-rtc`), Copernicus **Sentinel-2** (`S2_SR_HARMONIZED` and `sentinel-2-l2a`), **Copernicus DEM GLO-30** (`cop-dem-glo-30`) via [Copernicus Data Space / Sentinels](https://sentinels.copernicus.eu/), and [Copernicus Emergency Management Service (CEMS) RSS](https://mapping.emergency.copernicus.eu/activations/rss/).
 * **ISRO (Indian Space Research Organisation):** co-partner of the joint [NASA-ISRO NISAR](https://www.isro.gov.in/NASA_ISRO_SAR_Satellite.html) mission.
-* **JAXA (Japan Aerospace Exploration Agency):** official [ALOS / ALOS-2 L-Band SAR](https://www.eorc.jaxa.jp/ALOS/en/index_e.htm) portal (co-reference alongside UAVSAR in the simulated NISAR GCOV product for `biomass-leno-nisar`).
-* **CSA (Canadian Space Agency):** open [RADARSAT-1](https://www.asc-csa.gc.ca/eng/satellites/radarsat1/) archive on AWS / [EODMS RAPI](https://mms-smm.gc.ca/eodms-sgdot/index-en.html) documented in the ETL technical paper.
+* **JAXA (Japan Aerospace Exploration Agency):** [ALOS / ALOS-2 L-Band SAR](https://www.eorc.jaxa.jp/ALOS/en/index_e.htm) (co-reference alongside UAVSAR in the simulated NISAR L2 GCOV product for `biomass-leno-nisar`).
 * **Integrated / Referenced External Repositories:**
-  * [`NISAR-Science-Algorithms/NISAR_Biomass`](https://github.com/NISAR-Science-Algorithms/NISAR_Biomass) (Git submodule in `NISAR_Biomass/`, basis of `biomasa/`).
+  * [`NISAR-Science-Algorithms/NISAR_Biomass`](https://github.com/NISAR-Science-Algorithms/NISAR_Biomass) (submodule in `NISAR_Biomass/`, basis of `biomasa/`).
   * [`nrahaman1/geopulse`](https://github.com/nrahaman1/geopulse) (`threshold-baseline` physical model and reference wildfires for `incendios/`).
-  * [`ASFOpenSARlab/NISAR_Cookbook`](https://github.com/ASFOpenSARlab/NISAR_Cookbook) (official NISAR notebooks referenced in the ETL technical paper).
   * [`gee-community/sar-asf-to-gee`](https://github.com/gee-community/sar-asf-to-gee) (optional ASF HyP3 → GEE bridge in `hola/pyproject.toml`).
-  * [`johntruckenbrodt/pyroSAR`](https://github.com/johntruckenbrodt/pyroSAR) (documented companion SAR preprocessing ecosystem).
-  * SDKs and web viewer: [`mapbox/mapbox-gl-js`](https://github.com/mapbox/mapbox-gl-js), [`vitejs/vite`](https://github.com/vitejs/vite), [`asfadmin/Discovery-asf_search`](https://github.com/asfadmin/Discovery-asf_search), [`ASFHyP3/hyp3-sdk`](https://github.com/ASFHyP3/hyp3-sdk), [`google/earthengine-api`](https://github.com/google/earthengine-api).
-* **Other Geospatial Platforms & References:** [Microsoft Planetary Computer STAC](https://planetarycomputer.microsoft.com/api/stac/v1), [Google Earth Engine](https://developers.google.com/earth-engine/datasets), [USGS NLCD](https://www.usgs.gov/centers/eros/science/national-land-cover-database) (`LENO_LULC.tif`), PlanetScope disturbance validation (`PLANET_VAL_FINALDIST_100M_LENO_*`), [GDACS RSS](https://www.gdacs.org/xml/rss.xml), [AWS Terrain Tiles (`terrarium`)](https://registry.opendata.aws/terrain-tiles/), Esri World Imagery, and Key & Benson (2006).
+  * SDKs & Web Viewer: [`mapbox/mapbox-gl-js`](https://github.com/mapbox/mapbox-gl-js), [`vitejs/vite`](https://github.com/vitejs/vite), [`google/earthengine-api`](https://github.com/google/earthengine-api).
+* **Other Geospatial Platforms & Visual Assets:** [Microsoft Planetary Computer STAC](https://planetarycomputer.microsoft.com/api/stac/v1), [Google Earth Engine](https://developers.google.com/earth-engine/datasets), [USGS NLCD](https://www.usgs.gov/centers/eros/science/national-land-cover-database) (`LENO_LULC.tif`), PlanetScope disturbance validation (`PLANET_VAL_FINALDIST_100M_LENO_*`), [GDACS RSS](https://www.gdacs.org/xml/rss.xml), [AWS Terrain Tiles (`terrarium`)](https://registry.opendata.aws/terrain-tiles/), Esri World Imagery (429 runtime fallback), Key & Benson (2006), and curated public-case header thumbnails stored in `sar-Madness/sar-Madness/public/images/cases/`.
 
 ---
 
@@ -270,13 +279,13 @@ $$H(P) = -\bigl(q\log_2(q) + (1 - q)\log_2(1 - q)\bigr)\ \text{bits}, \qquad \De
 
 ### 1. Run the 3D Web Viewer (`sar-Madness/sar-Madness`)
 
-All precomputed real cases are already packaged under `sar-Madness/sar-Madness/public/data/`, so the viewer launches immediately without re-downloading satellite data:
+All precomputed cases are already packaged under `sar-Madness/sar-Madness/public/data/`:
 
 ```powershell
 cd "sar-Madness/sar-Madness"
 npm install
-Copy-Item .env.example .env   # Optional: paste your pk.* token into VITE_MAPBOX_ACCESS_TOKEN (falls back to Esri imagery without a token)
-npm run validate              # Validates catalog.json and all 6 real cases
+Copy-Item .env.example .env   # Required: paste your public pk.* token into VITE_MAPBOX_ACCESS_TOKEN
+npm run validate              # Validates catalog.json and all 6 cases
 npm run dev                   # Starts the local Vite dev server
 ```
 
@@ -300,7 +309,7 @@ py -m pip install -e incendios
 Main CLI commands by module:
 
 ```powershell
-# Forest biomass (public Wasabi S3, no credentials required)
+# Forest biomass (public Wasabi S3 simulated NISAR GCOV, no credentials required)
 biomass-stage1 list-scenes
 biomass-stage1 publish-madness
 
@@ -322,30 +331,38 @@ glacier-stage1 publish-madness
 
 ## Testing and Validation
 
-Verified directly on the current codebase:
+Verified on the codebase:
 
 | Suite / Check | Command | Observed Result |
 | :--- | :--- | :--- |
-| Web catalog validation (`sar-Madness`) | `cd sar-Madness/sar-Madness && npm run validate` | **6 / 6 valid real cases** (`Valid catalog (100% real data)`) |
-| Search & coordinate tests (`sar-Madness`) | `cd sar-Madness/sar-Madness && node --test tests/placeSearch.test.mjs` | **3 passed** |
-| Biomass unit tests (`biomasa`) | `cd biomasa && py -m pytest -v` | **8 passed** |
-| Glacier unit tests (`hola`) | `cd hola && py -m pytest -v` | **44 passed** |
-| Wildfire unit tests (`incendios`) | `cd incendios && py -m pytest -v` | **27 passed** |
+| Web catalog validation (`sar-Madness`) | `cd sar-Madness/sar-Madness && node scripts/validate-catalog.mjs` | **6 / 6 valid cases** (`Valid catalog (100% real data)`) |
+| Search & coordinate utility tests (`sar-Madness`) | `cd sar-Madness/sar-Madness && node --test tests/placeSearch.test.mjs` | **3 passed** |
+| Biomass unit tests (`biomasa`) | `cd biomasa && py -B -m pytest -p no:cacheprovider -q` | **8 passed** |
+| Glacier unit tests (`hola`) | `cd hola && py -B -m pytest -p no:cacheprovider -q` | **44 passed** |
+| Wildfire unit tests (`incendios`) | `cd incendios && py -B -m pytest -p no:cacheprovider -q` | **27 passed** |
 
 ---
 
 ## AI / Super Intelligence Transparency
 
-* LLM/AI coding assistants were used during development solely to accelerate software implementation, refactoring, debugging, and technical documentation drafting.
+* LLM/AI coding assistants were used during development solely to accelerate software implementation, refactoring, debugging, and technical documentation drafting/translation.
 * Problem conception, architectural design, sensor selection, and physical/statistical formulations are authored by the team.
-* **At runtime**, both the `sar-Madness` viewer and the three pipelines (`biomasa`, `hola`, `incendios`) operate **100% deterministically** on real satellite data and explicit physical models, with zero generative inference or synthetic imagery synthesis.
+* **At runtime**, both the `sar-Madness` viewer and the three pipelines (`biomasa`, `hola`, `incendios`) operate **100% deterministically** on satellite data and explicit physical models, with zero generative inference or synthetic imagery synthesis (`torch>=2.4` is listed only under optional metadata in `incendios/pyproject.toml` and is unused in published cases).
 
 ---
 
 ## Team & Contributors
 
-Developed collaboratively by:
+Developed collaboratively by **Delta Madness**:
 
-* **Emiliano Castro** — [@Humol-e](https://github.com/Humol-e)
-* **Raúl** — [@Peanut-Butter-Arc](https://github.com/Peanut-Butter-Arc)
-* **Karla Yelitza** — [@karlayelitza020705-ui](https://github.com/karlayelitza020705-ui)
+* **Raúl Isaac Santos Ruiz** — [@Peanut-Butter-Arc](https://github.com/Peanut-Butter-Arc)
+* **Karla Yelitza Figueroa Garcia** — [@karlayelitza020705-ui](https://github.com/karlayelitza020705-ui)
+* **Aaron Fernandez Lizarraga** — `[PENDING — INSERT GITHUB PROFILE LINK]`
+* **Luis Emiliano Castro Reza** — [@Humol-e](https://github.com/Humol-e)
+* **Liv Nicole Gay De la O** — `[PENDING — INSERT GITHUB PROFILE LINK]`
+
+---
+
+## License
+
+This project is released under the **MIT License** — see [`LICENSE`](./LICENSE) for full terms. Third-party algorithm files under [`NISAR_Biomass/`](./NISAR_Biomass) remain governed by [`NISAR_Biomass/LICENSE`](./NISAR_Biomass/LICENSE) (Apache License 2.0).

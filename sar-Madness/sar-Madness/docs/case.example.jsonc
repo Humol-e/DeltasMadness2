@@ -1,24 +1,24 @@
-// Ejemplo COMENTADO de un caso (esquema v2). La app admite comentarios // y /* */ en los JSON.
-// Copia este archivo a public/data/cases/<tu-caso>/case.json (puedes dejar los comentarios)
-// y añade la ruta a public/data/catalog.json. Valida con: npm run validate
+// COMMENTED EXAMPLE of a case (Schema v2). The app supports // and /* */ comments in JSON files.
+// Copy this file to public/data/cases/<your-case>/case.json (you may keep comments)
+// and add the path to public/data/catalog.json. Validate with: npm run validate
 {
-  "schemaVersion": 2,                 // obligatorio; versión del esquema
-  "id": "mi-caso",                    // único; letras, números, _ y -
-  "title": "Mi zona",
-  "status": "demo",                   // "demo" | "real". Si no se declara, se asume "demo"
+  "schemaVersion": 2,                 // required; schema version
+  "id": "my-case",                    // unique; letters, digits, _ and -
+  "title": "My study site",
+  "status": "demo",                   // "demo" | "real". If omitted, defaults to "demo"
   "view": { "center": [85.53, 28.22], "zoom": 11, "pitch": 45, "bearing": 0 },
 
-  "datasets": [                       // RÁSTERES. Cada dataset tiene sus propias fechas (frames)
+  "datasets": [                       // RASTERS. Each dataset has its own timestamps (frames)
     {
-      "id": "sar1",                   // sin ":" ni espacios
-      "name": "SAR satélite 1",
+      "id": "sar1",                   // no ":" or spaces
+      "name": "SAR satellite 1",
       "kind": "raster",
       "status": "demo",
-      // Metadatos opcionales: null = «pendiente». La interfaz muestra «pendiente», no inventa.
+      // Optional metadata: null = "pending". The UI displays "pending" instead of guessing.
       "platform": null, "sensor": null, "provider": null, "product": null,
-      "attribution": "Datos sintéticos",
+      "attribution": "Synthetic data",
 
-      // Variables disponibles EN ESTE dataset (pueden diferir entre satélites: HH y/o HV)
+      // Available variables IN THIS dataset (may differ across satellites: HH and/or HV)
       "variables": [
         { "id": "HH", "label": "HH", "quantity": "backscatter", "polarization": "HH", "unit": "dB",
           "legend": { "min": -25, "max": 0, "colors": ["#0B0F14", "#8A97A6", "#F4F7FA"] } },
@@ -26,55 +26,55 @@
           "legend": { "min": -30, "max": -5, "colors": ["#0B0F14", "#8A97A6", "#F4F7FA"] } }
       ],
 
-      // Composiciones RGB opcionales (solo image + gray8). Un canal puede ser null.
-      // No se asigna ningún compuesto por defecto: lo define el equipo.
+      // Optional RGB composites (image + gray8 only). One channel may be null.
+      // No default composite is assigned automatically: defined explicitly per dataset.
       "composites": [
-        { "id": "rgb-ejemplo", "label": "RGB de ejemplo", "channels": { "r": "HH", "g": "HV", "b": "HH" } }
+        { "id": "rgb-example", "label": "Example RGB", "channels": { "r": "HH", "g": "HV", "b": "HH" } }
       ],
 
-      // Cómo vienen los archivos:
-      //  { "type": "image", "encoding": "gray8" }  PNG local 8 bits (0 = sin dato; 1..255 = min..max de la leyenda)
-      //  { "type": "image", "encoding": "rgba" }   PNG/JPG ya coloreado (se muestra tal cual)
-      //  { "type": "tiles", "tileSize": 256 }      teselas XYZ (URL con {z}/{x}/{y}); sin swipe ni valor de píxel
+      // Source file configuration:
+      //  { "type": "image", "encoding": "gray8" }  local 8-bit PNG (0 = nodata; 1..255 = legend min..max)
+      //  { "type": "image", "encoding": "rgba" }   pre-colored PNG/JPG (displayed as-is)
+      //  { "type": "tiles", "tileSize": 256 }      XYZ tiles (URL with {z}/{x}/{y}); no swipe or pixel probe
       "source": { "type": "image", "encoding": "gray8", "nodata": 0 },
 
-      "extent": [85.46, 28.13, 85.61, 28.31],   // [oeste, sur, este, norte] en grados
-      "crs": null,                               // pendiente
-      "resolution": null,                        // p. ej. { "value": 10, "unit": "m" }
-      "render": { "opacity": 0.85, "resampling": "linear" },   // "nearest" muestra los píxeles gruesos
+      "extent": [85.46, 28.13, 85.61, 28.31],   // [west, south, east, north] in degrees
+      "crs": null,                               // pending
+      "resolution": null,                        // e.g. { "value": 10, "unit": "m" }
+      "render": { "opacity": 0.85, "resampling": "linear" },   // "nearest" shows crisp pixels
 
-      // Un frame por fecha. Cada fuente puede tener fechas distintas.
+      // One frame per timestamp. Each source may have distinct dates.
       "frames": [
         { "id": "s1-20260304", "datetime": "2026-03-04",
-          "files": { "HH": "data/cases/mi-caso/rasters/sar1_HH_20260304.png",
-                     "HV": "data/cases/mi-caso/rasters/sar1_HV_20260304.png" } },
-        { "datetime": "2026-03-16T05:30:00Z",   // "id" es opcional; también se admite hora ISO 8601
-          "files": { "HH": "data/cases/mi-caso/rasters/sar1_HH_20260316.png" } }   // un frame puede traer solo algunas variables
+          "files": { "HH": "data/cases/my-case/rasters/sar1_HH_20260304.png",
+                     "HV": "data/cases/my-case/rasters/sar1_HV_20260304.png" } },
+        { "datetime": "2026-03-16T05:30:00Z",   // "id" is optional; ISO 8601 time is also supported
+          "files": { "HH": "data/cases/my-case/rasters/sar1_HH_20260316.png" } }   // a frame may include only a subset of variables
       ]
     }
-    // Ejemplo de dataset con teselas (futuro; sin credenciales en el frontend, usa un proxy propio):
+    // Example tiled dataset (future; never store credentials in frontend, use your own proxy):
     // { "id": "modis", ..., "source": { "type": "tiles", "tileSize": 256, "minzoom": 0, "maxzoom": 10 },
-    //   "frames": [ { "datetime": "2026-03-06", "files": { "T": "https://tu-proxy.example/tiles/modis/20260306/{z}/{x}/{y}.png" } } ] }
+    //   "frames": [ { "datetime": "2026-03-06", "files": { "T": "https://your-proxy.example/tiles/modis/20260306/{z}/{x}/{y}.png" } } ] }
   ],
 
-  "vectors": [                        // VECTORES (GeoJSON): categoría independiente de los rásteres
+  "vectors": [                        // VECTORS (GeoJSON): independent category from rasters
     {
-      "id": "zonas",
-      "name": "Zonas",
+      "id": "zones",
+      "name": "Zones",
       "type": "fill",                 // "fill" | "line" | "circle"
       "status": "demo",
-      "simulated": true,              // true = se rotula SIMULADO en capa, panel y leyenda
-      // Indicador opcional (deshielo, riesgo, SWE, lluvia...). La app NO calcula nada:
-      // si no es simulado y falta "validation", se muestra «sin validación».
+      "simulated": true,              // true = labeled SIMULATED on layer, panel, and legend
+      // Optional indicator (snowmelt, risk, SWE, rainfall...). The app performs NO calculations:
+      // if not simulated and "validation" is missing, "unvalidated" is displayed.
       "indicator": { "kind": "risk_zone", "simulated": true, "validation": null },
-      "source": { "type": "geojson", "data": "data/cases/mi-caso/zonas.geojson" },
-      // Cada feature lleva la fecha en properties.date (ISO 8601).
-      //  "asof": muestra los datos de la fecha más reciente <= fecha elegida
-      //  "cumulative": muestra todo hasta esa fecha
+      "source": { "type": "geojson", "data": "data/cases/my-case/zones.geojson" },
+      // Each feature stores its timestamp in properties.date (ISO 8601).
+      //  "asof": shows features from the most recent date <= selected date
+      //  "cumulative": shows all features up to the selected date
       "time": { "property": "date", "mode": "asof" },
-      "paint": { "fill-color": "#E4572E", "fill-opacity": 0.4 },     // estilo Mapbox GL
-      "legend": { "title": "Zona", "items": [{ "color": "#E4572E", "label": "SIMULADO" }] },
-      "popupFields": [["zone_id", "Zona"], ["area_km2", "Área", "km²"]]   // [clave, etiqueta, unidad]; falta → «No disponible»
+      "paint": { "fill-color": "#E4572E", "fill-opacity": 0.4 },     // Mapbox GL paint style
+      "legend": { "title": "Zone", "items": [{ "color": "#E4572E", "label": "SIMULATED" }] },
+      "popupFields": [["zone_id", "Zone"], ["area_km2", "Area", "km²"]]   // [key, label, unit]; missing -> "Unavailable"
     }
   ]
 }

@@ -3,10 +3,10 @@
   "id": "glacier-langtang",
   "status": "real",
   "simulated": false,
-  "category": "deshielo",
-  "title": "Valle de Langtang · Deshielo glaciar",
-  "region": "Himalaya central, Nepal",
-  "description": "Retroceso estacional de cobertura nival y transición de nieve seca invernal (ene–feb 2026) a deshielo estival sobre 0 °C (may–ago 2026) observado con Sentinel-2, Sentinel-1 GRD y MODIS.",
+  "category": "glacier",
+  "title": "Langtang Valley · Glacial Melt",
+  "region": "Central Himalayas, Nepal",
+  "description": "Seasonal snow cover retreat and transition from dry winter snowpack (Jan-Feb 2026) to summer melt above 0 °C (May-Aug 2026) observed with Sentinel-2, Sentinel-1 GRD, and MODIS.",
   "view": {
     "center": [
       85.62,
@@ -19,7 +19,7 @@
   "sources": [
     "Google Earth Engine · COPERNICUS/S2_SR_HARMONIZED (26 pre / 31 post)",
     "Google Earth Engine · COPERNICUS/S1_GRD IW (14 pre / 27 post)",
-    "Google Earth Engine · MODIS/061/MOD10A1 y MOD11A1 (58 pre / 108 post)"
+    "Google Earth Engine · MODIS/061/MOD10A1 and MOD11A1 (58 pre / 108 post)"
   ],
   "metrics": {
     "preWindow": "2026-01-01..2026-02-28",
@@ -33,13 +33,13 @@
   "datasets": [
     {
       "id": "s2_rgb",
-      "name": "Sentinel-2 RGB · Color real",
+      "name": "Sentinel-2 RGB · True Color",
       "kind": "raster",
       "status": "real",
       "platform": "Sentinel-2A/2B/2C",
       "sensor": "MSI",
       "provider": "Google Earth Engine",
-      "product": "Compuesto sin nubes B4/B3/B2",
+      "product": "Cloud-free composite B4/B3/B2",
       "attribution": "ESA Copernicus Sentinel-2",
       "extent": [
         85.5,
@@ -59,7 +59,7 @@
       "variables": [
         {
           "id": "rgb",
-          "label": "Color verdadero (B4/B3/B2)",
+          "label": "True Color (B4/B3/B2)",
           "quantity": "reflectance",
           "polarization": null,
           "unit": "RGB"
@@ -69,7 +69,7 @@
         {
           "id": "s2-pre",
           "datetime": "2026-02-28T00:00:00Z",
-          "label": "Antes · 2026-01-01 a 2026-02-28",
+          "label": "Before · 2026-01-01 to 2026-02-28",
           "phase": "before",
           "files": {
             "rgb": "data/cases/glacier-langtang/s2_pre_rgb.png"
@@ -78,7 +78,7 @@
         {
           "id": "s2-post",
           "datetime": "2026-08-31T00:00:00Z",
-          "label": "Después · 2026-05-15 a 2026-08-31",
+          "label": "After · 2026-05-15 to 2026-08-31",
           "phase": "after",
           "files": {
             "rgb": "data/cases/glacier-langtang/s2_post_rgb.png"
@@ -88,7 +88,7 @@
     },
     {
       "id": "s2_ndsi",
-      "name": "Índice de nieve NDSI · Sentinel-2",
+      "name": "Snow Index NDSI · Sentinel-2",
       "kind": "raster",
       "status": "real",
       "platform": "Sentinel-2",
@@ -115,7 +115,7 @@
       "variables": [
         {
           "id": "ndsi",
-          "label": "Índice NDSI de nieve",
+          "label": "Snow Index (NDSI)",
           "quantity": "spectral_index",
           "polarization": null,
           "unit": "NDSI",
@@ -136,7 +136,7 @@
         {
           "id": "ndsi-pre",
           "datetime": "2026-02-28T00:00:00Z",
-          "label": "Antes · 2026-01-01 a 2026-02-28",
+          "label": "Before · 2026-01-01 to 2026-02-28",
           "phase": "before",
           "files": {
             "ndsi": "data/cases/glacier-langtang/s2_pre_ndsi.png"
@@ -145,7 +145,7 @@
         {
           "id": "ndsi-post",
           "datetime": "2026-08-31T00:00:00Z",
-          "label": "Después · 2026-05-15 a 2026-08-31",
+          "label": "After · 2026-05-15 to 2026-08-31",
           "phase": "after",
           "files": {
             "ndsi": "data/cases/glacier-langtang/s2_post_ndsi.png"
@@ -155,13 +155,13 @@
     },
     {
       "id": "s1_sar",
-      "name": "Radar SAR · Sentinel-1 GRD",
+      "name": "SAR Radar · Sentinel-1 GRD",
       "kind": "raster",
       "status": "real",
       "platform": "Sentinel-1",
       "sensor": "C-SAR IW",
       "provider": "Google Earth Engine",
-      "product": "Retrodispersión σ⁰ en invierno vs deshielo",
+      "product": "Backscatter σ⁰ winter vs melt",
       "attribution": "ESA Copernicus Sentinel-1",
       "extent": [
         85.5,
@@ -182,7 +182,7 @@
       "variables": [
         {
           "id": "vh",
-          "label": "Polarización VH",
+          "label": "VH Polarization",
           "quantity": "backscatter",
           "polarization": "VH",
           "unit": "dB",
@@ -199,7 +199,7 @@
         },
         {
           "id": "vv",
-          "label": "Polarización VV",
+          "label": "VV Polarization",
           "quantity": "backscatter",
           "polarization": "VV",
           "unit": "dB",
@@ -219,7 +219,7 @@
         {
           "id": "s1-pre",
           "datetime": "2026-02-28T00:00:00Z",
-          "label": "Antes · 2026-01-01 a 2026-02-28",
+          "label": "Before · 2026-01-01 to 2026-02-28",
           "phase": "before",
           "files": {
             "vh": "data/cases/glacier-langtang/s1_pre_vh.png",
@@ -229,7 +229,7 @@
         {
           "id": "s1-post",
           "datetime": "2026-08-31T00:00:00Z",
-          "label": "Después · 2026-05-15 a 2026-08-31",
+          "label": "After · 2026-05-15 to 2026-08-31",
           "phase": "after",
           "files": {
             "vh": "data/cases/glacier-langtang/s1_post_vh.png",
@@ -240,7 +240,7 @@
     },
     {
       "id": "modis_cryo",
-      "name": "MODIS Nieve y Temperatura (LST)",
+      "name": "MODIS Snow Cover & Surface Temp (LST)",
       "kind": "raster",
       "status": "real",
       "platform": "Terra / Aqua",
@@ -267,7 +267,7 @@
       "variables": [
         {
           "id": "snow",
-          "label": "Cobertura de nieve",
+          "label": "Snow cover",
           "quantity": "snow_cover",
           "polarization": null,
           "unit": "%",
@@ -285,7 +285,7 @@
         },
         {
           "id": "lst",
-          "label": "Temperatura superficial día",
+          "label": "Daytime surface temperature",
           "quantity": "temperature",
           "polarization": null,
           "unit": "°C",
@@ -306,7 +306,7 @@
         {
           "id": "modis-pre",
           "datetime": "2026-02-28T00:00:00Z",
-          "label": "Antes · 2026-01-01 a 2026-02-28",
+          "label": "Before · 2026-01-01 to 2026-02-28",
           "phase": "before",
           "files": {
             "snow": "data/cases/glacier-langtang/mod10_pre_snow.png",
@@ -316,7 +316,7 @@
         {
           "id": "modis-post",
           "datetime": "2026-08-31T00:00:00Z",
-          "label": "Después · 2026-05-15 a 2026-08-31",
+          "label": "After · 2026-05-15 to 2026-08-31",
           "phase": "after",
           "files": {
             "snow": "data/cases/glacier-langtang/mod10_post_snow.png",
@@ -327,13 +327,13 @@
     },
     {
       "id": "melt_change",
-      "name": "Pérdida neta de nieve (ΔNDSI)",
+      "name": "Net Snow Loss (ΔNDSI)",
       "kind": "raster",
       "status": "real",
       "platform": "Sentinel-2",
       "sensor": "MSI",
       "provider": "Google Earth Engine",
-      "product": "Diferencia real Pre − Post NDSI",
+      "product": "Real Pre - Post NDSI difference",
       "attribution": "ESA Copernicus Sentinel-2",
       "extent": [
         85.5,
@@ -354,7 +354,7 @@
       "variables": [
         {
           "id": "loss",
-          "label": "Pérdida de nieve (ΔNDSI × 100)",
+          "label": "Snow loss (ΔNDSI × 100)",
           "quantity": "snow_loss",
           "polarization": null,
           "unit": "%",
@@ -375,7 +375,7 @@
         {
           "id": "melt-net",
           "datetime": "2026-08-31T00:00:00Z",
-          "label": "Cambio 2026-01-01 → 2026-08-31",
+          "label": "Change 2026-01-01 → 2026-08-31",
           "phase": "change",
           "files": {
             "loss": "data/cases/glacier-langtang/melt_snow_loss.png"
@@ -387,7 +387,7 @@
   "vectors": [
     {
       "id": "aoi",
-      "name": "Área de estudio (AOI)",
+      "name": "Study Area (AOI)",
       "type": "line",
       "status": "real",
       "simulated": false,
@@ -407,7 +407,7 @@
     },
     {
       "id": "melt-extent",
-      "name": "Zona de deshielo detectada",
+      "name": "Detected Melt Zone",
       "type": "line",
       "status": "real",
       "simulated": false,
@@ -421,18 +421,18 @@
         "line-width": 1.8
       },
       "legend": {
-        "title": "Retroceso nival real",
+        "title": "Real snow retreat",
         "items": [
           {
             "color": "#fb923c",
-            "label": "Pérdida ΔNDSI ≥ 0.16"
+            "label": "Loss ΔNDSI ≥ 0.16"
           }
         ]
       },
       "popupFields": [
         [
           "area_km2",
-          "Área de deshielo",
+          "Melt area",
           "km²"
         ]
       ]
@@ -441,7 +441,7 @@
   "downloads": [
     {
       "id": "s2-pre-rgb-tif",
-      "label": "Sentinel-2 RGB Antes (.tif)",
+      "label": "Sentinel-2 RGB Before (.tif)",
       "datasetId": "s2_rgb",
       "phase": "before",
       "format": "geotiff",
@@ -450,7 +450,7 @@
     },
     {
       "id": "s2-post-rgb-tif",
-      "label": "Sentinel-2 RGB Después (.tif)",
+      "label": "Sentinel-2 RGB After (.tif)",
       "datasetId": "s2_rgb",
       "phase": "after",
       "format": "geotiff",
@@ -459,7 +459,7 @@
     },
     {
       "id": "s2-pre-ndsi-tif",
-      "label": "Sentinel-2 NDSI Antes (.tif)",
+      "label": "Sentinel-2 NDSI Before (.tif)",
       "datasetId": "s2_ndsi",
       "phase": "before",
       "format": "geotiff",
@@ -468,7 +468,7 @@
     },
     {
       "id": "s2-post-ndsi-tif",
-      "label": "Sentinel-2 NDSI Después (.tif)",
+      "label": "Sentinel-2 NDSI After (.tif)",
       "datasetId": "s2_ndsi",
       "phase": "after",
       "format": "geotiff",
@@ -477,7 +477,7 @@
     },
     {
       "id": "s1-pre-sar-tif",
-      "label": "Sentinel-1 VV/VH Antes (.tif)",
+      "label": "Sentinel-1 VV/VH Before (.tif)",
       "datasetId": "s1_sar",
       "phase": "before",
       "format": "geotiff",
@@ -486,7 +486,7 @@
     },
     {
       "id": "s1-post-sar-tif",
-      "label": "Sentinel-1 VV/VH Después (.tif)",
+      "label": "Sentinel-1 VV/VH After (.tif)",
       "datasetId": "s1_sar",
       "phase": "after",
       "format": "geotiff",
@@ -495,7 +495,7 @@
     },
     {
       "id": "mod10-pre-snow-tif",
-      "label": "MODIS Nieve Antes (.tif)",
+      "label": "MODIS Snow Before (.tif)",
       "datasetId": "modis_cryo",
       "phase": "before",
       "format": "geotiff",
@@ -504,7 +504,7 @@
     },
     {
       "id": "mod10-post-snow-tif",
-      "label": "MODIS Nieve Después (.tif)",
+      "label": "MODIS Snow After (.tif)",
       "datasetId": "modis_cryo",
       "phase": "after",
       "format": "geotiff",
@@ -513,7 +513,7 @@
     },
     {
       "id": "mod11-pre-lst-tif",
-      "label": "MODIS Temp °C Antes (.tif)",
+      "label": "MODIS Temp °C Before (.tif)",
       "datasetId": "modis_cryo",
       "phase": "before",
       "format": "geotiff",
@@ -522,7 +522,7 @@
     },
     {
       "id": "mod11-post-lst-tif",
-      "label": "MODIS Temp °C Después (.tif)",
+      "label": "MODIS Temp °C After (.tif)",
       "datasetId": "modis_cryo",
       "phase": "after",
       "format": "geotiff",
@@ -531,7 +531,7 @@
     },
     {
       "id": "melt-loss-tif",
-      "label": "Pérdida Nieve Neta (.tif)",
+      "label": "Net Snow Loss (.tif)",
       "datasetId": "melt_change",
       "phase": "change",
       "format": "geotiff",

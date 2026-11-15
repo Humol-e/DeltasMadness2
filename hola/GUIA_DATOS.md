@@ -1,104 +1,104 @@
-# Guía para Interpretar y Determinar los Datos (Etapa 1)
+# Guide to Interpreting and Selecting Glacier Data (Stage 1)
 
-Esta guía explica cómo leer las salidas reales de cada módulo de `glacier_monitor`, cómo elegir las escenas correctas y qué archivos finales te entrega en modo local (`data/downloads/`).
+This guide explains how to read real outputs from every `glacier_monitor` module, how to choose valid scenes, and what final files are saved in local mode (`data/downloads/`).
 
-> **Nota importante para Windows CMD (`C:\Users\Rulis>`):**
-> - Cambia primero a la carpeta del proyecto (`cd C:\Users\Rulis\Desktop\hola`) para que las descargas queden en `C:\Users\Rulis\Desktop\hola\data\downloads`.
-> - **No copies comentarios con `#`** en CMD (a diferencia de PowerShell, CMD intenta ejecutar `#` como programa).
-> - **Reemplaza siempre `<...>`** por el nombre real del gránulo; en CMD, los símbolos `<` y `>` provocan `The syntax of the command is incorrect` .
+> **Note for Windows CMD (`C:\Users\Rulis>`):**
+> - Change into the project folder first (`cd ...\hola`) so downloads are saved under `hola\data\downloads`.
+> - **Do not paste lines starting with `#`** in CMD (unlike PowerShell, CMD tries to execute `#` as a command).
+> - **Always replace `<...>`** with an actual granule name; in CMD, literal `<` and `>` cause `The syntax of the command is incorrect`.
 
 ---
 
-## 1. Diagnóstico del sistema (`doctor`)
+## 1. System Diagnostics (`doctor`)
 
 ```cmd
 py -m glacier_monitor doctor
 ```
 
-Qué debes verificar antes de pedir datos:
-- **Config (.env) = `OK`**: proyecto GEE configurado (`sarshack`) y modo local activo.
-- **Google Earth Engine = `OK`**: consulta en nube habilitada.
-- **Google Cloud Storage = `LOCAL`**: modo local sin bucket (no sube nada a Google Cloud Storage).
-- **NASA HyP3 / Earthdata = `OK`**: muestra tus créditos disponibles (ej. `8000`) para procesar InSAR/RTC gratis en servidores de la NASA.
-- **Catálogo NASA ASF = `OK`**: conexión activa al catálogo de búsqueda de NASA ASF.
+What to check before fetching data:
+- **Config (.env) = `OK`**: GEE project configured and local mode active.
+- **Google Earth Engine = `OK`**: cloud query access enabled.
+- **Google Cloud Storage = `LOCAL`**: local mode without bucket (nothing uploaded to GCS).
+- **NASA HyP3 / Earthdata = `OK`**: displays available processing credits (e.g., `8000`) for running free InSAR/RTC jobs on NASA servers.
+- **NASA ASF Catalog = `OK`**: active connection to NASA ASF's search catalog.
 
 ---
 
-## 2. Datos nativos en Google Earth Engine (`check-native`)
+## 2. Native Google Earth Engine Data (`check-native`)
 
 ```cmd
 py -m glacier_monitor check-native --aoi langtang --start 2026-09-01 --end 2026-10-15
 ```
 
-### Cómo leer la tabla
-| Columna | Qué significa |
+### How to read the table
+| Column | Meaning |
 | --- | --- |
-| `Dataset ID` | Colección oficial en Google Earth Engine. |
-| `Imágenes` | Cantidad de escenas que cubren tu AOI en ese rango de fechas (el día `--end` es exclusivo en GEE). |
-| `Más antigua / Más reciente (UTC)` | Ventana real con datos disponibles. Te indica si el catálogo está al día. |
-| `Bandas disponibles` | Capas de medición dentro de cada imagen. |
+| `Dataset ID` | Official Google Earth Engine collection ID. |
+| `Images` | Scene count covering your AOI within that date range (`--end` is exclusive in GEE). |
+| `Earliest / Latest (UTC)` | Actual available data window, indicating catalog freshness. |
+| `Available bands` | Measurement layers contained in each image. |
 
-### Qué determina cada colección
-1. **`COPERNICUS/S1_GRD`** (Sentinel-1 radar GRD, 10 m, cada ~6–12 días):
-   - **Bandas clave**: `VV`, `VH`, `angle`.
-   - **Para qué sirve**: atraviesa nubes y funciona de noche. El agua tranquila (lagos glaciares) refleja poca energía (valores bajos en dB / tonos oscuros) y el hielo/roca rugosa refleja más. Ayuda a detectar cambios de contorno de lagunas y humedad superficial (deshielo).
-2. **`MODIS/061/MOD10A1`** (MODIS nieve diaria, 500 m):
-   - **Bandas clave**: `NDSI_Snow_Cover` (porcentaje de nieve 0–100), `Snow_Albedo_Daily_Tile`, `NDSI_Snow_Cover_Basic_QA`.
-   - **Para qué sirve**: seguir acumulación o pérdida diaria de nieve en la cuenca.
-3. **`MODIS/061/MOD11A1`** (MODIS temperatura superficial diaria, 1 km):
-   - **Bandas clave**: `LST_Day_1km`, `LST_Night_1km`, `QC_Day`, `QC_Night`.
-   - **Para qué sirve**: detectar días/noches con temperatura superficial sobre punto de fusión (0 °C), señal directa de deshielo.
+### What each collection provides
+1. **`COPERNICUS/S1_GRD`** (Sentinel-1 radar GRD, 10 m, every ~6-12 days):
+   - **Key bands**: `VV`, `VH`, `angle`.
+   - **Use case**: penetrates clouds and operates day/night. Calm open water (glacial lakes) has low backscatter (low dB / dark tones) whereas ice and rough rock scatter strongly, helping detect lake boundary shifts and surface moisture/melt.
+2. **`MODIS/061/MOD10A1`** (MODIS daily snow, 500 m):
+   - **Key bands**: `NDSI_Snow_Cover` (snow percentage 0-100), `Snow_Albedo_Daily_Tile`, `NDSI_Snow_Cover_Basic_QA`.
+   - **Use case**: track daily basin-scale snow accumulation or retreat.
+3. **`MODIS/061/MOD11A1`** (MODIS daily land surface temperature, 1 km):
+   - **Key bands**: `LST_Day_1km`, `LST_Night_1km`, `QC_Day`, `QC_Night`.
+   - **Use case**: detect day/night land surface temperatures above freezing (0 °C), a direct indicator of surface melt.
 
 ---
 
-## 3. Cómo leer y elegir escenas Sentinel-1 SLC (`asf-search`)
+## 3. Reading and Selecting Sentinel-1 SLC Scenes (`asf-search`)
 
 ```cmd
 py -m glacier_monitor asf-search --dataset sentinel1 --aoi langtang --start 2026-09-01 --end 2026-10-15 --processing-level SLC
 ```
 
-### Anatomía de un nombre real de gránulo
-Ejemplo de tu salida:
+### Anatomy of a real granule name
+Example output:
 ```text
 S1D_IW_SLC__1SDV_20261011T001844_20261011T001911_004960_0095BA_A700
 ```
 
-| Segmento | Valor | Significado |
+| Segment | Value | Meaning |
 | --- | --- | --- |
-| `S1D` | Sentinel-1D | Satélite que tomó la escena (`S1A`, `S1C`, `S1D`). |
-| `IW` | Interferometric Wide | Modo estándar sobre tierra firme (franja de ~250 km). |
-| `SLC` | Single Look Complex | Contiene **amplitud + fase**; obligatorio para hacer interferometría **InSAR**. |
-| `1SDV` | Dual-pol VV+VH | Polarización vertical/horizontal. |
-| `20261011T001844` | `2026-10-11 00:18:44 UTC` | Fecha y hora exacta de inicio de la pasada. |
-| `Órbita` (en tabla) | `DESCENDING` / `ASCENDING` | Dirección del satélite: bajando (norte→sur) o subiendo (sur→norte). |
+| `S1D` | Sentinel-1D | Satellite that acquired the scene (`S1A`, `S1C`, `S1D`). |
+| `IW` | Interferometric Wide | Standard land acquisition mode (~250 km swath). |
+| `SLC` | Single Look Complex | Contains **amplitude + phase**; required for **InSAR** interferometry. |
+| `1SDV` | Dual-pol VV+VH | Vertical/horizontal polarization. |
+| `20261011T001844` | `2026-10-11 00:18:44 UTC` | Exact pass start date and time. |
+| `Orbit` (in table) | `DESCENDING` / `ASCENDING` | Satellite flight direction: descending (north->south) or ascending (south->north). |
 
-### Reglas para elegir un par InSAR válido (`hyp3-submit`)
-Un job **InSAR** compara **2 escenas `SLC`** de dos fechas distintas para medir desplazamiento milimétrico/centimétrico. Para que el par funcione bien debe cumplir **3 reglas**:
+### Rules for choosing a valid InSAR pair (`hyp3-submit`)
+An **InSAR** job compares **2 `SLC` scenes** from two dates to measure millimeter/centimeter surface displacement. A valid pair must follow **3 rules**:
 
-1. **Misma dirección de `Órbita`**: nunca mezcles `ASCENDING` con `DESCENDING`.
-2. **Misma hora aproximada (mismo track/pasada)**:
-   - En tu salida hay dos pasadas `DESCENDING` distintas sobre Langtang: unas pasan a las **`00:18:44Z`** y otras a las **`00:10:37Z`**.
-   - Empareja `00:18Z` con `00:18Z` (o `00:10Z` con `00:10Z`), porque tienen la misma geometría de vista.
-3. **Separación de fechas corta (12 o 24 días)**: en glaciares y nieve, pares muy lejanos pierden coherencia por derretimiento o nevadas.
+1. **Same `Orbit` direction**: never mix `ASCENDING` with `DESCENDING`.
+2. **Same approximate time (same track/pass)**:
+   - Over Langtang there are two distinct `DESCENDING` passes: one around **`00:18:44Z`** and another around **`00:10:37Z`**.
+   - Pair `00:18Z` with `00:18Z` (or `00:10Z` with `00:10Z`) so viewing geometry matches.
+3. **Short temporal baseline (12 or 24 days)**: over glaciers and snow, longer baselines lose coherence due to melt or fresh snowfall.
 
-#### Pares reales válidos de tu búsqueda (listos para usar)
-- **Par `DESCENDING` (track `00:18Z`, 12 días)**:
-  - Escena 1: `S1D_IW_SLC__1SDV_20261011T001844_20261011T001911_004960_0095BA_A700` (`2026-10-11`)
-  - Escena 2: `S1D_IW_SLC__1SDV_20260929T001844_20260929T001911_004785_008F91_C12D` (`2026-09-29`)
-- **Par `DESCENDING` (track `00:10Z`, 12 días)**:
-  - Escena 1: `S1D_IW_SLC__1SDV_20261006T001037_20261006T001104_004887_009321_B7AE` (`2026-10-06`)
-  - Escena 2: `S1D_IW_SLC__1SDV_20260924T001037_20260924T001104_004712_008D08_DDD9` (`2026-09-24`)
-- **Par `ASCENDING` (track `12:21Z`, 12 días)**:
-  - Escena 1: `S1D_IW_SLC__1SDV_20261003T122140_20261003T122208_004851_0091DF_22F7` (`2026-10-03`)
-  - Escena 2: `S1D_IW_SLC__1SDV_20260921T122140_20260921T122208_004676_008BC6_6670` (`2026-09-21`)
+#### Valid real pairs from search results (ready to run)
+- **`DESCENDING` pair (`00:18Z` track, 12 days)**:
+  - Scene 1: `S1D_IW_SLC__1SDV_20261011T001844_20261011T001911_004960_0095BA_A700` (`2026-10-11`)
+  - Scene 2: `S1D_IW_SLC__1SDV_20260929T001844_20260929T001911_004785_008F91_C12D` (`2026-09-29`)
+- **`DESCENDING` pair (`00:10Z` track, 12 days)**:
+  - Scene 1: `S1D_IW_SLC__1SDV_20261006T001037_20261006T001104_004887_009321_B7AE` (`2026-10-06`)
+  - Scene 2: `S1D_IW_SLC__1SDV_20260924T001037_20260924T001104_004712_008D08_DDD9` (`2026-09-24`)
+- **`ASCENDING` pair (`12:21Z` track, 12 days)**:
+  - Scene 1: `S1D_IW_SLC__1SDV_20261003T122140_20261003T122208_004851_0091DF_22F7` (`2026-10-03`)
+  - Scene 2: `S1D_IW_SLC__1SDV_20260921T122140_20260921T122208_004676_008BC6_6670` (`2026-09-21`)
 
-Ejemplo listo para copiar en CMD (envía el par `DESCENDING` `00:18Z` a HyP3):
+Example ready to run in CMD (submits the `DESCENDING` `00:18Z` pair to HyP3):
 
 ```cmd
 py -m glacier_monitor hyp3-submit --job-type insar --name langtang-test --granule S1D_IW_SLC__1SDV_20261011T001844_20261011T001911_004960_0095BA_A700 --granule S1D_IW_SLC__1SDV_20260929T001844_20260929T001911_004785_008F91_C12D
 ```
 
-Monitorear hasta que pase de `PENDING`/`RUNNING` a `SUCCEEDED` y descargar en local:
+Monitor until it moves from `PENDING`/`RUNNING` to `SUCCEEDED`, then download locally:
 
 ```cmd
 py -m glacier_monitor hyp3-status --name langtang-test
@@ -107,26 +107,26 @@ py -m glacier_monitor hyp3-download --job-name langtang-test --suffix _unw_phase
 
 ---
 
-## 4. Cómo leer y elegir productos OPERA-S1 (`asf-search --dataset opera_s1`)
+## 4. Reading and Selecting OPERA-S1 Products (`asf-search --dataset opera_s1`)
 
 ```cmd
 py -m glacier_monitor asf-search --dataset opera_s1 --aoi langtang --start 2026-10-01 --end 2026-11-14
 ```
 
-### Anatomía de un gránulo OPERA-S1
-Ejemplo de tu salida:
+### Anatomy of an OPERA-S1 granule
+Example output:
 ```text
 OPERA_L2_RTC-S1_T121-258661-IW3_20261111T001050Z_20261111T190434Z_S1D_30_v1.0
 ```
 
-| Segmento | Qué indica | Cómo usarlo |
+| Segment | Meaning | How to use |
 | --- | --- | --- |
-| `OPERA_L2_RTC-S1` | Producto radar ya corregido por relieve (RTC) | Viene listo como GeoTIFF directo (no gasta créditos HyP3). |
-| `T121-258661-IW3` | **Track + Burst ID + Sub-franja** | Es la "baldosa" exacta del terreno. Para comparar cambios entre fechas, **elige el mismo ID de burst** (ej. `T121-258661-IW3` el `2026-11-11`, `2026-10-30` y `2026-10-18`). |
-| `20261111T001050Z` | Fecha y hora de adquisición (`2026-11-11`) | Ordena tu serie temporal. |
-| `30` | Resolución espacial (`30` metros) | Tamaño de cada píxel. |
+| `OPERA_L2_RTC-S1` | Radiometrically terrain-corrected radar product (RTC) | Delivered directly as GeoTIFFs (consumes 0 HyP3 credits). |
+| `T121-258661-IW3` | **Track + Burst ID + Sub-swath** | Exact ground burst tile. To compare change over time, **choose the same burst ID** (e.g., `T121-258661-IW3` on `2026-11-11`, `2026-10-30`, and `2026-10-18`). |
+| `20261111T001050Z` | Acquisition timestamp (`2026-11-11`) | Orders your time series chronologically. |
+| `30` | Spatial resolution (`30` meters) | Ground sampling size per pixel. |
 
-Ejemplo listo para copiar en CMD (descarga directa de bandas `VV` y `VH` a local sin usar HyP3 ni bucket):
+Example ready to run in CMD (direct local download of `VV` and `VH` bands without HyP3 or GCS):
 
 ```cmd
 py -m glacier_monitor asf-download --granule OPERA_L2_RTC-S1_T121-258661-IW3_20261111T001050Z_20261111T190434Z_S1D_30_v1.0 --suffix _VV.tif --suffix _VH.tif
@@ -134,16 +134,16 @@ py -m glacier_monitor asf-download --granule OPERA_L2_RTC-S1_T121-258661-IW3_202
 
 ---
 
-## 5. Qué archivo GeoTIFF elegir después (para Etapa 2)
+## 5. Choosing GeoTIFF Layers Downstream (Stage 2)
 
-Todos los archivos descargados quedan registrados automáticamente en `data/downloads/catalog.json` con su sensor, capa (`product_layer`) y ventana temporal UTC:
+Every downloaded file is automatically registered in `data/downloads/catalog.json` with its sensor, `product_layer`, and UTC acquisition window:
 
-| Sufijo del archivo | `product_layer` | Qué te permite determinar |
+| File suffix | `product_layer` | What it measures |
 | --- | --- | --- |
-| `_los_disp.tif` | `los_displacement` | Desplazamiento en la línea de vista del satélite (metros). Mide movimiento en laderas, morrenas o glaciares. |
-| `_vert_disp.tif` | `vertical_displacement` | Estimación de hundimiento o levantamiento vertical (metros). |
-| `_unw_phase.tif` | `unwrapped_phase` | Fase interferométrica desenvuelta (radianes), insumo base para calcular deformación. |
-| `_coh.tif` | `coherence` | Calidad/confiabilidad del par InSAR (`0.0` a `1.0`). Valores altos (`> 0.3–0.5` según cobertura) indican señal confiable; valores bajos indican nieve fresca, agua o cambio brusco. |
-| `_vv.tif` / `_VV.tif` | `backscatter_vv` | Intensidad radar VV: útil para mapear espejos de agua (lagos glaciares) y estructura superficial. |
-| `_vh.tif` / `_VH.tif` | `backscatter_vh` | Intensidad radar VH: sensible a rugosidad de hielo, escombros y vegetación circundante. |
-| `_inc_map.tif` | `incidence_angle` | Ángulo local de incidencia radar sobre la montaña (sirve para corregir/enmascarar sombras y geometría). |
+| `_los_disp.tif` | `los_displacement` | Line-of-sight surface displacement (meters) on slopes, moraines, or glaciers. |
+| `_vert_disp.tif` | `vertical_displacement` | Estimated vertical subsidence or uplift (meters). |
+| `_unw_phase.tif` | `unwrapped_phase` | Unwrapped interferometric phase (radians), base input for deformation retrieval. |
+| `_coh.tif` | `coherence` | InSAR pair quality/reliability (`0.0` to `1.0`). High values (`> 0.3-0.5` depending on land cover) indicate reliable signal; low values indicate fresh snow, open water, or rapid change. |
+| `_vv.tif` / `_VV.tif` | `backscatter_vv` | VV backscatter intensity: useful for mapping glacial lake open water and surface structure. |
+| `_vh.tif` / `_VH.tif` | `backscatter_vh` | VH backscatter intensity: sensitive to ice roughness, debris cover, and surrounding vegetation. |
+| `_inc_map.tif` | `incidence_angle` | Local radar incidence angle over steep terrain (used to mask radar shadow/layover). |

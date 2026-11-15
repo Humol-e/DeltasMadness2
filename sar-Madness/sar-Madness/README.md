@@ -1,68 +1,53 @@
-# SAR Cambios · NASA Space Apps 2026 — "Bailando con los SAR"
+# SAR Changes · NASA Space Apps 2026 — "Dancing with the SARs"
 
-Visor interactivo (Mapbox GL JS + Vite, JavaScript puro) con globo 3D, relieve, rásteres por fecha, comparador antes/después y vectores GeoJSON.
-**Estado: DEMO con datos sintéticos.** No son observaciones satelitales, ni alertas, ni datos en tiempo real.
+Interactive 3D geospatial viewer (Mapbox GL JS + Vite, vanilla JavaScript) with 3D globe/terrain relief, dated satellite rasters, interactive Before/After swipe comparator, pixel readout, PNG report downloads, and GeoJSON overlays backed 100% by real satellite observations.
 
-## Ejecutar
+## Run
+
 ```bash
 npm install
-cp .env.example .env      # token PÚBLICO pk.* en VITE_MAPBOX_ACCESS_TOKEN (solo en .env; está en .gitignore)
-npm run dev
+cp .env.example .env      # Optional: public pk.* token in VITE_MAPBOX_ACCESS_TOKEN (in .gitignore; uses Esri fallback without token)
+npm run validate          # Validate catalog.json and all real case files (also runs before build)
+npm run dev               # Start Vite dev server
+npm run build             # Validate catalog and build production bundle in dist/
 ```
-- `npm run validate`: valida el catálogo y que existan los archivos referenciados (también corre antes de `npm run build`).
-- `npm run demo-data`: regenera los datos sintéticos (Python 3, sin dependencias).
 
-## Arquitectura
+## Architecture
+
+```text
+src/lib/mapController.js     Map engine (globe, 3D terrain, layers, swipe). Decoupled from concrete cases.
+src/lib/schema.js            Schema v2 validation, normalization, and JSON-with-comments parser.
+src/lib/timeline.js          Time axis and latest-frame <= active-date lookup.
+src/lib/rasterCanvas.js      LUT gray8 colorization, RGB composites, pixel values, LRU caching.
+src/lib/beforeAfterExport.js Side-by-side Before/After comparison PNG generator & downloader.
+src/lib/placeSearch.js       Offline case/preset search, WGS84 coordinate parser, and geocoding.
+src/lib/registry.js          Catalog and case loader.
+src/main.js, style.css       Interactive UI and controls.
+public/data/catalog.json     Published real-data cases registry.
+public/data/cases/<id>/      case.json + rasters/*.png + geotiffs/*.tif + *.geojson
+docs/                        SCHEMA.md, case.example.jsonc, case.template.json
 ```
-src/lib/mapController.js  MOTOR del mapa (globo, relieve, capas, swipe). No conoce ningún caso ni dataset concreto.
-src/lib/schema.js         Esquema v2, validación y lector JSON con comentarios
-src/lib/timeline.js       Eje temporal y "último frame ≤ fecha" por fuente
-src/lib/rasterCanvas.js   Colorizado gray8, compuestos RGB, valor de píxel
-src/lib/registry.js       Carga del catálogo y los casos
-src/main.js, style.css    Interfaz
-public/data/catalog.json  Lista de casos
-public/data/cases/<id>/   case.json + rásteres (PNG) + GeoJSON
-docs/                     SCHEMA.md, case.example.jsonc (comentado), case.template.json (vacía)
-```
-Para agregar o reemplazar un dataset solo se edita un JSON y se copian archivos; el controlador no cambia. Referencia completa: `docs/SCHEMA.md`.
 
-## Caso demo `flujo-demo`
-Representa el flujo esperado: **SAR-1** (HH + HV, 4 fechas), **SAR-2** (solo HV, 3 fechas, otra resolución) y **MODIS temperatura** (5 fechas, píxel grueso, nubes simuladas), sobre la misma zona. Las fechas no coinciden a propósito. Los nombres de satélites, productos, unidades, CRS y formatos están `null` («pendiente») hasta que el equipo los defina.
+See [docs/SCHEMA.md](./docs/SCHEMA.md) for full Schema v2 documentation.
 
-## Cómo probar la animación
-1. `npm run dev`, abre la app y elige **Flujo de datos: SAR-1 + SAR-2 + MODIS (sintético)** (o toca su punto en el globo).
-2. En **Tiempo**: *Reproducir* recorre los 12 frames del eje (unión de todas las fechas); *Anterior/Siguiente* avanzan de uno en uno; el selector fija la velocidad.
-3. Cada tarjeta de **Rásteres** muestra la fecha de SU frame y cuántos días difiere de la fecha elegida («no simultáneo»). Activa MODIS (empieza apagado) y baja la opacidad para comparar.
-4. **Comparar antes / después**: actívalo, elige dataset, variable y dos fechas, y arrastra el corte.
-5. Haz clic en el mapa: verás los atributos del vector (los faltantes dicen «No disponible») y el valor de cada ráster en ese punto.
-6. Cambia a **Terreno 3D** y a otros mapas base: las capas se mantienen.
+## Published Cases
 
-La animación solo recorre frames existentes; no hay interpolación ni transiciones inventadas.
+Six real-data Schema v2 cases are prepackaged under `public/data/cases/`:
 
-## Cómo añadir...
-**Una fecha (frame):** copia el PNG a `public/data/cases/<caso>/rasters/` y añade un objeto a `frames` del dataset:
-```json
-{ "id": "s1-20260421", "datetime": "2026-04-21", "files": { "HH": "data/cases/<caso>/rasters/sar1_HH_20260421.png" } }
-```
-**Un ráster (dataset):** añade un objeto a `datasets` (copia uno existente o `docs/case.template.json`): `id`, `variables`, `source`, `extent`, `frames`.
-Para teselas XYZ: `"source": { "type": "tiles", "tileSize": 256 }` y `files` con URL `https://…/{z}/{x}/{y}.png` (sin credenciales en el frontend: usa un proxy). Con teselas no hay swipe ni valor de píxel.
-**Una polarización:** añade una entrada a `variables` del dataset (`{ "id": "VV", "polarization": "VV", "unit": …, "legend": … }`) y un archivo por frame en `files.VV`. Cada satélite declara SUS polarizaciones; un frame puede omitir una variable (se muestra «La variable … no viene en este frame»).
-**Un compuesto RGB:** añade a `composites` del dataset `{ "id": "…", "label": "…", "channels": { "r": "HH", "g": "HV", "b": null } }`. No hay compuestos por defecto.
-**Un polígono o punto:** crea un GeoJSON con `properties.date` (ISO 8601) y añade un objeto a `vectors` con `time: { "property": "date", "mode": "asof" }`. Deshielo, riesgo, SWE o lluvia son atributos/campos opcionales en `popupFields`; si no son simulados, define `indicator.validation`.
-Después ejecuta `npm run validate`.
+- **Real Wildfire Events (`category: "wildfire"`):** `wildfire-camp-paradise`, `wildfire-martin-nv`, `wildfire-palisades-la`
+- **Real Glacier & Snowmelt (`category: "glacier"`):** `glacier-langtang`, `glacier-khumbu`
+- **NISAR Forest Biomass (`category: "biomass"`):** `biomass-leno-nisar`
 
-## Reemplazar los datos sintéticos
-1. Con el pipeline (ASF HyP3 / Google Earth Engine) genera por fecha un archivo por variable y copia los archivos (o publica teselas).
-2. Edita `case.json`: `status: "real"`, `platform`, `sensor`, `provider`, `product`, `unit`, `crs`, `resolution`, `extent`, leyendas y `frames`. Si el formato real no es PNG gray8, cambia `source` (`rgba` o `tiles`).
-3. Quita `simulated` de los vectores solo cuando existan datos, unidades, reglas y validación definidos por el equipo.
-4. Borra `scripts/make_demo_data.py` y los casos demo cuando ya no se necesiten.
+Each case is validated by `npm run validate` and verified by `node --test tests/placeSearch.test.mjs`.
 
-## Errores y rendimiento
-- Una sola fuente y capa por dataset (el cambio de fecha actualiza la imagen; no se duplican). Con teselas, una capa por frame creada solo cuando se necesita y cacheada. Los frames coloreados se cachean (máx. 60) y se precarga el siguiente durante la reproducción.
-- Errores: se muestran con la causa (por ejemplo «HTTP 429: el servidor limitó las peticiones») y la fuente afectada; el token se oculta en los mensajes. No hay reintentos automáticos: el botón «Reintentar» es manual. Si una capa falla, las otras siguen y la tarjeta indica cuál no cargó.
-- El sombreado de relieve solo se pide desde el zoom 5, para no descargar el DEM de todo el planeta en la vista de globo (causa probable de los 429 y del aviso genérico «Error del mapa»). Si persiste, desactiva «Sombreado de relieve», evita recargar muchas veces en desarrollo y revisa los límites de tu token en el panel de Mapbox.
+## Performance & Error Handling
 
-## Limitaciones conocidas
-- Los rásteres locales se estiran entre las esquinas del `extent`: sirven para zonas pequeñas, y el pipeline debe entregarlos alineados (lon/lat).
-- El swipe divide la zona (oeste–este), no la pantalla, y requiere `image` + `gray8`.
-- La app no calcula coherencia, InSAR ni riesgos: solo muestra lo que traiga cada dataset.
+- One Mapbox source and layer per raster dataset (`updateImage` reuses sources when changing dates).
+- Shared bounded LRU caches in `rasterCanvas.js` reuse decoded `gray8`/`rgba` rasters and colorized canvases across sidebar previews, map display, swipe comparison, and PNG exports.
+- Hillshade DEM requests activate from zoom 5 upward to prevent global tile flooding in globe view.
+- Basemap 429 rate-limits gracefully fall back to Esri World Imagery.
+
+## Known Scope Notes
+
+- Local image overlays stretch across their `[west, south, east, north]` extent box (exact for local AOI study regions delivered in `EPSG:4326`).
+- Interactive swipe requires `image` + `gray8` or `rgba` local image layers.

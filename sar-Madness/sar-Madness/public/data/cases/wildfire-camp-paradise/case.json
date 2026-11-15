@@ -1,6 +1,6 @@
 {
   "simulated": false,
-  "category": "incendio",
+  "category": "wildfire",
   "metrics": {
     "preWindow": "2018-09-15/2018-11-07",
     "postWindow": "2018-11-26/2019-01-31",
@@ -10,7 +10,7 @@
   "downloads": [
     {
       "id": "s2-pre-nbr-tif",
-      "label": "Sentinel-2 NBR Antes (.tif)",
+      "label": "Sentinel-2 NBR Before (.tif)",
       "datasetId": "s2_nbr",
       "phase": "before",
       "format": "geotiff",
@@ -19,7 +19,7 @@
     },
     {
       "id": "s2-post-nbr-tif",
-      "label": "Sentinel-2 NBR Después (.tif)",
+      "label": "Sentinel-2 NBR After (.tif)",
       "datasetId": "s2_nbr",
       "phase": "after",
       "format": "geotiff",
@@ -28,7 +28,7 @@
     },
     {
       "id": "s1-pre-vh-tif",
-      "label": "Sentinel-1 VH Antes (.tif)",
+      "label": "Sentinel-1 VH Before (.tif)",
       "datasetId": "s1_sar",
       "phase": "before",
       "format": "geotiff",
@@ -37,7 +37,7 @@
     },
     {
       "id": "s1-post-vh-tif",
-      "label": "Sentinel-1 VH Después (.tif)",
+      "label": "Sentinel-1 VH After (.tif)",
       "datasetId": "s1_sar",
       "phase": "after",
       "format": "geotiff",
@@ -46,7 +46,7 @@
     },
     {
       "id": "burn-severity-tif",
-      "label": "Severidad dNBR (.tif)",
+      "label": "dNBR Severity (.tif)",
       "datasetId": "geopulse_burn",
       "phase": "change",
       "format": "geotiff",
@@ -55,7 +55,7 @@
     },
     {
       "id": "burn-probability-tif",
-      "label": "Probabilidad de quema (.tif)",
+      "label": "Burn Probability (.tif)",
       "datasetId": "geopulse_burn",
       "phase": "change",
       "format": "geotiff",
@@ -64,7 +64,7 @@
     },
     {
       "id": "change-probability-tif",
-      "label": "Probabilidad de cambio (.tif)",
+      "label": "Change Probability (.tif)",
       "datasetId": "geopulse_burn",
       "phase": "change",
       "format": "geotiff",
@@ -73,7 +73,7 @@
     },
     {
       "id": "uncertainty-tif",
-      "label": "Incertidumbre (.tif)",
+      "label": "Uncertainty (.tif)",
       "datasetId": "geopulse_burn",
       "phase": "change",
       "format": "geotiff",
@@ -94,7 +94,7 @@
   "id": "wildfire-camp-paradise",
   "status": "real",
   "title": "Camp Fire — Paradise, CA (2018)",
-  "description": "Incendio catastrófico Camp Fire en Paradise y Butte Creek (noviembre 2018). Analiza severidad de quemado Key & Benson (dNBR) y pérdida estructural/forestal Sentinel-1/2. [Superficie quemada estimada: 54.41 km² de 156.2 km² observados; zona de revisión por incertidumbre: 9.20 km²].",
+  "description": "Catastrophic Camp Fire in Paradise and Butte Creek (November 2018). Analyzes Key & Benson burn severity (dNBR) and structural/forest loss from Sentinel-1/2. [Estimated burned area: 54.41 km² of 156.2 km² observed; uncertainty review zone: 9.20 km²].",
   "view": {
     "center": [
       -121.705,
@@ -107,7 +107,7 @@
   "datasets": [
     {
       "id": "geopulse_burn",
-      "name": "GeoPulse · Fusión SAR + Óptico",
+      "name": "GeoPulse · SAR + Optical Fusion",
       "kind": "raster",
       "status": "real",
       "platform": "Sentinel-2 L2A + Sentinel-1 RTC",
@@ -118,7 +118,7 @@
       "variables": [
         {
           "id": "burn_prob",
-          "label": "Probabilidad de quemado",
+          "label": "Burn Probability",
           "quantity": "burn_probability",
           "polarization": null,
           "unit": "prob (0–1)",
@@ -143,15 +143,15 @@
                 "#c8140aeb"
               ]
             ],
-            "nodata_label": "Transparente = sin quemado (< 0.2)"
+            "nodata_label": "Transparent = unburned (< 0.2)"
           }
         },
         {
           "id": "burn_sev",
-          "label": "Severidad dNBR (Key & Benson)",
+          "label": "dNBR Severity (Key & Benson)",
           "quantity": "burn_severity",
           "polarization": null,
-          "unit": "clase 0–4",
+          "unit": "class 0–4",
           "legend": {
             "min": 0,
             "max": 4,
@@ -167,12 +167,12 @@
               "3": "#ff8c00e6",
               "4": "#ff0000eb"
             },
-            "nodata_label": "1 Baja · 2 Mod-baja · 3 Mod-alta · 4 Alta"
+            "nodata_label": "1 Low · 2 Mod-low · 3 Mod-high · 4 High"
           }
         },
         {
           "id": "change_prob",
-          "label": "Cambio multimodal S1/S2",
+          "label": "S1/S2 Multimodal Change",
           "quantity": "change_probability",
           "polarization": null,
           "unit": "prob (0–1)",
@@ -197,12 +197,12 @@
                 "#ff7800e6"
               ]
             ],
-            "nodata_label": "Transparente = sin cambio (< 0.2)"
+            "nodata_label": "Transparent = no change (< 0.2)"
           }
         },
         {
           "id": "uncertainty",
-          "label": "Incertidumbre Shannon H(p)",
+          "label": "Shannon Uncertainty H(p)",
           "quantity": "uncertainty",
           "polarization": null,
           "unit": "bits (0–1)",
@@ -233,7 +233,7 @@
                 "#ffd23ce6"
               ]
             ],
-            "nodata_label": "≥ 0.80 bits = revisión · ≥ 0.50 = solo-SAR"
+            "nodata_label": "≥ 0.80 bits = review · ≥ 0.50 = SAR-only"
           }
         }
       ],
@@ -273,7 +273,7 @@
     },
     {
       "id": "s2_rgb",
-      "name": "Sentinel-2 L2A · Óptico RGB",
+      "name": "Sentinel-2 L2A · Optical RGB",
       "kind": "raster",
       "status": "real",
       "platform": "Sentinel-2A/2B/2C",
@@ -284,7 +284,7 @@
       "variables": [
         {
           "id": "rgb",
-          "label": "Color verdadero (B04/B03/B02)",
+          "label": "True Color (B04/B03/B02)",
           "quantity": "reflectance",
           "polarization": null,
           "unit": "RGB"
@@ -314,7 +314,7 @@
         {
           "id": "s2-pre",
           "datetime": "2018-11-07",
-          "label": "Antes · 2018-09-15/2018-11-07",
+          "label": "Before · 2018-09-15/2018-11-07",
           "phase": "before",
           "files": {
             "rgb": "data/cases/wildfire-camp-paradise/rasters/s2_pre.png"
@@ -323,7 +323,7 @@
         {
           "id": "s2-post",
           "datetime": "2019-01-31",
-          "label": "Después · 2018-11-26/2019-01-31",
+          "label": "After · 2018-11-26/2019-01-31",
           "phase": "after",
           "files": {
             "rgb": "data/cases/wildfire-camp-paradise/rasters/s2_post.png"
@@ -333,7 +333,7 @@
     },
     {
       "id": "s2_nbr",
-      "name": "Sentinel-2 · Índice NBR (Vegetación/Quemado)",
+      "name": "Sentinel-2 · NBR Index (Vegetation/Burn)",
       "kind": "raster",
       "status": "real",
       "platform": "Sentinel-2",
@@ -344,10 +344,10 @@
       "variables": [
         {
           "id": "NBR",
-          "label": "Índice NBR",
+          "label": "NBR Index",
           "quantity": "spectral_index",
           "polarization": null,
-          "unit": "índice",
+          "unit": "index",
           "legend": {
             "min": -1,
             "max": 1,
@@ -358,7 +358,7 @@
               "#66bb6a",
               "#1b5e20"
             ],
-            "nodata_label": "Transparente = nube / sin dato óptico"
+            "nodata_label": "Transparent = cloud / no optical data"
           }
         }
       ],
@@ -387,7 +387,7 @@
         {
           "id": "nbr-pre",
           "datetime": "2018-11-07",
-          "label": "Antes · 2018-09-15/2018-11-07",
+          "label": "Before · 2018-09-15/2018-11-07",
           "phase": "before",
           "files": {
             "NBR": "data/cases/wildfire-camp-paradise/rasters/s2_pre_nbr.png"
@@ -396,7 +396,7 @@
         {
           "id": "nbr-post",
           "datetime": "2019-01-31",
-          "label": "Después · 2018-11-26/2019-01-31",
+          "label": "After · 2018-11-26/2019-01-31",
           "phase": "after",
           "files": {
             "NBR": "data/cases/wildfire-camp-paradise/rasters/s2_post_nbr.png"
@@ -406,7 +406,7 @@
     },
     {
       "id": "s1_sar",
-      "name": "Sentinel-1 RTC · Radar SAR VH (Todo-Clima)",
+      "name": "Sentinel-1 RTC · VH SAR Radar (All-Weather)",
       "kind": "raster",
       "status": "real",
       "platform": "Sentinel-1A",
@@ -417,7 +417,7 @@
       "variables": [
         {
           "id": "VH",
-          "label": "Retrodispersión VH",
+          "label": "VH Backscatter",
           "quantity": "backscatter",
           "polarization": "VH",
           "unit": "dB",
@@ -429,7 +429,7 @@
               "#64748b",
               "#f8fafc"
             ],
-            "nodata_label": "Transparente = sin dato"
+            "nodata_label": "Transparent = no data"
           }
         }
       ],
@@ -458,7 +458,7 @@
         {
           "id": "s1-pre",
           "datetime": "2018-11-07",
-          "label": "Antes · 2018-09-15/2018-11-07",
+          "label": "Before · 2018-09-15/2018-11-07",
           "phase": "before",
           "files": {
             "VH": "data/cases/wildfire-camp-paradise/rasters/s1_pre_vh.png"
@@ -467,7 +467,7 @@
         {
           "id": "s1-post",
           "datetime": "2019-01-31",
-          "label": "Después · 2018-11-26/2019-01-31",
+          "label": "After · 2018-11-26/2019-01-31",
           "phase": "after",
           "files": {
             "VH": "data/cases/wildfire-camp-paradise/rasters/s1_post_vh.png"
@@ -479,7 +479,7 @@
   "vectors": [
     {
       "id": "aoi",
-      "name": "Área de estudio (AOI)",
+      "name": "Study Area (AOI)",
       "type": "line",
       "status": "real",
       "simulated": false,
@@ -495,17 +495,17 @@
           2
         ]
       },
-      "description": "Polígono límite del incendio configurado en GeoPulse.",
+      "description": "Wildfire boundary polygon configured in GeoPulse.",
       "popupFields": [
         [
           "name",
-          "Área"
+          "Area"
         ]
       ]
     },
     {
       "id": "burn-extent-casing",
-      "name": "Perímetro quemado (contorno)",
+      "name": "Burn perimeter (casing)",
       "type": "line",
       "status": "real",
       "simulated": false,
@@ -522,11 +522,11 @@
         "line-opacity": 0.65,
         "line-width": 3.4
       },
-      "description": "Sombra base del perímetro GeoPulse (probabilidad ≥ 0.50)."
+      "description": "Base dark casing for the GeoPulse perimeter (probability ≥ 0.50)."
     },
     {
       "id": "burn-extent-outline",
-      "name": "Perímetro de quemado (GeoPulse)",
+      "name": "Burn perimeter (GeoPulse)",
       "type": "line",
       "status": "real",
       "simulated": false,
@@ -543,24 +543,24 @@
         "line-width": 1.8
       },
       "legend": {
-        "title": "Perímetro GeoPulse",
+        "title": "GeoPulse Perimeter",
         "items": [
           {
             "color": "#ffd60a",
-            "label": "Probabilidad ≥ 0.50"
+            "label": "Probability ≥ 0.50"
           }
         ]
       },
-      "description": "Contorno amarillo GeoPulse donde la probabilidad de quemado supera 0.50.",
+      "description": "GeoPulse yellow outline where burn probability exceeds 0.50.",
       "popupFields": [
         [
           "area_km2",
-          "Área del polígono",
+          "Polygon area",
           "km²"
         ],
         [
           "threshold",
-          "Umbral P(quemado)"
+          "P(burn) threshold"
         ]
       ]
     }

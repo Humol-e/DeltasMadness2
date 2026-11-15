@@ -1,4 +1,4 @@
-"""Pruebas unitarias para el exportador de deshielo real hacia sar-Madness."""
+"""Unit tests for the real glacier melt exporter to sar-Madness."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from PIL import Image
 
 from glacier_monitor.config import BoundingBox
 from glacier_monitor.ingestion.platform_exporter import (
-    build_deshielo_case_definition,
+    build_glacier_case_definition,
     compute_grid_spec,
     compute_melt_loss_array,
     encode_gray8_png,
@@ -83,9 +83,9 @@ def test_register_catalog_strips_demo_and_deduplicates(tmp_path: Path) -> None:
     assert data["cases"] == ["data/cases/glacier-langtang/case.json"]
 
 
-def test_build_deshielo_case_definition_is_strictly_real() -> None:
+def test_build_glacier_case_definition_is_strictly_real() -> None:
     bbox = BoundingBox(min_lon=85.50, min_lat=28.18, max_lon=85.74, max_lat=28.30)
-    case_def = build_deshielo_case_definition(
+    case_def = build_glacier_case_definition(
         case_id="glacier-langtang",
         name="Langtang",
         region="Nepal",
@@ -111,7 +111,7 @@ def test_build_deshielo_case_definition_is_strictly_real() -> None:
     )
     assert case_def["status"] == "real"
     assert case_def["simulated"] is False
-    assert case_def["category"] == "deshielo"
+    assert case_def["category"] == "glacier"
     assert case_def["title"] == "Langtang"
     assert len(case_def["view"]["center"]) == 2
     assert len(case_def["datasets"]) == 5

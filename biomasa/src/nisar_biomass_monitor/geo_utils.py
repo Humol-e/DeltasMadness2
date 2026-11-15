@@ -1,8 +1,9 @@
-"""Utilidades geoespaciales autónomas (UTM <-> WGS84, Albers, re-muestreo y GeoTIFF puro Python)."""
+"""Standalone geospatial utilities (UTM <-> WGS84, Albers, resampling, and pure-Python GeoTIFF)."""
 
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -10,12 +11,36 @@ from PIL import Image
 from PIL.TiffImagePlugin import ImageFileDirectory_v2
 
 
+@dataclass(frozen=True)
+class UtmToWgs84Remap:
+    """Precomputed fractional UTM source coordinates for a regular EPSG:4326 grid."""
+
+    src_shape: tuple[int, int]
+    bounds_wgs84: tuple[float, float, float, float]
+    col_f: np.ndarray
+    row_f: np.ndarray
+    # Bilinear interpolation index/weight cache (computed once across bands)
+    inside_bi: np.ndarray
+    c0c: np.ndarray
+    c1: np.ndarray
+    r0c: np.ndarray
+    r1: np.ndarray
+    w00: np.ndarray
+    w01: np.ndarray
+    w10: np.ndarray
+    w11: np.ndarray
+    # Nearest-neighbor index cache
+    inside_nn: np.ndarray
+    ci_nn: np.ndarray
+    ri_nn: np.ndarray
+
+
 def utm_to_lonlat(
     easting: np.ndarray | float,
     northing: np.ndarray | float,
     epsg: int,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Convierte coordenadas UTM WGS84 (`EPSG:326xx`/`327xx`) a `(lon, lat)` en grados."""
+    """Convert WGS84 UTM coordinates (`EPSG:326xx`/`327xx`) to `(lon, lat)` in degrees."""
     zone = epsg % 100
     south = 32700 <= epsg < 32800
 
@@ -39,7 +64,7 @@ def utm_to_lonlat(
         (56.0 / 15.0) * n3 - (136.0 / 35.0) * n4,
         (4279.0 / 630.0) * n4,
     )
-    _ = e2  # documenta parámetro de referencia WGS84
+    _ = e2  # documents WGS84 reference flattening
 
     fn = 10000000.0 if south else 0.0
     xi = (np.asarray(northing, dtype=np.float64) - fn) / (k0 * a_rect)
@@ -66,7 +91,7 @@ def lonlat_to_utm(
     lat_deg: np.ndarray | float,
     epsg: int,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Convierte `(lon, lat)` en grados WGS84 a UTM `(easting, northing)`."""
+    """Convert `(lon, lat)` in WGS84 degrees to UTM `(easting, northing)`."""
     zone = epsg % 100
     south = 32700 <= epsg < 32800
 
@@ -125,7 +150,7 @@ def albers_forward(
     a: float = 6378137.0,
     inv_f: float = 298.257223563,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Proyección elipsoidal Albers Equal Area (CONUS NLCD) de `(lon, lat)` a metros."""
+    """Ellipsoidal Albers Equal Area projection (CONUS NLCD) from `(lon, lat)` to meters."""
     f = 1.0 / inv_f
     e2 = 2.0 * f - f * f
     e = math.sqrt(e2)
@@ -156,7 +181,7 @@ def utm_bounds_to_wgs84(
     bounds_utm: tuple[float, float, float, float],
     epsg: int,
 ) -> tuple[float, float, float, float]:
-    """Calcula envolvente exterior `(west, south, east, north)` en EPSG:4326 desde UTM."""
+    """Compute outer bounding box `(west, south, east, north)` in EPSG:4326 from UTM bounds."""
     xmin, ymin, xmax, ymax = bounds_utm
     xs = np.linspace(xmin, xmax, 9, dtype=np.float64)
     ys = np.linspace(ymin, ymax, 9, dtype=np.float64)
@@ -165,21 +190,20 @@ def utm_bounds_to_wgs84(
     return float(np.min(lons)), float(np.min(lats)), float(np.max(lons)), float(np.max(lats))
 
 
-def reproject_utm_to_wgs84_grid(
-    arr_utm: np.ndarray,
+def build_utm_to_wgs84_remap(
+    src_shape: tuple[int, int],
     bounds_utm: tuple[float, float, float, float],
     epsg: int,
     *,
     width: int,
     height: int,
     bounds_wgs84: tuple[float, float, float, float] | None = None,
-    nearest: bool = False,
-) -> tuple[np.ndarray, tuple[float, float, float, float]]:
-    """Reproyecta un raster UTM `(H_u, W_u)` hacia una malla regular EPSG:4326 `(height, width)`."""
+) -> UtmToWgs84Remap:
+    """Precompute source pixel indices and bilinear weights for UTM -> EPSG:4326 reprojection."""
     wgs = bounds_wgs84 or utm_bounds_to_wgs84(bounds_utm, epsg)
     west, south, east, north = wgs
     xmin, ymin, xmax, ymax = bounds_utm
-    src_h, src_w = arr_utm.shape
+    src_h, src_w = src_shape
     dx_u = (xmax - xmin) / float(src_w)
     dy_u = (ymax - ymin) / float(src_h)
 
@@ -191,16 +215,10 @@ def reproject_utm_to_wgs84_grid(
     col_f = (ux - xmin) / dx_u - 0.5
     row_f = (ymax - uy) / dy_u - 0.5
 
-    if nearest or np.issubdtype(arr_utm.dtype, np.integer):
-        ci = np.rint(col_f).astype(np.int64)
-        ri = np.rint(row_f).astype(np.int64)
-        inside = (ci >= 0) & (ci < src_w) & (ri >= 0) & (ri < src_h)
-        fill = 0 if np.issubdtype(arr_utm.dtype, np.integer) else np.nan
-        out = np.full((height, width), fill, dtype=arr_utm.dtype)
-        out[inside] = arr_utm[ri[inside], ci[inside]]
-        return out, wgs
+    ci_nn = np.rint(col_f).astype(np.int64)
+    ri_nn = np.rint(row_f).astype(np.int64)
+    inside_nn = (ci_nn >= 0) & (ci_nn < src_w) & (ri_nn >= 0) & (ri_nn < src_h)
 
-    # Interpolación bilineal respetando NaNs en los 4 vecinos
     c0 = np.floor(col_f).astype(np.int64)
     r0 = np.floor(row_f).astype(np.int64)
     fc = np.clip(col_f - c0, 0.0, 1.0)
@@ -209,26 +227,79 @@ def reproject_utm_to_wgs84_grid(
     r1 = np.clip(r0 + 1, 0, src_h - 1)
     c0c = np.clip(c0, 0, src_w - 1)
     r0c = np.clip(r0, 0, src_h - 1)
+    inside_bi = (col_f >= -0.5) & (col_f <= src_w - 0.5) & (row_f >= -0.5) & (row_f <= src_h - 0.5)
 
-    inside = (col_f >= -0.5) & (col_f <= src_w - 0.5) & (row_f >= -0.5) & (row_f <= src_h - 0.5)
+    return UtmToWgs84Remap(
+        src_shape=src_shape,
+        bounds_wgs84=wgs,
+        col_f=col_f,
+        row_f=row_f,
+        inside_bi=inside_bi,
+        c0c=c0c,
+        c1=c1,
+        r0c=r0c,
+        r1=r1,
+        w00=(1.0 - fr) * (1.0 - fc),
+        w01=(1.0 - fr) * fc,
+        w10=fr * (1.0 - fc),
+        w11=fr * fc,
+        inside_nn=inside_nn,
+        ci_nn=ci_nn,
+        ri_nn=ri_nn,
+    )
+
+
+def reproject_utm_to_wgs84_grid(
+    arr_utm: np.ndarray,
+    bounds_utm: tuple[float, float, float, float],
+    epsg: int,
+    *,
+    width: int,
+    height: int,
+    bounds_wgs84: tuple[float, float, float, float] | None = None,
+    nearest: bool = False,
+    remap: UtmToWgs84Remap | None = None,
+) -> tuple[np.ndarray, tuple[float, float, float, float]]:
+    """Reproject a UTM raster `(H_u, W_u)` onto a regular EPSG:4326 `(height, width)` grid."""
+    rm = remap
+    if rm is None or rm.src_shape != arr_utm.shape or rm.col_f.shape != (height, width):
+        rm = build_utm_to_wgs84_remap(
+            arr_utm.shape,
+            bounds_utm,
+            epsg,
+            width=width,
+            height=height,
+            bounds_wgs84=bounds_wgs84,
+        )
+
+    if nearest or np.issubdtype(arr_utm.dtype, np.integer):
+        fill = 0 if np.issubdtype(arr_utm.dtype, np.integer) else np.nan
+        out = np.full((height, width), fill, dtype=arr_utm.dtype)
+        inside = rm.inside_nn
+        out[inside] = arr_utm[rm.ri_nn[inside], rm.ci_nn[inside]]
+        return out, rm.bounds_wgs84
+
+    # NaN-aware bilinear interpolation across the 4 neighbors
     src = arr_utm.astype(np.float64)
-    v00, v01 = src[r0c, c0c], src[r0c, c1]
-    v10, v11 = src[r1, c0c], src[r1, c1]
-    w00 = (1.0 - fr) * (1.0 - fc) * np.isfinite(v00)
-    w01 = (1.0 - fr) * fc * np.isfinite(v01)
-    w10 = fr * (1.0 - fc) * np.isfinite(v10)
-    w11 = fr * fc * np.isfinite(v11)
+    v00, v01 = src[rm.r0c, rm.c0c], src[rm.r0c, rm.c1]
+    v10, v11 = src[rm.r1, rm.c0c], src[rm.r1, rm.c1]
+    f00, f01 = np.isfinite(v00), np.isfinite(v01)
+    f10, f11 = np.isfinite(v10), np.isfinite(v11)
+    w00 = rm.w00 * f00
+    w01 = rm.w01 * f01
+    w10 = rm.w10 * f10
+    w11 = rm.w11 * f11
     wsum = w00 + w01 + w10 + w11
     val = (
-        np.where(np.isfinite(v00), v00, 0.0) * w00
-        + np.where(np.isfinite(v01), v01, 0.0) * w01
-        + np.where(np.isfinite(v10), v10, 0.0) * w10
-        + np.where(np.isfinite(v11), v11, 0.0) * w11
+        np.where(f00, v00, 0.0) * w00
+        + np.where(f01, v01, 0.0) * w01
+        + np.where(f10, v10, 0.0) * w10
+        + np.where(f11, v11, 0.0) * w11
     )
     out_f = np.full((height, width), np.nan, dtype=np.float32)
-    ok = inside & (wsum > 1e-6)
+    ok = rm.inside_bi & (wsum > 1e-6)
     out_f[ok] = (val[ok] / wsum[ok]).astype(np.float32)
-    return out_f, wgs
+    return out_f, rm.bounds_wgs84
 
 
 def write_wgs84_geotiff(
@@ -238,11 +309,11 @@ def write_wgs84_geotiff(
     *,
     nodata: float = -9999.0,
 ) -> Path:
-    """Escribe un GeoTIFF mono-banda EPSG:4326 sin comprimir legible por Pillow y QGIS."""
+    """Write an uncompressed single-band EPSG:4326 GeoTIFF readable by Pillow and QGIS."""
     path.parent.mkdir(parents=True, exist_ok=True)
     arr = np.asarray(array)
     if arr.ndim != 2:
-        raise ValueError(f"Se esperaba un arreglo 2D, recibido shape={arr.shape}")
+        raise ValueError(f"Expected a 2D array, got shape={arr.shape}")
     height, width = arr.shape
     west, south, east, north = bounds_wgs84
 

@@ -4,7 +4,7 @@
     {
       "type": "Feature",
       "properties": {
-        "name": "Área de estudio"
+        "name": "Study area"
       },
       "geometry": {
         "type": "Polygon",

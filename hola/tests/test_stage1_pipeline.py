@@ -120,13 +120,15 @@ def test_cli_list_aois_and_dry_run_ingest(
     tif.write_bytes(b"tif")
     monkeypatch.setenv("GEE_PROJECT_ID", "cli-proj")
     monkeypatch.setenv("GCS_BUCKET", "cli-bucket")
+    monkeypatch.setenv("GCS_PREFIX", "asf-sar-ingest")
+    monkeypatch.setenv("GEE_ASSET_COLLECTION", "")
 
     ingest_res = runner.invoke(
         cli_main,
         ["asf-ingest", "--local-file", str(tif), "--dry-run"],
     )
     assert ingest_res.exit_code == 0, ingest_res.output
-    assert "gs://cli-bucket/asf-sar-ingesta/" in ingest_res.output
+    assert "gs://cli-bucket/asf-sar-ingest/" in ingest_res.output
     assert "earthengine upload image" in ingest_res.output
 
 
@@ -200,7 +202,7 @@ def test_cli_doctor_reports_missing_credentials(
     runner = CliRunner()
     res = runner.invoke(cli_main, ["doctor"])
     assert res.exit_code != 0
-    assert "Falta archivo" in res.output
+    assert "Missing file" in res.output
     assert "Google Earth Engine" in res.output
 
 
@@ -254,7 +256,7 @@ def test_cli_doctor_local_mode_skips_gcs_bucket(
     res = runner.invoke(cli_main, ["doctor"])
     assert res.exit_code == 0, res.output
     assert "LOCAL" in res.output
-    assert "modo local sin bucket" in res.output
+    assert "local mode without bucket" in res.output
 
 
 def test_cli_asf_ingest_local_only_and_hyp3_status(

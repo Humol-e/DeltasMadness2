@@ -1,4 +1,4 @@
-"""Configuración y parámetros calibrados del algoritmo NISAR L3 AGB ATBD."""
+"""Configuration and calibrated parameters for the NISAR L3 AGB ATBD algorithm."""
 
 from __future__ import annotations
 
@@ -10,19 +10,19 @@ from pydantic import BaseModel, Field
 
 
 def find_repo_root(start: Path | None = None) -> Path:
-    """Localiza la raíz `DeltasMadness2` subiendo desde el módulo o cwd."""
+    """Locate the `DeltasMadness2` root directory walking up from this module or cwd."""
     candidates = [start or Path(__file__).resolve(), Path.cwd().resolve()]
     for base in candidates:
         for parent in (base, *base.parents):
             if (parent / "NISAR_Biomass" / "config" / "config.ini").is_file():
                 return parent
     raise FileNotFoundError(
-        "No se encontró NISAR_Biomass/config/config.ini en la jerarquía del repositorio."
+        "Could not find NISAR_Biomass/config/config.ini in the repository hierarchy."
     )
 
 
 class NisarAtbdParameters(BaseModel):
-    """Coeficientes calibrados de retrodispersión NISAR Banda L ([NISAR] en config.ini)."""
+    """Calibrated NISAR L-band backscatter coefficients (`[NISAR]` in config.ini)."""
 
     A_HV: float = Field(gt=0.0)
     A_HH: float = Field(gt=0.0)
@@ -39,7 +39,7 @@ class NisarAtbdParameters(BaseModel):
     s: float = Field(gt=0.0)
 
     def as_vector(self) -> tuple[float, ...]:
-        """Devuelve el orden exacto de 13 parámetros usado por NISAR_Biomass/model_radar.py."""
+        """Return the exact 13-parameter order expected by NISAR_Biomass/model_radar.py."""
         return (
             self.A_HV,
             self.A_HH,
@@ -58,15 +58,15 @@ class NisarAtbdParameters(BaseModel):
 
 
 def load_nisar_config(config_path: Path | None = None) -> NisarAtbdParameters:
-    """Lee `[NISAR]` desde `NISAR_Biomass/config/config.ini` sin importar GDAL/sklearn."""
+    """Read `[NISAR]` from `NISAR_Biomass/config/config.ini` without requiring GDAL/sklearn."""
     path = config_path or (find_repo_root() / "NISAR_Biomass" / "config" / "config.ini")
     if not path.is_file():
-        raise FileNotFoundError(f"No existe el archivo de configuración NISAR: {path}")
+        raise FileNotFoundError(f"NISAR configuration file does not exist: {path}")
 
     parser = configparser.ConfigParser()
     parser.read(path, encoding="utf-8")
     if "NISAR" not in parser:
-        raise ValueError(f"El archivo {path} no contiene la sección [NISAR].")
+        raise ValueError(f"Configuration file {path} is missing the [NISAR] section.")
 
     sec = parser["NISAR"]
     return NisarAtbdParameters(
@@ -87,7 +87,7 @@ def load_nisar_config(config_path: Path | None = None) -> NisarAtbdParameters:
 
 
 class SiteDefinition(BaseModel):
-    """Definición de un sitio piloto NISAR GCOV publicado hacia sar-Madness."""
+    """Definition of a NISAR GCOV study site published to sar-Madness."""
 
     case_id: str
     site_code: str
@@ -114,15 +114,18 @@ class SiteDefinition(BaseModel):
 LENO_SITE = SiteDefinition(
     case_id="biomass-leno-nisar",
     site_code="LENO",
-    title="Biomasa Forestal NISAR L3 — Lenoir Landing (LENO)",
-    subtitle="Estimación de Biomasa Aérea (AGB) en Banda L (GCOV) y perturbación forestal 2021–2024",
-    region="Alabama (Río Tombigbee / Sitio NEON LENO)",
-    country="Estados Unidos",
+    title="NISAR L3 Forest Biomass — Lenoir Landing (LENO · Butler, AL)",
+    subtitle=(
+        "L-band (GCOV) Aboveground Biomass (AGB) & Forest Disturbance 2021–2024 "
+        "over NASA's Butler, AL validation grid (~33 km N of Lenoir Landing Park)"
+    ),
+    region="Alabama (Butler · NEON LENO Validation Grid, 33 km N of Lenoir Landing Park)",
+    country="United States",
     s3_base_url="https://s3.us-west-1.wasabisys.com/nisar-public-ebd",
     s3_prefix="ATBD/ecosystems/disturbance/sites/leno/",
     epsg=32616,
     target_resolution_m=100.0,
-    # Malla de validación oficial LENO 100 m UTM 16N (210 x 193 ha = 405.30 km²)
+    # Official LENO 100 m UTM 16N validation grid (210 x 193 ha = 405.30 km²)
     roi_bounds_utm=(378225.0, 3548756.0, 399225.0, 3568056.0),
     roi_width_100m=210,
     roi_height_100m=193,

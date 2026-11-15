@@ -134,3 +134,67 @@ def test_extract_mask_polygons_and_export_schema_v2(tmp_path: Path) -> None:
         "data/cases/wildfire-camp-paradise/case.json",
         f"data/cases/{mini_site.case_id}/case.json",
     ]
+<<<<<<< HEAD
+=======
+
+
+def test_export_multitemporal_series_produces_four_chronological_frames(tmp_path: Path) -> None:
+    mini_site = LENO_SITE.model_copy(
+        update={
+            "roi_width_100m": 16,
+            "roi_height_100m": 16,
+            "roi_bounds_utm": (378225.0, 3566456.0, 379825.0, 3568056.0),
+        }
+    )
+    params = load_nisar_config()
+    forest_mask = np.ones((16, 16), dtype=bool)
+    refs = LenoReferenceLayers(
+        np.full((16, 16), 42, dtype=np.uint8),
+        forest_mask,
+        np.ones((16, 16), dtype=np.uint8),
+        np.zeros((16, 16), dtype=np.uint8),
+    )
+
+    series = []
+    for tag, iso, agb_val in [
+        ("20210806", "2021-08-06T05:47:00Z", 118.0),
+        ("20220930", "2022-09-30T05:47:00Z", 112.0),
+        ("20230929", "2023-09-29T05:47:00Z", 104.0),
+        ("20240830", "2024-08-30T05:47:00Z", 109.0),
+    ]:
+        agb = np.full((16, 16), agb_val, dtype=np.float64)
+        hh, hv = forward_nisar_hh_hv(agb, params)
+        sc = ResampledGcovScene(
+            tag, iso, hh.astype(np.float32), hv.astype(np.float32),
+            np.ones((16, 16), dtype=np.float32), 32616, tmp_path / f"{tag}.h5", f"https://example.org/{tag}.h5",
+        )
+        inv = invert_agb_scene(hh, hv, params, valid_mask=forest_mask)
+        series.append((sc, inv))
+
+    summary = export_biomass_case_to_madness(
+        site=mini_site,
+        params=params,
+        pre_scenes=[series[1][0]],
+        post_scenes=[series[2][0]],
+        pre_inv=series[1][1],
+        post_inv=series[2][1],
+        refs=refs,
+        madness_root=tmp_path / "mad",
+        series_scenes=series,
+    )
+
+    case_doc = json.loads(summary.case_json_path.read_text(encoding="utf-8"))
+    for ds_id in ("nisar_agb", "nisar_hv", "nisar_hh"):
+        ds = next(d for d in case_doc["datasets"] if d["id"] == ds_id)
+        assert [f["id"] for f in ds["frames"]] == ["d20210806", "pre", "post", "d20240830"]
+        assert ds["frames"][1]["phase"] == "before"
+        assert ds["frames"][2]["phase"] == "after"
+        for fr in ds["frames"]:
+            rel = next(iter(fr["files"].values()))
+            assert (tmp_path / "mad" / "public" / rel).is_file()
+
+    assert case_doc["metrics"]["seriesSceneCount"] == 4
+    assert case_doc["metrics"]["agb2021Mean"] == 118.0
+    assert case_doc["metrics"]["agb2024Mean"] == 109.0
+    assert len(case_doc["metrics"]["agbSeriesMeans"]) == 4
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7

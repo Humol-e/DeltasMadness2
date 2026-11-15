@@ -32,7 +32,9 @@
     "meltAreaKm2": 92.6,
     "sarWetSnowKm2": 73.34,
     "sarPossibleWetKm2": 72.55,
-    "sarWetSnowPct": 43.3
+    "sarWetSnowPct": 43.3,
+    "sarSubsurfaceWetSnowKm2": 59.57,
+    "sarWetInOpticalSnowPct": 81.2
   },
   "datasets": [
     {

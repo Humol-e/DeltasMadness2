@@ -2,8 +2,14 @@
 import { parseJsonc, validateCase, normalizeCase, toMs } from './schema.js';
 import { buildAxis } from './timeline.js';
 
-const BASE = import.meta.env?.BASE_URL || '/';
-export const resolveUrl = (p) => (/^(https?:)?\/\//.test(p) || p.startsWith('data:') ? p : BASE + p.replace(/^\//, ''));
+const RAW_BASE = import.meta.env?.BASE_URL || '/';
+export const resolveUrlWithBase = (p, base = '/') => {
+  const safeBase = !base ? '/' : base.endsWith('/') ? base : `${base}/`;
+  return /^(https?:)?\/\//.test(p) || p.startsWith('data:')
+    ? p
+    : safeBase + p.replace(/^\.\//, '').replace(/^\//, '');
+};
+export const resolveUrl = (p) => resolveUrlWithBase(p, RAW_BASE);
 
 async function fetchJson(path) {
   const res = await fetch(resolveUrl(path));

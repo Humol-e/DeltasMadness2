@@ -5,7 +5,11 @@
 [![NASA Space Apps](https://img.shields.io/badge/NASA_Space_Apps_2026-Dancing_with_the_SARs-0B3D91)](./Delta_Madness_Documentation_English_Version.pdf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB)](#installation-and-quick-start)
+<<<<<<< HEAD
 [![Frontend](https://img.shields.io/badge/Viewer-Mapbox_GL_JS_v3.9_%2B_Vite_5-1E293B)](#4-3d-web-viewer-sar-madnesssar-madness)
+=======
+[![Frontend](https://img.shields.io/badge/Viewer-MapLibre_GL_JS_%2B_Mapbox_GL_JS_%2B_Vite_5-1E293B)](#4-3d-web-viewer-sar-madnesssar-madness)
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 [![Catalog Schema v2](https://img.shields.io/badge/Catalog-6%2F6_Cases_Validated-15803D)](#validated-study-cases)
 
 > **Official NASA Space Apps Challenge Documentation (English PDF):** [Delta Madness Documentation](./Delta_Madness_Documentation_English_Version.pdf)<br>
@@ -17,7 +21,11 @@
 
 * **Primary Source Code & Data Repository:** `https://github.com/Humol-e/DeltasMadness2`
 * **Public 7-Slide Presentation / <= 30-Second Demo Video:** `[PENDING — INSERT PUBLIC PRESENTATION OR <= 30-SECOND VIDEO LINK]`
+<<<<<<< HEAD
 * **Public Hosted Web Viewer (Optional):** `[OPTIONAL — INSERT PUBLIC WEB VIEWER URL IF PUBLISHED]`
+=======
+* **GitHub Pages Automated Deployment:** Workflow included at [`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml) (builds the tokenless MapLibre GL JS 3D viewer and publishes to `https://humol-e.github.io/DeltasMadness2/` once GitHub Pages is enabled under *Settings → Pages → Source: GitHub Actions*).
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 
 ---
 
@@ -39,7 +47,11 @@
 
 ## Project Overview
 
+<<<<<<< HEAD
 **Delta Madness** (`DeltasMadness2`) unifies **three Python scientific engines** and an **interactive 3D web viewer built with Mapbox GL JS (`sar-Madness`)** designed to monitor critical environmental changes without relying solely on clear-sky optical imagery:
+=======
+**Delta Madness** (`DeltasMadness2`) unifies **three Python scientific engines** and an **interactive 3D web viewer powered by MapLibre GL JS (with optional Mapbox GL JS upgrade) (`sar-Madness`)** designed to monitor critical environmental changes without relying solely on clear-sky optical imagery:
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 
 * **Forest biomass & carbon (`biomasa` / `nisar-biomass-monitor`):** vectorized NumPy/SciPy implementation of the **NISAR L3 AGB ATBD** semi-empirical model using calibrated coefficients from `NISAR_Biomass/config/config.ini`. It processes **official NASA pre-launch simulated NISAR L2 GCOV** (`20 m → 1 ha`, derived from UAVSAR/ALOS-2 over NEON LENO, Alabama) to estimate aboveground biomass (`Mg/ha`), carbon density (`0.47 * AGB`), and severe forest loss (`ΔAGB <= -40 Mg/ha`) compared against PlanetScope disturbance validation.
 * **Wildfires (`incendios` / `wildfire-monitor`):** deterministic physical baseline combining optical spectral indices (`dNBR`, `NDVI`, `MNDWI` from Sentinel-2 L2A) with an all-weather polarimetric SAR fallback (`VH` drop from Sentinel-1 RTC where optical observations are obscured/`NaN`), Copernicus DEM terrain slope, Key & Benson (2006) severity classes, a pre-event physical water mask, and Shannon binary-entropy uncertainty.
@@ -55,6 +67,7 @@ The active catalog [`sar-Madness/sar-Madness/public/data/catalog.json`](./sar-Ma
 
 | Case ID | Domain | Location & Window | Primary Sources | Verified Key Metrics |
 | :--- | :--- | :--- | :--- | :--- |
+<<<<<<< HEAD
 | `wildfire-camp-paradise` | Wildfire | Paradise, California (2018) | Planetary Computer (`S1 RTC` 4+4, `S2 L2A` 4+4, `COP-DEM` 56.0–558.0 m) | `54.41 km²` affected / `156.186 km²` observed; `9.201 km²` under review; severity (km²): low `19.598`, mod-low `14.242`, mod-high `10.835`, high `8.267` |
 | `wildfire-martin-nv` | Wildfire | Martin Fire, Nevada (2018) | Planetary Computer (`S1 RTC` 4+4, `S2 L2A` 4+4, `COP-DEM` 1550.0–1801.0 m) | `57.675 km²` affected / `179.589 km²` observed; `13.012 km²` under review; severity (km²): low `45.085`, mod-low `12.521`, mod-high `0.069`, high `0.0` |
 | `wildfire-palisades-la` | Wildfire | Palisades, Los Angeles (2025) | Planetary Computer (`S1 RTC` 4+4, `S2 L2A` 3+4, `COP-DEM` 0.0–706.0 m) | `70.146 km²` affected / `110.113 km²` observed; `7.249 km²` under review; severity (km²): low `11.845`, mod-low `11.454`, mod-high `24.105`, high `22.743` |
@@ -63,6 +76,16 @@ The active catalog [`sar-Madness/sar-Madness/public/data/catalog.json`](./sar-Ma
 | `biomass-leno-nisar` | Biomass | NEON LENO, Alabama (`2022-09-30` vs `2023-09-29`) | Simulated NISAR L2 GCOV (UAVSAR/ALOS-2 via Wasabi S3), USGS NLCD, PlanetScope | Observed `405.3 km²` (forest `270.89 km²`); mean AGB `72.7 -> 66.1 Mg/ha`; disturbed `87.3 -> 14.1 Mg/ha`; severe loss `17.53 km²` (`ΔAGB <= -40 Mg/ha`, Planet ref `5.9 km²`*); carbon loss `50.79 Gg C`; HV `-11.57 -> -11.78 dB`; model RMSE `0.53 dB` |
 
 *\*Note on `biomass-leno-nisar`: L-band SAR inversion (`17.53 km²` at `ΔAGB <= -40 Mg/ha`) responds to volumetric canopy structure, soil moisture variation (`s`), and 1 ha aggregation, making it more sensitive to partial/structural degradation than the PlanetScope optical disturbance mask (`5.9 km²`). Additional `2021-08-06` and `2024-08-30` GCOV scenes are cached under `biomasa/data/cache/` for extended CLI analysis.*
+=======
+| `wildfire-camp-paradise` | Wildfire | Paradise, California (2018) | Planetary Computer (`S1 RTC` 4+4, `S2 L2A` 4+4, `COP-DEM` 56.0–558.0 m) | Optical `54.41 km²` / `156.186 km²` observed (`9.201 km²` under review); `sar_burn` `24.68 km²` (`sarMeanDeltaRvi -0.36`, `56.5%` inside optical burn, `105.4%` disturbed-to-optical area) |
+| `wildfire-martin-nv` | Wildfire | Martin Fire, Nevada (2018) | Planetary Computer (`S1 RTC` 4+4, `S2 L2A` 4+4, `COP-DEM` 1550.0–1801.0 m) | Optical `57.675 km²` / `179.589 km²` observed (`13.012 km²` under review); `sar_burn` `33.47 km²` (`sarMeanDeltaRvi -0.143`, `98.6%` inside optical burn, `91.4%` disturbed-to-optical area) |
+| `wildfire-palisades-la` | Wildfire | Palisades, Los Angeles (2025) | Planetary Computer (`S1 RTC` 4+4, `S2 L2A` 3+4, `COP-DEM` 0.0–706.0 m) | Optical `70.146 km²` / `110.113 km²` observed (`7.249 km²` under review); `sar_burn` `30.24 km²` (`sarMeanDeltaRvi -0.375`, `96.4%` inside optical burn, `59.2%` disturbed-to-optical area) |
+| `glacier-langtang` | Cryosphere | Langtang Valley, Nepal (Jan–Feb vs May–Aug 2026) | GEE (`S2 SR` 26/31, `S1 GRD IW` 14/27, `MODIS MOD10A1/MOD11A1` 58/108) | MODIS snow `38.9% -> 13.7%`; LST `-6.9 °C -> 6.6 °C`; net ΔNDSI melt `92.6 km²`; SAR wet snow `73.34 km²` (`59.57 km²` subsurface under optical snow, `81.2%` agreement) |
+| `glacier-khumbu` | Cryosphere | Khumbu Glacier, Nepal (Jan–Feb vs May–Aug 2026) | GEE (`S2 SR` 30/33, `S1 GRD IW` 12/18, `MODIS MOD10A1/MOD11A1` 58/108) | MODIS snow `20.4% -> 8.4%`; LST `-5.3 °C -> 6.1 °C`; net ΔNDSI melt `26.42 km²`; SAR wet snow `14.9 km²` (`12.42 km²` subsurface under optical snow, `83.4%` agreement) |
+| `biomass-leno-nisar` | Biomass | NEON LENO, Alabama (4-year series `2021-08-06` to `2024-08-30`) | Simulated NISAR L2 GCOV (UAVSAR/ALOS-2 via Wasabi S3), USGS NLCD, PlanetScope | Observed `405.3 km²` (forest `270.89 km²`); 4-yr mean AGB `99.0 -> 72.7 -> 66.1 -> 68.2 Mg/ha`; `2022->2023` disturbed `87.3 -> 14.1 Mg/ha` (`-73.2` vs intact `-5.7 Mg/ha`); `94.2%` Planet recall (`ΔAGB <= -15 Mg/ha`); severe loss `17.53 km²` (`ΔAGB <= -40 Mg/ha`, Planet `5.9 km²`*); carbon loss `50.79 Gg C`; HV `-11.57 -> -11.78 dB`; RMSE `0.53 dB` |
+
+*\*Note on `biomass-leno-nisar`: All four NISAR L2 GCOV dates (`2021-08-06`, `2022-09-30`, `2023-09-29`, `2024-08-30`) are exported directly to the interactive viewer (`d20210806`, `pre`, `post`, `d20240830`). L-band SAR inversion (`17.53 km²` at `ΔAGB <= -40 Mg/ha`, `94.2%` recall against Planet at `<= -15 Mg/ha`) responds to volumetric canopy structure, soil moisture variation (`s`), and 1 ha aggregation, capturing partial/structural degradation beyond the binary PlanetScope disturbance mask (`5.9 km²`).*
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 
 ---
 
@@ -112,7 +135,10 @@ The active catalog [`sar-Madness/sar-Madness/public/data/catalog.json`](./sar-Ma
 ```text
 DeltasMadness2/
 ├── LICENSE                                                # MIT Open Source License
+<<<<<<< HEAD
 ├── .gitmodules                                            # Submodule mapping for NISAR_Biomass
+=======
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 ├── README.md                                              # Main repository overview
 ├── Delta_Madness_Documentation_English_Version.pdf        # Official NASA Space Apps documentation (English)
 ├── Technical_Article_Geospatial_Ingestion_and_NISAR_Cookbook.pdf # English ETL & NISAR Cookbook reference
@@ -126,10 +152,19 @@ DeltasMadness2/
 │   │   ├── nisar_atbd.py
 │   │   ├── platform_exporter.py
 │   │   └── s3_source.py
+<<<<<<< HEAD
 │   └── tests/                                             # 8 pytest tests
 ├── hola/                                                  # Python package glacier-monitor (CLI: glacier-stage1)
 │   ├── README.md
 │   ├── GUIA_DATOS.md
+=======
+│   └── tests/                                             # 9 pytest tests
+├── pyproject.toml                                         # Unified root pytest configuration (99 tests across all 3 engines)
+├── hola/                                                  # Python package glacier-monitor (CLI: glacier-stage1)
+│   ├── README.md
+│   ├── DATA_GUIDE.md
+│   ├── .env.example
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 │   ├── pyproject.toml
 │   ├── requirements.txt
 │   ├── scripts/stage1_cli.py
@@ -137,11 +172,19 @@ DeltasMadness2/
 │   │   ├── cli.py
 │   │   ├── config.py
 │   │   ├── gee_auth.py
+<<<<<<< HEAD
 │   │   └── ingestion/ (asf_bridge.py, gee_uploader.py, native_catalog.py, pipeline.py, platform_exporter.py)
 │   └── tests/                                             # 44 pytest tests
 ├── incendios/                                             # Python package wildfire-monitor (CLI: wildfire-stage1)
 │   ├── README.md
 │   ├── GUIA_DATOS.md
+=======
+│   │   └── ingestion/ (asf_bridge.py, gee_uploader.py, native_catalog.py, pipeline.py, platform_exporter.py, sar_wetsnow.py)
+│   └── tests/                                             # 57 pytest tests
+├── incendios/                                             # Python package wildfire-monitor (CLI: wildfire-stage1)
+│   ├── README.md
+│   ├── DATA_GUIDE.md
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 │   ├── pyproject.toml
 │   ├── requirements.txt
 │   ├── scripts/stage1_cli.py
@@ -149,17 +192,31 @@ DeltasMadness2/
 │   │   ├── cli.py
 │   │   ├── config.py
 │   │   ├── pc_auth.py
+<<<<<<< HEAD
 │   │   └── ingestion/ (geopulse_bridge.py, native_catalog.py, pipeline.py, platform_exporter.py)
 │   └── tests/                                             # 27 pytest tests
 ├── NISAR_Biomass/                                         # Reference L3 AGB ATBD science submodule (config.ini)
 └── sar-Madness/sar-Madness/                               # Active 3D web viewer (Mapbox GL JS v3.9.0 + Vite v5.4.11)
     ├── README.md
     ├── package.json
+=======
+│   │   └── ingestion/ (geopulse_bridge.py, native_catalog.py, pipeline.py, platform_exporter.py, sar_burn.py)
+│   └── tests/                                             # 33 pytest tests
+├── NISAR_Biomass/                                         # Vendored reference L3 AGB ATBD science config (config.ini)
+└── sar-Madness/sar-Madness/                               # Active 3D web viewer (MapLibre GL JS v6 + optional Mapbox GL JS v3.9 + Vite v5.4)
+    ├── README.md
+    ├── package.json
+    ├── vite.config.js
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
     ├── index.html
     ├── .env.example
     ├── docs/ (SCHEMA.md, case.example.jsonc, case.template.json)
     ├── scripts/validate-catalog.mjs
+<<<<<<< HEAD
     ├── tests/placeSearch.test.mjs                         # 3 Node tests (utility module)
+=======
+    ├── tests/                                             # 25 Node tests (mapFallback, placeSearch, rasterCanvas, sarBurn, wetSnow)
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
     ├── public/data/ (catalog.json + 6 cases in cases/)
     └── src/
         ├── main.js
@@ -187,9 +244,14 @@ DeltasMadness2/
 * Runs the deterministic physical baseline `compute_wildfire_physics` (`GeoPulse Physics Baseline v0.1.0`): sigmoid fusion of `dNBR` (`DNBR_BURN=0.1`) and fuel `NDVI` (`NDVI_FUEL=0.1`), all-weather Sentinel-1 `VH` drop fallback (`VH_DROP_DB=2.0`, `VH_CANOPY_DB=-17.0`) where `S2` is `NaN`, pre-event physical water constraint (`MNDWI` / `VV`), 4 Key & Benson (2006) severity classes `(0.1, 0.27, 0.44, 0.66)`, Shannon binary-entropy uncertainty $H(p)$, and `burn_extent.geojson` polygons (`P >= 0.50`). Includes **11 preset AOIs** (`palisades`, `camp_paradise`, `martin_nv`, `maui_lahaina`, `jasper_ab`, `valparaiso_cl`, `evros_gr`, `tenerife_es`, `tarahumara_mx`, `pantanal_br`, `los_alerces_ar`).
 
 ### 4. 3D Web Viewer (`sar-Madness/sar-Madness`)
+<<<<<<< HEAD
 * Built with **Mapbox GL JS `^3.9.0`** and **Vite `^5.4.11`**.
 * Supports **3D Globe**, **Flat Map**, and **3D Terrain** views with `terrarium` elevation tiles, switchable basemaps, and runtime **Esri World Imagery** fallback when Mapbox tile requests hit HTTP `429` rate limits (requires `VITE_MAPBOX_ACCESS_TOKEN` in `.env` to initialize the 3D globe and Satellite Monitoring view).
 * Performs client-side scientific LUT rendering of `gray8` rasters and `rgba` composites, real timestamp stepping without artificial cross-date interpolation, interactive **Before / After** geographic swipe comparison, real cursor pixel probing, GeoJSON perimeter overlays, comparative `.png` plate exports (`src/lib/beforeAfterExport.js`), and raw `.tif` downloads. Note: `src/lib/placeSearch.js` is an offline search/coordinate parser utility (covered by Node tests) not yet wired to a search bar in `src/main.js`.
+=======
+* Runs out-of-the-box without any API token using **MapLibre GL JS `^6.18.0`** (3D Globe projection, AWS Terrarium 3D terrain, Esri World Imagery / CARTO / OSM, and Nominatim search) and **Vite `^5.4.11`**, automatically upgrading to **Mapbox GL JS `^3.9.0`** when `VITE_MAPBOX_ACCESS_TOKEN` is supplied (with runtime MapLibre failover on Mapbox auth errors or HTTP `429` limits).
+* Performs client-side scientific LUT rendering of `gray8` rasters and `rgba` composites, real multi-frame timestamp stepping (`d20210806` -> `pre` -> `post` -> `d20240830`) without artificial cross-date interpolation, interactive **Before / After** geographic swipe comparison, real cursor pixel probing, GeoJSON perimeter overlays, comparative `.png` plate exports (`src/lib/beforeAfterExport.js`), raw `.tif` downloads, and an integrated `#home-search-input` bar (`src/lib/placeSearch.js` + `buildCliCommands`) for jumping to study sites, parsing WGS84 coordinates, and copying ready-to-run wildfire/glacier CLI commands.
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 
 ---
 
@@ -263,7 +325,11 @@ $$H(P) = -\bigl(q\log_2(q) + (1 - q)\log_2(1 - q)\bigr)\ \text{bits}, \qquad \De
 * **ISRO (Indian Space Research Organisation):** co-partner of the joint [NASA-ISRO NISAR](https://www.isro.gov.in/NASA_ISRO_SAR_Satellite.html) mission.
 * **JAXA (Japan Aerospace Exploration Agency):** [ALOS / ALOS-2 L-Band SAR](https://www.eorc.jaxa.jp/ALOS/en/index_e.htm) (co-reference alongside UAVSAR in the simulated NISAR L2 GCOV product for `biomass-leno-nisar`).
 * **Integrated / Referenced External Repositories:**
+<<<<<<< HEAD
   * [`NISAR-Science-Algorithms/NISAR_Biomass`](https://github.com/NISAR-Science-Algorithms/NISAR_Biomass) (submodule in `NISAR_Biomass/`, basis of `biomasa/`).
+=======
+  * [`NISAR-Science-Algorithms/NISAR_Biomass`](https://github.com/NISAR-Science-Algorithms/NISAR_Biomass) (vendored reference config in `NISAR_Biomass/`, basis of `biomasa/`).
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
   * [`nrahaman1/geopulse`](https://github.com/nrahaman1/geopulse) (`threshold-baseline` physical model and reference wildfires for `incendios/`).
   * [`gee-community/sar-asf-to-gee`](https://github.com/gee-community/sar-asf-to-gee) (optional ASF HyP3 → GEE bridge in `hola/pyproject.toml`).
   * SDKs & Web Viewer: [`mapbox/mapbox-gl-js`](https://github.com/mapbox/mapbox-gl-js), [`vitejs/vite`](https://github.com/vitejs/vite), [`google/earthengine-api`](https://github.com/google/earthengine-api).
@@ -284,7 +350,12 @@ All precomputed cases are already packaged under `sar-Madness/sar-Madness/public
 ```powershell
 cd "sar-Madness/sar-Madness"
 npm install
+<<<<<<< HEAD
 Copy-Item .env.example .env   # Required: paste your public pk.* token into VITE_MAPBOX_ACCESS_TOKEN
+=======
+# Optional only if you want Mapbox styles + Mapbox geocoding instead of default tokenless MapLibre GL JS:
+# Copy-Item .env.example .env
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 npm run validate              # Validates catalog.json and all 6 cases
 npm run dev                   # Starts the local Vite dev server
 ```
@@ -304,6 +375,12 @@ From the `DeltasMadness2/` root:
 py -m pip install -e biomasa
 py -m pip install -e hola
 py -m pip install -e incendios
+<<<<<<< HEAD
+=======
+
+# Run the entire 99-test Python suite across all three engines from the repo root:
+py -B -m pytest -p no:cacheprovider -q
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 ```
 
 Main CLI commands by module:
@@ -319,9 +396,16 @@ wildfire-stage1 doctor
 wildfire-stage1 scout-wildfires --source eonet
 wildfire-stage1 publish-madness
 
+<<<<<<< HEAD
 # Glaciers (requires GEE project in hola/.env; ASF/HyP3 uses NASA Earthdata token)
 glacier-stage1 list-aois
 glacier-stage1 doctor
+=======
+# Glaciers (copy hola/.env.example to hola/.env for GEE; ASF/HyP3 uses NASA Earthdata token)
+glacier-stage1 list-aois
+glacier-stage1 doctor
+glacier-stage1 sar-wetsnow     # runs 100% offline from published PNGs
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 glacier-stage1 publish-madness
 ```
 
@@ -331,6 +415,7 @@ glacier-stage1 publish-madness
 
 ## Testing and Validation
 
+<<<<<<< HEAD
 Verified on the codebase:
 
 | Suite / Check | Command | Observed Result |
@@ -340,6 +425,18 @@ Verified on the codebase:
 | Biomass unit tests (`biomasa`) | `cd biomasa && py -B -m pytest -p no:cacheprovider -q` | **8 passed** |
 | Glacier unit tests (`hola`) | `cd hola && py -B -m pytest -p no:cacheprovider -q` | **44 passed** |
 | Wildfire unit tests (`incendios`) | `cd incendios && py -B -m pytest -p no:cacheprovider -q` | **27 passed** |
+=======
+Verified on the codebase (**124 passing automated tests** + **6 / 6 Schema v2 catalog checks**):
+
+| Suite / Check | Command | Observed Result |
+| :--- | :--- | :--- |
+| Unified Python suite (root) | `py -B -m pytest -p no:cacheprovider -q` | **99 passed** |
+| Web catalog validation (`sar-Madness`) | `cd sar-Madness/sar-Madness && node scripts/validate-catalog.mjs` | **6 / 6 valid cases** (`Valid catalog (100% real data)`) |
+| Web app & search utility tests (`sar-Madness`) | `cd sar-Madness/sar-Madness && node --test tests/*.test.mjs` | **25 passed** |
+| Biomass unit tests (`biomasa`) | `cd biomasa && py -B -m pytest -p no:cacheprovider -q` | **9 passed** |
+| Glacier unit tests (`hola`) | `cd hola && py -B -m pytest -p no:cacheprovider -q` | **57 passed** |
+| Wildfire unit tests (`incendios`) | `cd incendios && py -B -m pytest -p no:cacheprovider -q` | **33 passed** |
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 
 ---
 
@@ -347,7 +444,11 @@ Verified on the codebase:
 
 * LLM/AI coding assistants were used during development solely to accelerate software implementation, refactoring, debugging, and technical documentation drafting/translation.
 * Problem conception, architectural design, sensor selection, and physical/statistical formulations are authored by the team.
+<<<<<<< HEAD
 * **At runtime**, both the `sar-Madness` viewer and the three pipelines (`biomasa`, `hola`, `incendios`) operate **100% deterministically** on satellite data and explicit physical models, with zero generative inference or synthetic imagery synthesis (`torch>=2.4` is listed only under optional metadata in `incendios/pyproject.toml` and is unused in published cases).
+=======
+* **At runtime**, both the `sar-Madness` viewer and the three pipelines (`biomasa`, `hola`, `incendios`) operate **100% deterministically** on satellite data and explicit physical/statistical models, with zero generative inference, zero deep-learning dependencies, and zero synthetic imagery synthesis.
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 
 ---
 
@@ -358,8 +459,13 @@ Developed collaboratively by **Delta Madness**:
 * **Luis Emiliano Castro Reza** — [@Humol-e](https://github.com/Humol-e)
 * **Raúl Isaac Santos Ruiz** — [@Peanut-Butter-Arc](https://github.com/Peanut-Butter-Arc)
 * **Karla Yelitza Figueroa Garcia** — [@karlayelitza020705-ui](https://github.com/karlayelitza020705-ui)
+<<<<<<< HEAD
 * **Aaron Fernandez Lizarraga** — `[PENDING — INSERT GITHUB PROFILE LINK]`
 * **Liv Nicole Gay De la O** — `[PENDING — INSERT GITHUB PROFILE LINK]`
+=======
+* **Aaron Fernandez Lizarraga**
+* **Liv Nicole Gay De la O**
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 
 ---
 

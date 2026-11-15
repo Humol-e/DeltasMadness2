@@ -27,7 +27,10 @@ geopulse = [
     "rasterio>=1.4",
     "pystac-client>=0.8",
     "planetary-computer>=1.0",
+<<<<<<< HEAD
     "torch>=2.4",
+=======
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 ]
 dev = [
     "pytest>=8.0.0",

@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+pythonpath = ["biomasa/src", "hola/src", "incendios/src"]
+testpaths = ["biomasa/tests", "hola/tests", "incendios/tests"]
+addopts = ["--import-mode=importlib"]

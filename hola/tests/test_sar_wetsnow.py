@@ -60,11 +60,25 @@ def _scene() -> dict[str, np.ndarray]:
 def test_decode_gray8_db_inverts_encode_gray8_png() -> None:
     values = np.array([[-20.0, -10.0], [-3.0, np.nan]], dtype=np.float32)
     decoded = decode_gray8_db(_png_array(encode_gray8_png(values, -20.0, 2.0)), -20.0, 2.0)
+<<<<<<< HEAD
     assert np.isnan(decoded[0, 0])  # encoded as 0 -> nodata by project convention
+=======
+    assert np.isnan(decoded[0, 0])  # encoded as 0 -> nodata sentinel
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
     assert decoded[0, 1] == pytest.approx(-10.0, abs=0.05)
     assert decoded[1, 0] == pytest.approx(-3.0, abs=0.05)
     assert np.isnan(decoded[1, 1])
 
+<<<<<<< HEAD
+=======
+    # Schema v2 1..255 quantization preserves the minimum valid endpoint without treating it as 0 nodata
+    schema_v2 = np.array([[0, 1, 255]], dtype=np.uint8)
+    decoded_v2 = decode_gray8_db(schema_v2, -20.0, 2.0, full_range=False)
+    assert np.isnan(decoded_v2[0, 0])
+    assert decoded_v2[0, 1] == pytest.approx(-20.0)
+    assert decoded_v2[0, 2] == pytest.approx(2.0)
+
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 
 def test_classify_wet_snow_assigns_classes_and_masks() -> None:
     s = _scene()
@@ -303,3 +317,16 @@ def test_publish_from_published_case_reuses_png_inputs_and_keeps_existing_data(t
     first = (case_dir / "case.json").read_text(encoding="utf-8")
     publish_sar_wet_snow_for_case("glacier-x", public)
     assert (case_dir / "case.json").read_text(encoding="utf-8") == first
+<<<<<<< HEAD
+=======
+
+
+def test_summarize_wet_snow_cross_validates_optical_ndsi_post() -> None:
+    classes = np.full(SHAPE, CLASS_STABLE, dtype=np.uint8)
+    classes[0:10, 0:10] = CLASS_WET  # 100 wet-snow pixels
+    ndsi_post = np.full(SHAPE, 0.05, dtype=np.float32)  # bare / melted optically
+    ndsi_post[0:5, 0:10] = 0.65  # half of the wet snow is still optically snow-covered (subsurface melt)
+    stats = summarize_wet_snow(classes, BBOX, ndsi_post=ndsi_post, snow_ndsi_min=0.28)
+    assert stats["wetSnowInOpticalSnowPct"] == pytest.approx(50.0)
+    assert stats["subsurfaceWetSnowKm2"] == pytest.approx(stats["wetSnowKm2"] * 0.5, rel=0.05)
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7

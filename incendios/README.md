@@ -1,13 +1,21 @@
 # Wildfire Monitor (GeoPulse -> sar-platform / sar-Madness)
 
+<<<<<<< HEAD
 Wildfire ingestion, analysis, and conversion module based on [geopulse](../geopulse), structured alongside [hola](../hola) so that the web viewer ([sar-Madness](../sar-Madness/sar-Madness) / `sar-platform`) can load its outputs directly while preserving original colors and visual fidelity.
+=======
+Wildfire ingestion, analysis, and conversion module (`wildfire-monitor` / `wildfire-stage1`) implementing an optical + SAR physical baseline and publishing standardized datasets directly into [sar-Madness](../sar-Madness/sar-Madness) while preserving original colors and visual fidelity.
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 
 ## Project structure
 
 ```text
 incendios/
 ├── README.md
+<<<<<<< HEAD
 ├── GUIA_DATOS.md
+=======
+├── DATA_GUIDE.md
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 ├── pyproject.toml
 ├── requirements.txt
 ├── scripts/
@@ -71,7 +79,11 @@ wildfire-stage1 check-native --aoi palisades --start-date 2024-12-01 --end-date 
 wildfire-stage1 run-wildfire --aoi all
 
 # Convert an existing geopulse output folder
+<<<<<<< HEAD
 wildfire-stage1 convert-geopulse ../geopulse/outputs/my_wildfire
+=======
+wildfire-stage1 convert-geopulse /path/to/external/geopulse/outputs/my_wildfire
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 
 # Export Schema v2 cases + gray8 rasters + GeoTIFFs into sar-Madness
 wildfire-stage1 publish-madness
@@ -88,8 +100,21 @@ Alongside the Sentinel-2 + Sentinel-1 optical fusion baseline, `wildfire_monitor
 2. **Radar burn & vegetation indices:** computes `RBD`, depolarized `LogRBR`, `ΔRVI`, `ΔDPSVI`, `ΔRFDI`, `5×5` GLCM contrast change, and the dual-pol covariance test statistic `-2 ln Q` (`mortcanty/eesarseq`).
 3. **Unsupervised K-means clustering:** quantile-seeded 4-cluster K-means ordered into discrete classes (`0` unburned/outside domain, `1` low disturbance, `2` moderate burn, `3` high burn), exporting `sar_burn_extent.geojson` and 3 GeoTIFFs per wildfire case.
 
+<<<<<<< HEAD
 ## Automated tests
 
 ```powershell
 py -m pytest -v
+=======
+## SAR Burn Mapping & Optical Cross-Validation (`sar-burn`)
+
+The `wildfire_monitor.ingestion.sar_burn` pipeline fuses OPERA-inspired `DIST-S1` SAR backscatter (`ΔRVI`, `LogRBR`, `ΔVH`, GLCM texture, K-Means disturbance, and Wishart `-2 ln Q`) and cross-validates SAR burn scars against Sentinel-2 optical `burn_prob.png`, publishing `sarBurnInOpticalPct` (`56.5%` Camp Fire, `98.6%` Martin Fire, `96.4%` Palisades) and `sarToOpticalAreaPct`.
+
+## Automated tests
+
+33 unit tests cover configuration, STAC search, baseline physics, exporter schema v2, and optical-vs-SAR burn cross-validation:
+
+```powershell
+py -B -m pytest -p no:cacheprovider -q
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 ```

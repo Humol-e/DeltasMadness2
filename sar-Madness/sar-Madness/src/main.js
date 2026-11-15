@@ -1,4 +1,3 @@
-import 'mapbox-gl/dist/mapbox-gl.css';
 import './style.css';
 import { loadCatalog, resolveUrl } from './lib/registry.js';
 import { getDiscreteSwatches, legendCssBackground, renderFrameCanvas } from './lib/rasterCanvas.js';
@@ -16,6 +15,7 @@ import {
   translateTerm,
 } from './lib/i18n.js';
 import {
+  buildCliCommands,
   findNearestCase,
   geocodePlaces,
   parseCoordinates,
@@ -54,10 +54,9 @@ app.innerHTML = `
       <div id="inspect-pill" class="inspect-pill" hidden></div>
       <div id="token-notice" class="token-notice" hidden>
         <div class="token-card">
-          <strong>Mapbox interactive map has no token configured</strong>
+          <strong>WebGL map renderer unavailable</strong>
           <p class="muted" style="margin-top:6px">
-            Set <code>VITE_MAPBOX_ACCESS_TOKEN</code> in <code>.env</code> and reload to navigate the 3D globe.
-            Without this key, the satellite basemap cannot be loaded.
+            Using open MapLibre basemaps does not require a token, but WebGL could not initialize in this browser. Enable hardware acceleration (or optionally set <code>VITE_MAPBOX_ACCESS_TOKEN</code> in <code>.env</code>).
           </p>
         </div>
       </div>
@@ -71,15 +70,15 @@ app.innerHTML = `
         class="logo"
         aria-label="Delta Anahuac website"
       >
-        <img src="/images/delta-logo.png" alt="Delta logo" class="logo-mark" />
+        <img src="${resolveUrl('images/delta-logo.png')}" alt="Delta logo" class="logo-mark" />
       </a>
       <div class="header-right">
         <nav aria-label="Main navigation">
           <ul>
             <li><button type="button" class="nav-link active" data-page="home">Home</button></li>
-            <li><button type="button" class="nav-link" data-page="permafrost">Permafrost</button></li>
+            <li><button type="button" class="nav-link" data-page="permafrost">Cryosphere</button></li>
             <li><button type="button" class="nav-link" data-page="wildfires">Wildfires</button></li>
-            <li><button type="button" class="nav-link" data-page="deforestation">Deforestation</button></li>
+            <li><button type="button" class="nav-link" data-page="deforestation">Biomass</button></li>
           </ul>
         </nav>
         <div class="lang-switch" role="group" aria-label="Language selector">
@@ -284,28 +283,178 @@ const copy = () => getUiCopy(state.lang);
 
 const token = (import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '').trim();
 let ctl = null;
-try {
-  ctl = new MapController({
-    container: el('#map'),
-    token,
-    lang: state.lang,
-    onStatus: (level, msg) => setStatus(msg, { level }),
-  });
-} catch (err) {
-  console.error('Map initialization failed:', err);
-  ctl = null;
+let refreshInspectPoint = () => {};
+
+async function loadMapEngine(engine) {
+  if (engine === 'mapbox') {
+    const [mod] = await Promise.all([
+      import('mapbox-gl'),
+      import('mapbox-gl/dist/mapbox-gl.css'),
+    ]);
+    return mod.default || mod;
+  }
+  const [mod, workerMod] = await Promise.all([
+    import('maplibre-gl'),
+    import('maplibre-gl/dist/maplibre-gl-worker.mjs?url'),
+    import('maplibre-gl/dist/maplibre-gl.css'),
+  ]);
+  const lib = mod.default || mod;
+  if (typeof lib.setWorkerUrl === 'function' && workerMod?.default) {
+    lib.setWorkerUrl(workerMod.default);
+  }
+  return lib;
 }
 
-if (!ctl) {
-  el('#token-notice').hidden = false;
-  homeCasesReady = true;
-} else {
-  ctl.onVisibleCasesChange = updateHomeCaseVisibility;
-  ctl.onWorldTransitionEnd = () => {
+function attachControllerHandlers(controller) {
+  controller.onVisibleCasesChange = updateHomeCaseVisibility;
+  controller.onWorldTransitionEnd = () => {
     if (state.currentPage !== 'home') return;
     homeCasesReady = true;
     updateHomeCaseVisibility(visibleHomeCaseIds ? [...visibleHomeCaseIds] : []);
   };
+  controller.onCasePick = openCase;
+  controller.onWorldClick = () => setPage('home');
+  controller.onFeature = (layer, feature, lngLat) => {
+    if (!layer || !feature) {
+      controller.closePopup();
+      return;
+    }
+    const props = feature.properties ?? {};
+    const formatVal = (val, unit) => {
+      if (val == null || val === '') return null;
+      const num = typeof val === 'number'
+        ? val
+        : Number.isFinite(Number(val)) && String(val).trim() !== '' ? Number(val) : null;
+      const formatted = num != null
+        ? num.toLocaleString(state.lang === 'es' ? 'es-MX' : 'en-US', { maximumFractionDigits: 3 })
+        : String(val);
+      const u = unit ? tTerm(unit) : '';
+      return u ? `${formatted} ${u}` : formatted;
+    };
+    const fields = Array.isArray(layer.popupFields) && layer.popupFields.length
+      ? layer.popupFields
+      : [['name', 'Area']];
+    const rows = fields
+      .map((entry) => {
+        const [key, label, unit] = Array.isArray(entry) ? entry : [entry, entry];
+        const formatted = formatVal(props[key], unit);
+        return formatted ? `<div><dt>${esc(tTerm(label || key))}</dt><dd>${esc(formatted)}</dd></div>` : '';
+      })
+      .filter(Boolean)
+      .join('');
+    const html = `<div class="delta-popup-card">
+      <strong class="delta-popup-title">${esc(tTerm(layer.name || layer.id))}</strong>
+      ${rows ? `<dl class="delta-popup-rows">${rows}</dl>` : ''}
+    </div>`;
+    controller.showPopup(lngLat, html);
+  };
+  const samplePoint = (lngLat, { hideOnMiss = true } = {}) => {
+    state.lastInspectLngLat = lngLat;
+    const hSeq = ++state.hoverSeq;
+    controller.sampleAt(lngLat).then((hits) => {
+      if (hSeq !== state.hoverSeq || !state.active || !el('.view').classList.contains('is-monitoring')) return;
+      const pill = el('#inspect-pill');
+      if (!hits.length) {
+        if (hideOnMiss) pill.hidden = true;
+        return;
+      }
+      const h = hits[0];
+      const mCopy = copy().monitoring;
+      const ds = activeDataset();
+      const noDataText = copy().inspect.noData;
+      const phaseName = h.phase === 'before' ? mCopy.before
+        : h.phase === 'after' ? mCopy.after
+        : h.phase === 'change' ? mCopy.change : '';
+      const phaseDate = h.frame ? tFrame(h.frame, h.frame.datetime || '') : '';
+      const headerText = phaseName
+        ? `${phaseName}${phaseDate ? ` · ${phaseDate}` : ''} · ${lngLat.lng.toFixed(4)}, ${lngLat.lat.toFixed(4)}`
+        : `${lngLat.lng.toFixed(4)}, ${lngLat.lat.toFixed(4)}`;
+      const lines = h.values
+        ? h.values.map((v) => {
+            const variableDef = ds?.variables?.find((x) => x.label === v.label);
+            const isDiscrete = Boolean(variableDef?.legend?.discrete);
+            let valueHtml;
+            if (v.value == null) {
+              valueHtml = esc(noDataText);
+            } else if (isDiscrete) {
+              const intVal = Math.round(v.value);
+              const localizedNote = variableDef.legend.nodata_label ? tTerm(variableDef.legend.nodata_label) : '';
+              const match = getDiscreteSwatches({ ...variableDef.legend, nodata_label: localizedNote })
+                ?.find((s) => Number(s.key) === intVal);
+              valueHtml = match
+                ? `${esc(tTerm(match.label))}`
+                : `${intVal}${v.unit ? ` ${esc(tTerm(v.unit))}` : ''}`;
+            } else {
+              valueHtml = `${v.value.toFixed(2)}${v.unit ? ` ${esc(tTerm(v.unit))}` : ''}`;
+            }
+            return `${esc(tTerm(v.label))}: <strong>${valueHtml}</strong>`;
+          })
+        : [`${esc(tTerm(h.name))}`];
+      pill.hidden = false;
+      pill.innerHTML = `<div class="muted">${esc(headerText)}</div>${lines.join('<br>')}`;
+    });
+  };
+  refreshInspectPoint = (lngLat) => samplePoint(lngLat, { hideOnMiss: false });
+  let hoverTick = 0;
+  controller.map.on('mousemove', (e) => {
+    const now = performance.now();
+    if (now - hoverTick < 70 || !state.active || !el('.view').classList.contains('is-monitoring')) return;
+    hoverTick = now;
+    samplePoint(e.lngLat);
+  });
+  controller.map.on('click', (e) => {
+    if (!state.active || !el('.view').classList.contains('is-monitoring')) return;
+    samplePoint(e.lngLat);
+  });
+  controller.map.on('mouseout', () => {
+    state.hoverSeq++;
+    state.lastInspectLngLat = null;
+    el('#inspect-pill').hidden = true;
+  });
+}
+
+async function initMapController({ forceMapLibre = false } = {}) {
+  const preferredEngine = !forceMapLibre && token ? 'mapbox' : 'maplibre';
+  try {
+    const glLib = await loadMapEngine(preferredEngine);
+    ctl = new MapController({
+      container: el('#map'),
+      token: preferredEngine === 'mapbox' ? token : '',
+      glLib,
+      engine: preferredEngine,
+      lang: state.lang,
+      onStatus: (level, msg) => setStatus(msg, { level }),
+      onAuthError: () => {
+        if (preferredEngine === 'mapbox') failoverToMapLibre();
+      },
+    });
+    attachControllerHandlers(ctl);
+    el('#token-notice').hidden = true;
+  } catch (err) {
+    if (preferredEngine === 'mapbox') {
+      return initMapController({ forceMapLibre: true });
+    }
+    console.error('Map initialization failed:', err);
+    ctl = null;
+    el('#token-notice').hidden = false;
+    homeCasesReady = true;
+  }
+}
+
+async function failoverToMapLibre() {
+  const prevActive = state.active;
+  const isMonitoring = Boolean(prevActive && el('.view')?.classList.contains('is-monitoring'));
+  ctl?.destroy();
+  ctl = null;
+  await initMapController({ forceMapLibre: true });
+  if (!ctl) return;
+  ctl.setCases(state.cases);
+  if (prevActive) {
+    await ctl.loadCase(prevActive, { globeOverview: !isMonitoring, hideDatasets: !isMonitoring });
+    if (isMonitoring) await ctl.focusCurrentCase();
+  } else {
+    await ctl.showWorld();
+  }
 }
 
 const activeDataset = () => state.active?.datasets?.find((d) => d.id === state.datasetId) ?? null;
@@ -339,7 +488,7 @@ const tTerm = (text) => translateTerm(text, state.lang);
 const tFrame = (frame, fallback) => frameShortTitle(frame, fallback, state.lang);
 
 function getCaseCardImageUrl(def) {
-  if (caseImageFiles[def.id]) return `/images/cases/${caseImageFiles[def.id]}`;
+  if (caseImageFiles[def.id]) return resolveUrl(`images/cases/${caseImageFiles[def.id]}`);
   const rgbaDs = (def.datasets ?? []).find((d) => d.source?.encoding === 'rgba' && d.frames?.length);
   const frame = rgbaDs?.frames.find((f) => f.phase === 'after') ?? rgbaDs?.frames[rgbaDs.frames.length - 1];
   const file = frame ? Object.values(frame.files ?? {})[0] : null;
@@ -638,6 +787,7 @@ function renderMonitoringInfo(def) {
       facts = [
         [mCopy.metricLabels.burnedArea, area(metrics.affectedKm2)],
         [mCopy.metricLabels.sarBurnArea, area(metrics.sarBurnKm2)],
+        [mCopy.metricLabels.sarInOptical, metrics.sarBurnInOpticalPct == null ? null : `${formatNumber(metrics.sarBurnInOpticalPct)}%`],
         [mCopy.metricLabels.studyArea, area(metrics.observedKm2)],
         [mCopy.metricLabels.preWindow, metrics.preWindow],
         [mCopy.metricLabels.postWindow, metrics.postWindow],
@@ -649,13 +799,16 @@ function renderMonitoringInfo(def) {
         [mCopy.metricLabels.surfaceTemp, pair(metrics.lstPreC, metrics.lstPostC, ' °C')],
         [mCopy.metricLabels.meltArea, area(metrics.meltAreaKm2)],
         [mCopy.metricLabels.sarWetSnow, area(metrics.sarWetSnowKm2)],
+        [mCopy.metricLabels.sarSubsurfaceSnow, metrics.sarWetInOpticalSnowPct == null ? null : `${formatNumber(metrics.sarWetInOpticalSnowPct)}%`],
       ];
       break;
     case 'deforestation':
       facts = [
         [mCopy.metricLabels.validForestArea, area(metrics.forestAreaKm2)],
         [mCopy.metricLabels.meanAgb, pair(metrics.agbPreMean, metrics.agbPostMean, ' Mg/ha')],
+        [mCopy.metricLabels.seriesAgb, pair(metrics.agb2021Mean, metrics.agb2024Mean, ' Mg/ha')],
         [mCopy.metricLabels.nisarSevereLoss, area(metrics.biomassLossKm2)],
+        [mCopy.metricLabels.planetRecall, metrics.planetDetectedLossPct == null ? null : `${formatNumber(metrics.planetDetectedLossPct)}%`],
         [mCopy.metricLabels.carbonLoss, metrics.carbonLossGg == null ? null : `${formatNumber(metrics.carbonLossGg)} Gg C`],
       ];
       break;
@@ -733,26 +886,26 @@ function renderMonitoringControls(def) {
   const frames = ds?.frames ?? [];
   const pair = getBeforeAfterPair(ds);
   const canSwipe = supportsBeforeAfterSwipe(ds);
-  const frame = canSwipe
+  const frame = (canSwipe && state.mapMode !== 'frame')
     ? (state.mapMode === 'before' ? pair.before : pair.after) ?? pair.before ?? pair.after
     : frames.find((item) => item.id === state.frameId) ?? pair.before ?? pair.after;
   const frameIndex = frame ? Math.max(0, frames.findIndex((item) => item.id === frame.id)) : 0;
   const splitPercent = Math.round(state.split * 100);
   const variable = ds?.variables.find((item) => item.id === state.varId);
   const opacity = ds ? ctl?.dataset(ds.id)?.opacity ?? ds.render.opacity : 0.85;
-  const framePhase = canSwipe
+  const framePhase = (canSwipe && state.mapMode !== 'frame')
     ? (state.mapMode === 'swipe'
         ? mCopy.splitPhase(splitPercent)
         : state.mapMode === 'before' ? mCopy.before : mCopy.after)
     : frame?.phase === 'before' ? mCopy.before
     : frame?.phase === 'after' ? mCopy.after
       : frame?.phase === 'change' ? mCopy.change : mCopy.observation;
-  const frameDescription = canSwipe
+  const frameDescription = (canSwipe && state.mapMode !== 'frame')
     ? (state.mapMode === 'swipe'
         ? `${tFrame(pair.before, mCopy.before)} → ${tFrame(pair.after, mCopy.after)}`
         : tFrame(frame, frame?.datetime))
     : frame ? tFrame(frame, frame.datetime) : null;
-  const timeCaptionLabel = canSwipe
+  const timeCaptionLabel = (canSwipe && state.mapMode !== 'frame')
     ? (state.mapMode === 'swipe' ? mCopy.slideToCompare : tFrame(frame, frame?.datetime || mCopy.noImageSelected))
     : (frame ? tFrame(frame, frame.datetime) : mCopy.noImageSelected);
   const variableMarkup = ds && ds.variables.length > 1
@@ -768,6 +921,15 @@ function renderMonitoringControls(def) {
         <button type="button" class="chip monitoring-compare-btn${state.mapMode === 'before' ? ' active' : ''}" data-compare-mode="before">${esc(mCopy.before)}</button>
         <button type="button" class="chip monitoring-compare-btn${state.mapMode === 'swipe' ? ' active' : ''}" data-compare-mode="swipe">${esc(mCopy.swipe)}</button>
         <button type="button" class="chip monitoring-compare-btn${state.mapMode === 'after' ? ' active' : ''}" data-compare-mode="after">${esc(mCopy.after)}</button>
+      </div>`
+    : '';
+  const seriesFramesMarkup = frames.length > 2
+    ? `<div class="monitoring-series-frames" role="group" aria-label="${esc(mCopy.seriesTitle || mCopy.imageTime)}">
+        ${frames.map((item) => {
+          const isCurrent = state.mapMode !== 'swipe' && frame?.id === item.id;
+          const shortYear = String(item.datetime || item.label).slice(0, 10);
+          return `<button type="button" class="chip monitoring-frame-btn${isCurrent ? ' active' : ''}" data-series-frame="${esc(item.id)}">${esc(shortYear)}</button>`;
+        }).join('')}
       </div>`
     : '';
   const localizedUnit = variable?.unit ? tTerm(variable.unit) : '';
@@ -807,7 +969,7 @@ function renderMonitoringControls(def) {
     ? `<details class="monitoring-geotiffs">
         <summary>${esc(mCopy.geotiffsBtn(geotiffCount))}</summary>
         <div class="monitoring-geotiff-list">
-          ${geotiffs.map((item) => `<a class="monitoring-geotiff-link" href="${esc(resolveUrl(item.url))}" download><span>⬇ ${esc(tTerm(item.label))}</span>${fmtBytes(item.bytes) ? `<span class="muted">${esc(fmtBytes(item.bytes))}</span>` : ''}</a>`).join('')}
+          ${geotiffs.map((item) => `<a class="monitoring-geotiff-link" href="${esc(resolveUrl(item.url))}" download><span>⬇ ${esc(tTerm(item.label))}</span>${fmtBytes(item.sizeBytes ?? item.bytes) ? `<span class="muted">${esc(fmtBytes(item.sizeBytes ?? item.bytes))}</span>` : ''}</a>`).join('')}
         </div>
       </details>`
     : '';
@@ -824,6 +986,7 @@ function renderMonitoringControls(def) {
     <div class="monitoring-control-group">
       <label for="monitoring-time-range">${esc(canSwipe ? mCopy.compareTitle : mCopy.imageTime)}</label>
       ${compareModeMarkup}
+      ${seriesFramesMarkup}
       <input id="monitoring-time-range" type="range" min="0" max="${canSwipe ? 100 : Math.max(0, frames.length - 1)}" step="1" value="${canSwipe ? splitPercent : frameIndex}" ${canSwipe || (ds && frames.length > 1) ? '' : 'disabled'} />
       <div class="monitoring-time-ends"><span>${esc(canSwipe ? mCopy.before : mCopy.initial)}</span><span>${esc(canSwipe ? mCopy.after : mCopy.final)}</span></div>
       <div class="monitoring-time-caption">
@@ -864,6 +1027,18 @@ function renderMonitoringControls(def) {
       state.mapMode = mode;
       if (mode === 'before') state.frameId = pair.before?.id ?? null;
       else if (mode === 'after') state.frameId = pair.after?.id ?? null;
+      syncMapToLayer();
+      renderMonitoringControls(def);
+    });
+  });
+
+  panel.querySelectorAll('button[data-series-frame]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const fid = btn.dataset.seriesFrame;
+      state.frameId = fid;
+      if (fid === pair.before?.id) state.mapMode = 'before';
+      else if (fid === pair.after?.id) state.mapMode = 'after';
+      else state.mapMode = 'frame';
       syncMapToLayer();
       renderMonitoringControls(def);
     });
@@ -1488,8 +1663,6 @@ function openDataGuideModal() {
   if (body) body.scrollTop = 0;
 }
 
-let refreshInspectPoint = null;
-
 function setLanguage(nextLang) {
   const normalized = nextLang === 'es' ? 'es' : DEFAULT_LANG;
   if (normalized === state.lang) return;
@@ -1589,14 +1762,20 @@ function bindEvents() {
         if (hit.center && ctl?.map) {
           ctl.map.flyTo({ center: hit.center, zoom: hit.bbox ? 8 : 9, duration: 1300, essential: true });
         }
+        const cmds = buildCliCommands(hit);
+        const cliCmd = hit.category === 'glacier' ? cmds.glacierCmd : cmds.wildfireCmd;
+        if (cliCmd && navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(cliCmd).catch(() => {});
+        }
         const nearest = hit.center ? findNearestCase(hit.center, state.cases) : null;
+        const cmdNote = cliCmd ? ` · CLI: ${cliCmd}` : '';
         if (nearest) {
           setStatus(
-            `${heroCopy.searchNearest(tCaseTitle(nearest.item), Math.round(nearest.distanceKm))}${hit.kind === 'preset' ? ` · ${heroCopy.searchPresetNote}` : ''}`,
-            { autoHideMs: 6500 },
+            `${heroCopy.searchNearest(tCaseTitle(nearest.item), Math.round(nearest.distanceKm))}${cmdNote}`,
+            { autoHideMs: 8500 },
           );
-        } else if (hit.kind === 'preset') {
-          setStatus(heroCopy.searchPresetNote, { autoHideMs: 5500 });
+        } else if (cliCmd) {
+          setStatus(`${heroCopy.searchPresetNote}${cmdNote}`, { autoHideMs: 8500 });
         }
       });
     });
@@ -1758,112 +1937,11 @@ function bindEvents() {
     const ds = activeDataset();
     if (state.active && ds) downloadSideBySidePng(state.active, ds, state.varId, state.lang);
   });
-
-  if (ctl) {
-    ctl.onCasePick = openCase;
-    ctl.onWorldClick = () => setPage('home');
-    ctl.onFeature = (layer, feature, lngLat) => {
-      if (!layer || !feature) {
-        ctl.closePopup();
-        return;
-      }
-      const props = feature.properties ?? {};
-      const formatVal = (val, unit) => {
-        if (val == null || val === '') return null;
-        const num = typeof val === 'number'
-          ? val
-          : Number.isFinite(Number(val)) && String(val).trim() !== '' ? Number(val) : null;
-        const formatted = num != null
-          ? num.toLocaleString(state.lang === 'es' ? 'es-MX' : 'en-US', { maximumFractionDigits: 3 })
-          : String(val);
-        const u = unit ? tTerm(unit) : '';
-        return u ? `${formatted} ${u}` : formatted;
-      };
-      const fields = Array.isArray(layer.popupFields) && layer.popupFields.length
-        ? layer.popupFields
-        : [['name', 'Area']];
-      const rows = fields
-        .map((entry) => {
-          const [key, label, unit] = Array.isArray(entry) ? entry : [entry, entry];
-          const formatted = formatVal(props[key], unit);
-          return formatted ? `<div><dt>${esc(tTerm(label || key))}</dt><dd>${esc(formatted)}</dd></div>` : '';
-        })
-        .filter(Boolean)
-        .join('');
-      const html = `<div class="delta-popup-card">
-        <strong class="delta-popup-title">${esc(tTerm(layer.name || layer.id))}</strong>
-        ${rows ? `<dl class="delta-popup-rows">${rows}</dl>` : ''}
-      </div>`;
-      ctl.showPopup(lngLat, html);
-    };
-    const samplePoint = (lngLat, { hideOnMiss = true } = {}) => {
-      state.lastInspectLngLat = lngLat;
-      const hSeq = ++state.hoverSeq;
-      ctl.sampleAt(lngLat).then((hits) => {
-        if (hSeq !== state.hoverSeq || !state.active || !el('.view').classList.contains('is-monitoring')) return;
-        const pill = el('#inspect-pill');
-        if (!hits.length) {
-          if (hideOnMiss) pill.hidden = true;
-          return;
-        }
-        const h = hits[0];
-        const mCopy = copy().monitoring;
-        const ds = activeDataset();
-        const noDataText = copy().inspect.noData;
-        const phaseName = h.phase === 'before' ? mCopy.before
-          : h.phase === 'after' ? mCopy.after
-          : h.phase === 'change' ? mCopy.change : '';
-        const phaseDate = h.frame ? tFrame(h.frame, h.frame.datetime || '') : '';
-        const headerText = phaseName
-          ? `${phaseName}${phaseDate ? ` · ${phaseDate}` : ''} · ${lngLat.lng.toFixed(4)}, ${lngLat.lat.toFixed(4)}`
-          : `${lngLat.lng.toFixed(4)}, ${lngLat.lat.toFixed(4)}`;
-        const lines = h.values
-          ? h.values.map((v) => {
-              const variableDef = ds?.variables?.find((x) => x.label === v.label);
-              const isDiscrete = Boolean(variableDef?.legend?.discrete);
-              let valueHtml;
-              if (v.value == null) {
-                valueHtml = esc(noDataText);
-              } else if (isDiscrete) {
-                const intVal = Math.round(v.value);
-                const localizedNote = variableDef.legend.nodata_label ? tTerm(variableDef.legend.nodata_label) : '';
-                const match = getDiscreteSwatches({ ...variableDef.legend, nodata_label: localizedNote })
-                  ?.find((s) => Number(s.key) === intVal);
-                valueHtml = match
-                  ? `${esc(tTerm(match.label))}`
-                  : `${intVal}${v.unit ? ` ${esc(tTerm(v.unit))}` : ''}`;
-              } else {
-                valueHtml = `${v.value.toFixed(2)}${v.unit ? ` ${esc(tTerm(v.unit))}` : ''}`;
-              }
-              return `${esc(tTerm(v.label))}: <strong>${valueHtml}</strong>`;
-            })
-          : [`${esc(tTerm(h.name))}`];
-        pill.hidden = false;
-        pill.innerHTML = `<div class="muted">${esc(headerText)}</div>${lines.join('<br>')}`;
-      });
-    };
-    refreshInspectPoint = (lngLat) => samplePoint(lngLat, { hideOnMiss: false });
-    let hoverTick = 0;
-    ctl.map.on('mousemove', (e) => {
-      const now = performance.now();
-      if (now - hoverTick < 70 || !state.active || !el('.view').classList.contains('is-monitoring')) return;
-      hoverTick = now;
-      samplePoint(e.lngLat);
-    });
-    ctl.map.on('click', (e) => {
-      if (!state.active || !el('.view').classList.contains('is-monitoring')) return;
-      samplePoint(e.lngLat);
-    });
-    ctl.map.on('mouseout', () => {
-      state.hoverSeq++;
-      state.lastInspectLngLat = null;
-      el('#inspect-pill').hidden = true;
-    });
-  }
 }
 
 async function boot() {
   applyStaticTranslations();
+  await initMapController();
   bindEvents();
   const { cases, problems } = await loadCatalog('data/catalog.json');
   state.cases = cases;

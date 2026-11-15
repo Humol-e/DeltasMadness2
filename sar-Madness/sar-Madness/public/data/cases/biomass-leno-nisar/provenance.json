@@ -1,5 +1,5 @@
 {
-  "generatedAtUtc": "2026-11-15T03:01:04.842515+00:00",
+  "generatedAtUtc": "2026-11-15T16:39:57.333384+00:00",
   "pipeline": "nisar_biomass_monitor (based on DeltasMadness2/NISAR_Biomass)",
   "siteCode": "LENO",
   "epsgNative": 32616,
@@ -35,14 +35,36 @@
     {
       "dateTag": "20220930",
       "iso": "2022-09-30T05:47:58Z",
-      "url": "https://s3.us-west-1.wasabisys.com/nisar-public-ebd/ATBD/ecosystems/disturbance/sites/leno/GCOV/simulated/NISAR_L2_PR_GCOV_001_001_A_000_2000_SHNA_A_20220930T054758_20220930T054808_T00777_M_F_J_777.h5"
+      "url": "https://s3.us-west-1.wasabisys.com/nisar-public-ebd/ATBD/ecosystems/disturbance/sites/leno/GCOV/simulated/NISAR_L2_PR_GCOV_20220930.h5"
     }
   ],
   "postScenes": [
     {
       "dateTag": "20230929",
       "iso": "2023-09-29T05:47:58Z",
-      "url": "https://s3.us-west-1.wasabisys.com/nisar-public-ebd/ATBD/ecosystems/disturbance/sites/leno/GCOV/simulated/NISAR_L2_PR_GCOV_001_001_A_000_2000_SHNA_A_20230929T054758_20230929T054808_T00777_M_F_J_777.h5"
+      "url": "https://s3.us-west-1.wasabisys.com/nisar-public-ebd/ATBD/ecosystems/disturbance/sites/leno/GCOV/simulated/NISAR_L2_PR_GCOV_20230929.h5"
+    }
+  ],
+  "seriesScenes": [
+    {
+      "dateTag": "20210806",
+      "iso": "2021-08-06T05:47:57Z",
+      "url": "https://s3.us-west-1.wasabisys.com/nisar-public-ebd/ATBD/ecosystems/disturbance/sites/leno/GCOV/simulated/NISAR_L2_PR_GCOV_20210806.h5"
+    },
+    {
+      "dateTag": "20220930",
+      "iso": "2022-09-30T05:47:58Z",
+      "url": "https://s3.us-west-1.wasabisys.com/nisar-public-ebd/ATBD/ecosystems/disturbance/sites/leno/GCOV/simulated/NISAR_L2_PR_GCOV_20220930.h5"
+    },
+    {
+      "dateTag": "20230929",
+      "iso": "2023-09-29T05:47:58Z",
+      "url": "https://s3.us-west-1.wasabisys.com/nisar-public-ebd/ATBD/ecosystems/disturbance/sites/leno/GCOV/simulated/NISAR_L2_PR_GCOV_20230929.h5"
+    },
+    {
+      "dateTag": "20240830",
+      "iso": "2024-08-30T05:47:58Z",
+      "url": "https://s3.us-west-1.wasabisys.com/nisar-public-ebd/ATBD/ecosystems/disturbance/sites/leno/GCOV/simulated/NISAR_L2_PR_GCOV_20240830.h5"
     }
   ],
   "metrics": {
@@ -54,14 +76,26 @@
     "agbPostMean": 66.1,
     "agbIntactPre": 83.0,
     "agbIntactPost": 77.3,
+    "agbIntactDeltaMean": -5.7,
     "agbDisturbedPre": 87.3,
     "agbDisturbedPost": 14.1,
+    "agbDisturbedDeltaMean": -73.2,
+    "planetDetectedLossPct": 94.2,
     "biomassLossKm2": 17.53,
     "planetDistKm2": 5.9,
     "carbonLossGg": 50.79,
     "hvPreDb": -11.57,
     "hvPostDb": -11.78,
-    "modelRmseDb": 0.53
+    "modelRmseDb": 0.53,
+    "agbSeriesMeans": {
+      "2021-08-06": 99.0,
+      "2022-09-30": 72.7,
+      "2023-09-29": 66.1,
+      "2024-08-30": 68.2
+    },
+    "seriesSceneCount": 4,
+    "agb2021Mean": 99.0,
+    "agb2024Mean": 68.2
   },
   "vectorCounts": {
     "nisarLossPolygons": 47,

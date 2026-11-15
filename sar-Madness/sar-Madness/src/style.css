@@ -587,6 +587,19 @@ html, body, #app { margin: 0; width: 100%; height: 100%; background: var(--bg); 
   text-align: center;
 }
 
+.monitoring-series-frames {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.monitoring-frame-btn {
+  padding: 4px 6px;
+  font-size: 0.68rem;
+  text-align: center;
+}
+
 .monitoring-group-label {
   display: block;
   margin-bottom: 6px;
@@ -1336,7 +1349,8 @@ select {
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
 }
 
-.delta-popup .mapboxgl-popup-content {
+.delta-popup .mapboxgl-popup-content,
+.delta-popup .maplibregl-popup-content {
   padding: 10px 12px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 9px;
@@ -1347,12 +1361,14 @@ select {
   font-size: 0.76rem;
 }
 
-.delta-popup .mapboxgl-popup-tip {
+.delta-popup .mapboxgl-popup-tip,
+.delta-popup .maplibregl-popup-tip {
   border-top-color: rgba(11, 15, 23, 0.94);
   border-bottom-color: rgba(11, 15, 23, 0.94);
 }
 
-.delta-popup .mapboxgl-popup-close-button {
+.delta-popup .mapboxgl-popup-close-button,
+.delta-popup .maplibregl-popup-close-button {
   color: #cbd5e1;
   font-size: 16px;
   padding: 2px 6px;

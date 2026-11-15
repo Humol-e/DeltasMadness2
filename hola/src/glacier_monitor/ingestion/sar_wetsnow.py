@@ -76,10 +76,30 @@ class WetSnowResult:
     threshold_db: float
 
 
+<<<<<<< HEAD
 def decode_gray8_db(u8: np.ndarray, vmin: float, vmax: float) -> np.ndarray:
     """Invert `encode_gray8_png` (0 = nodata) back to physical values (dB or index)."""
     arr = np.asarray(u8)
     out = vmin + arr.astype(np.float32) / 255.0 * (vmax - vmin)
+=======
+def decode_gray8_db(
+    u8: np.ndarray,
+    vmin: float,
+    vmax: float,
+    *,
+    full_range: bool = True,
+) -> np.ndarray:
+    """Invert ``encode_gray8_png`` (``u8 / 255``) or Schema v2 ``1..255`` quantization back to physical values.
+
+    Zero bytes map to ``NaN`` (nodata). Use ``full_range=True`` (default) for inputs written by
+    :func:`platform_exporter.encode_gray8_png` (``u8 in 0..255`` with ``nodata=null`` except ``0``
+    sentinel), or ``full_range=False`` for ``encode_ratio_png`` / Schema v2 rasters reserving ``0``
+    for nodata and linearly scaling ``1..255`` over ``[vmin, vmax]``.
+    """
+    arr = np.asarray(u8)
+    scale = (arr.astype(np.float32) / 255.0) if full_range else ((arr.astype(np.float32) - 1.0) / 254.0)
+    out = vmin + scale * (vmax - vmin)
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
     return np.where(arr > 0, out, np.nan).astype(np.float32)
 
 
@@ -144,6 +164,7 @@ def pixel_area_km2(bbox: BoundingBox, shape: tuple[int, int]) -> float:
     return float((111.32 * dlat_pix) * (111.32 * np.cos(mid_lat_rad) * dlon_pix))
 
 
+<<<<<<< HEAD
 def summarize_wet_snow(classes: np.ndarray, bbox: BoundingBox) -> dict[str, float]:
     """Areas (km²) and wet-snow share of the snow-covered reference domain."""
     px = pixel_area_km2(bbox, classes.shape)
@@ -151,11 +172,40 @@ def summarize_wet_snow(classes: np.ndarray, bbox: BoundingBox) -> dict[str, floa
     wet_km2 = float((classes == CLASS_WET).sum()) * px
     possible_km2 = float((classes == CLASS_POSSIBLE_WET).sum()) * px
     return {
+=======
+def summarize_wet_snow(
+    classes: np.ndarray,
+    bbox: BoundingBox,
+    *,
+    ndsi_post: np.ndarray | None = None,
+    snow_ndsi_min: float = PRE_SNOW_NDSI_MIN,
+) -> dict[str, float]:
+    """Areas (km²), wet-snow share, and optional optical-snow cross-validation metrics."""
+    px = pixel_area_km2(bbox, classes.shape)
+    snow_km2 = float((classes > 0).sum()) * px
+    wet_mask = classes == CLASS_WET
+    wet_km2 = float(wet_mask.sum()) * px
+    possible_km2 = float((classes == CLASS_POSSIBLE_WET).sum()) * px
+    stats: dict[str, float] = {
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
         "snowReferenceKm2": round(snow_km2, 2),
         "wetSnowKm2": round(wet_km2, 2),
         "possibleWetKm2": round(possible_km2, 2),
         "wetSnowPct": round(100.0 * wet_km2 / snow_km2, 1) if snow_km2 > 0 else 0.0,
     }
+<<<<<<< HEAD
+=======
+    if ndsi_post is not None and ndsi_post.shape == classes.shape:
+        opt_snow_post = np.isfinite(ndsi_post) & (ndsi_post >= snow_ndsi_min)
+        subsurface_wet = wet_mask & opt_snow_post
+        subsurface_km2 = float(subsurface_wet.sum()) * px
+        n_wet = int(wet_mask.sum())
+        stats["subsurfaceWetSnowKm2"] = round(subsurface_km2, 2)
+        stats["wetSnowInOpticalSnowPct"] = (
+            round(100.0 * float(subsurface_wet.sum()) / float(n_wet), 1) if n_wet > 0 else 0.0
+        )
+    return stats
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 
 
 # --------------------------------------------------------------------------- encoders
@@ -299,12 +349,22 @@ def write_wet_snow_assets(
     case_id: str,
     *,
     pre_snow_ndsi_min: float = PRE_SNOW_NDSI_MIN,
+<<<<<<< HEAD
+=======
+    ndsi_post: np.ndarray | None = None,
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 ) -> WetSnowAssets:
     """Write PNGs, GeoTIFFs and GeoJSON under `case_dir` (a public/data/cases/<id> folder)."""
     case_dir.mkdir(parents=True, exist_ok=True)
     tif_dir = case_dir / "geotiffs"
     bounds = (bbox.min_lon, bbox.min_lat, bbox.max_lon, bbox.max_lat)
+<<<<<<< HEAD
     stats = summarize_wet_snow(result.classes, bbox)
+=======
+    stats = summarize_wet_snow(
+        result.classes, bbox, ndsi_post=ndsi_post, snow_ndsi_min=pre_snow_ndsi_min
+    )
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 
     (case_dir / "sar_wetsnow_class.png").write_bytes(encode_class_png(result.classes))
     (case_dir / "sar_wetsnow_ratio_vv.png").write_bytes(encode_ratio_png(result.ratio_vv_db))
@@ -498,6 +558,13 @@ def attach_wet_snow_to_case(
     metrics["sarWetSnowKm2"] = assets.stats["wetSnowKm2"]
     metrics["sarPossibleWetKm2"] = assets.stats["possibleWetKm2"]
     metrics["sarWetSnowPct"] = assets.stats["wetSnowPct"]
+<<<<<<< HEAD
+=======
+    if "subsurfaceWetSnowKm2" in assets.stats:
+        metrics["sarSubsurfaceWetSnowKm2"] = assets.stats["subsurfaceWetSnowKm2"]
+    if "wetSnowInOpticalSnowPct" in assets.stats:
+        metrics["sarWetInOpticalSnowPct"] = assets.stats["wetSnowInOpticalSnowPct"]
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 
     source_note = (
         f"Derived · Sentinel-1 VV/VH backscatter ratio vs dry-snow reference "
@@ -567,6 +634,16 @@ def publish_sar_wet_snow_for_case(
     s2 = _dataset(case_def, "s2_ndsi")
     s1_pre, s1_post = _frame(s1, "before")["files"], _frame(s1, "after")["files"]
     ndsi_pre_path = _frame(s2, "before")["files"]["ndsi"]
+<<<<<<< HEAD
+=======
+    ndsi_post_frame = next((fr for fr in s2.get("frames", []) if fr.get("phase") == "after"), None)
+    ndsi_post_rel = ndsi_post_frame.get("files", {}).get("ndsi") if ndsi_post_frame else None
+    ndsi_post_arr = (
+        decode_gray8_db(_load_gray8(public_dir, ndsi_post_rel), *NDSI_PNG_RANGE)
+        if ndsi_post_rel and (public_dir / ndsi_post_rel).is_file()
+        else None
+    )
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 
     extent = [float(v) for v in s1["extent"]]
     bbox = BoundingBox(min_lon=extent[0], min_lat=extent[1], max_lon=extent[2], max_lat=extent[3])
@@ -588,7 +665,18 @@ def publish_sar_wet_snow_for_case(
         threshold_db=threshold_db,
         pre_snow_ndsi_min=pre_snow_ndsi_min,
     )
+<<<<<<< HEAD
     assets = write_wet_snow_assets(result, bbox, case_dir, case_id, pre_snow_ndsi_min=pre_snow_ndsi_min)
+=======
+    assets = write_wet_snow_assets(
+        result,
+        bbox,
+        case_dir,
+        case_id,
+        pre_snow_ndsi_min=pre_snow_ndsi_min,
+        ndsi_post=ndsi_post_arr,
+    )
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
     attach_wet_snow_to_case(
         case_def,
         assets,

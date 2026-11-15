@@ -14,8 +14,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 WORKSPACE_ROOT = PROJECT_ROOT.parent
+<<<<<<< HEAD
 DEFAULT_GEOPULSE_DIR = WORKSPACE_ROOT / "geopulse"
 DEFAULT_SAR_PLATFORM_DIR = WORKSPACE_ROOT / "sar-platform"
+=======
+DEFAULT_GEOPULSE_DIR = PROJECT_ROOT
+DEFAULT_SAR_PLATFORM_DIR = WORKSPACE_ROOT / "sar-Madness" / "sar-Madness"
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 
 
 @dataclass(frozen=True)
@@ -390,8 +395,13 @@ class Settings(BaseSettings):
     geopulse_dir: Path = DEFAULT_GEOPULSE_DIR
     local_download_dir: Path = Path("data/downloads")
     local_cases_dir: Path = Path("data/cases")
+<<<<<<< HEAD
     sar_platform_cases_dir: Path = DEFAULT_SAR_PLATFORM_DIR / "frontend" / "public" / "data" / "cases"
     sar_platform_downloads_dir: Path = DEFAULT_SAR_PLATFORM_DIR / "data" / "downloads"
+=======
+    sar_platform_cases_dir: Path = DEFAULT_SAR_PLATFORM_DIR / "public" / "data" / "cases"
+    sar_platform_downloads_dir: Path = DEFAULT_SAR_PLATFORM_DIR / "public" / "data" / "downloads"
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
     max_cloud_cover: int = 60
     grid_max_dim: int = 512
     min_zoom: int = 10

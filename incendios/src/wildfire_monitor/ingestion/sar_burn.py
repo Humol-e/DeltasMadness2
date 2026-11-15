@@ -878,6 +878,13 @@ def attach_sar_burn_to_case(
     metrics["sarHighBurnKm2"] = assets.stats["sarHighBurnKm2"]
     metrics["sarDisturbedKm2"] = assets.stats["sarDisturbedKm2"]
     metrics["sarMeanDeltaRvi"] = assets.stats["sarMeanDeltaRvi"]
+<<<<<<< HEAD
+=======
+    if "sarBurnInOpticalPct" in assets.stats:
+        metrics["sarBurnInOpticalPct"] = assets.stats["sarBurnInOpticalPct"]
+    if "sarToOpticalAreaPct" in assets.stats:
+        metrics["sarToOpticalAreaPct"] = assets.stats["sarToOpticalAreaPct"]
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
 
     wf_block = case_def.setdefault("wildfire", {})
     wf_block["sarBurn"] = {
@@ -1009,6 +1016,23 @@ def publish_sar_burn_for_case(
         co_pre_db=co_pre_db if pol_mode == "VV_VH" else None,
         co_post_db=co_post_db if pol_mode == "VV_VH" else None,
     )
+<<<<<<< HEAD
+=======
+    opt_prob_path = case_dir / "rasters" / "burn_prob.png"
+    if opt_prob_path.exists():
+        opt_prob = decode_gray8_values(_load_gray8(public_dir, f"data/cases/{case_id}/rasters/burn_prob.png"), 0.0, 1.0, nodata=0)
+        if opt_prob.shape == result.classes.shape:
+            opt_mask = np.isfinite(opt_prob) & (opt_prob >= 0.5)
+            sar_burn_mask = result.classes >= CLASS_MOD_BURN
+            if int(sar_burn_mask.sum()) > 0 and int(opt_mask.sum()) > 0:
+                overlap = int((sar_burn_mask & opt_mask).sum())
+                assets.stats["sarBurnInOpticalPct"] = round(100.0 * overlap / float(sar_burn_mask.sum()), 1)
+    affected = metrics.get("affectedKm2")
+    if isinstance(affected, (int, float)) and affected > 0:
+        assets.stats["sarToOpticalAreaPct"] = round(
+            100.0 * assets.stats["sarDisturbedKm2"] / float(affected), 1
+        )
+>>>>>>> b7c736ee41eb815900476c441dca15ecbc5038b7
     attach_sar_burn_to_case(
         case_def,
         assets,

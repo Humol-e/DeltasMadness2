@@ -5,7 +5,11 @@
     "preWindow": "2024-12-01/2025-01-06",
     "postWindow": "2025-02-01/2025-03-31",
     "affectedKm2": 70.146,
-    "observedKm2": 110.113
+    "observedKm2": 110.113,
+    "sarBurnKm2": 30.24,
+    "sarHighBurnKm2": 9.22,
+    "sarDisturbedKm2": 41.54,
+    "sarMeanDeltaRvi": -0.375
   },
   "downloads": [
     {
@@ -88,6 +92,33 @@
       "format": "geotiff",
       "url": "data/cases/wildfire-palisades-la/geotiffs/wildfire-palisades-la_dem_elevation.tif",
       "sizeBytes": 942366
+    },
+    {
+      "id": "sar-burn-class-tif",
+      "label": "SAR Unsupervised Burn Class (.tif)",
+      "datasetId": "sar_burn",
+      "phase": "change",
+      "format": "geotiff",
+      "url": "data/cases/wildfire-palisades-la/geotiffs/wildfire-palisades-la_sar_burn_class.tif",
+      "sizeBytes": 26898
+    },
+    {
+      "id": "sar-opera-dist-tif",
+      "label": "OPERA DIST-S1 Disturbance (.tif)",
+      "datasetId": "sar_burn",
+      "phase": "change",
+      "format": "geotiff",
+      "url": "data/cases/wildfire-palisades-la/geotiffs/wildfire-palisades-la_sar_opera_dist.tif",
+      "sizeBytes": 619414
+    },
+    {
+      "id": "sar-delta-rvi-tif",
+      "label": "SAR ΔRVI Vegetation Change (.tif)",
+      "datasetId": "sar_burn",
+      "phase": "change",
+      "format": "geotiff",
+      "url": "data/cases/wildfire-palisades-la/geotiffs/wildfire-palisades-la_sar_delta_rvi.tif",
+      "sizeBytes": 996750
     }
   ],
   "schemaVersion": 2,
@@ -431,6 +462,23 @@
             ],
             "nodata_label": "Transparent = no data"
           }
+        },
+        {
+          "id": "VV",
+          "label": "VV Backscatter",
+          "quantity": "backscatter",
+          "polarization": "VV",
+          "unit": "dB",
+          "legend": {
+            "min": -25,
+            "max": 0,
+            "colors": [
+              "#0b0f14",
+              "#64748b",
+              "#f8fafc"
+            ],
+            "nodata_label": "Transparent = no data"
+          }
         }
       ],
       "source": {
@@ -461,7 +509,8 @@
           "label": "Before · 2024-12-01/2025-01-06",
           "phase": "before",
           "files": {
-            "VH": "data/cases/wildfire-palisades-la/rasters/s1_pre_vh.png"
+            "VH": "data/cases/wildfire-palisades-la/rasters/s1_pre_vh.png",
+            "VV": "data/cases/wildfire-palisades-la/rasters/s1_pre_vv.png"
           }
         },
         {
@@ -470,7 +519,199 @@
           "label": "After · 2025-02-01/2025-03-31",
           "phase": "after",
           "files": {
-            "VH": "data/cases/wildfire-palisades-la/rasters/s1_post_vh.png"
+            "VH": "data/cases/wildfire-palisades-la/rasters/s1_post_vh.png",
+            "VV": "data/cases/wildfire-palisades-la/rasters/s1_post_vv.png"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sar_burn",
+      "name": "SAR Burn & Disturbance · OPERA RTC + K-Means",
+      "kind": "raster",
+      "status": "real",
+      "platform": "Sentinel-1A/B",
+      "sensor": "C-SAR RTC",
+      "provider": "Derived from Planetary Computer Sentinel-1 RTC (COPERNICUS)",
+      "product": "Pure-SAR OPERA DIST Mahalanobis + K-Means (C-band VV+VH + GLCM + Wishart)",
+      "attribution": "NASA OPERA DIST-S1/RTC · Jando93 · ErliPinto · mortcanty/eesarseq",
+      "extent": [
+        -118.62,
+        34.03,
+        -118.5,
+        34.12
+      ],
+      "crs": "EPSG:4326",
+      "resolution": {
+        "value": 30,
+        "unit": "m"
+      },
+      "source": {
+        "type": "image",
+        "encoding": "gray8",
+        "nodata": 0
+      },
+      "render": {
+        "opacity": 0.88,
+        "resampling": "nearest"
+      },
+      "defaultVisible": false,
+      "variables": [
+        {
+          "id": "sar_burn_class",
+          "label": "SAR Burn Class (K-Means + OPERA DIST)",
+          "quantity": "burn_severity_sar",
+          "polarization": "VV+VH",
+          "unit": "class 0–3",
+          "legend": {
+            "min": 0,
+            "max": 3,
+            "colors": [
+              "#fbbf24",
+              "#f97316",
+              "#db2777"
+            ],
+            "discrete": {
+              "1": "#fbbf24b8",
+              "2": "#f97316dc",
+              "3": "#db2777f2"
+            },
+            "nodata_label": "1 Low disturbance · 2 Moderate burn · 3 High burn"
+          }
+        },
+        {
+          "id": "opera_dist",
+          "label": "OPERA DIST-S1 Disturbance Metric",
+          "quantity": "surface_disturbance",
+          "polarization": "VV+VH",
+          "unit": "z-score (0–4)",
+          "legend": {
+            "min": 0.0,
+            "max": 4.0,
+            "colors": [
+              "#1e293b",
+              "#f59e0b",
+              "#ea580c",
+              "#be123c"
+            ],
+            "stops": [
+              [
+                0.5,
+                "#1e293b00"
+              ],
+              [
+                1.5,
+                "#f59e0bb8"
+              ],
+              [
+                2.5,
+                "#ea580cdc"
+              ],
+              [
+                4.0,
+                "#be123cf2"
+              ]
+            ],
+            "nodata_label": "Transparent < 0.5 σ · 1.5–2.5 Moderate · ≥ 2.5 High disturbance"
+          }
+        },
+        {
+          "id": "delta_rvi",
+          "label": "ΔRVI Radar Vegetation Change",
+          "quantity": "vegetation_index_change",
+          "polarization": "VV+VH",
+          "unit": "ΔRVI",
+          "legend": {
+            "min": -0.6,
+            "max": 0.3,
+            "colors": [
+              "#9f1239",
+              "#f97316",
+              "#94a3b8",
+              "#22c55e"
+            ],
+            "stops": [
+              [
+                -0.6,
+                "#9f1239f0"
+              ],
+              [
+                -0.25,
+                "#f97316d0"
+              ],
+              [
+                -0.05,
+                "#94a3b800"
+              ],
+              [
+                0.05,
+                "#94a3b800"
+              ],
+              [
+                0.3,
+                "#22c55ecc"
+              ]
+            ],
+            "nodata_label": "Red/Orange = canopy structure loss · Transparent ≈ 0 · Green = regrowth"
+          }
+        },
+        {
+          "id": "log_rbr",
+          "label": "LogRBR Depolarized Burn Ratio",
+          "quantity": "backscatter_ratio",
+          "polarization": "VV+VH",
+          "unit": "dB",
+          "legend": {
+            "min": -6.0,
+            "max": 3.0,
+            "colors": [
+              "#881337",
+              "#e11d48",
+              "#fb923c",
+              "#94a3b8",
+              "#38bdf8"
+            ],
+            "stops": [
+              [
+                -6.0,
+                "#881337f0"
+              ],
+              [
+                -2.5,
+                "#e11d48d8"
+              ],
+              [
+                -1.0,
+                "#fb923cb0"
+              ],
+              [
+                -0.4,
+                "#94a3b800"
+              ],
+              [
+                0.4,
+                "#94a3b800"
+              ],
+              [
+                3.0,
+                "#38bdf8c8"
+              ]
+            ],
+            "nodata_label": "Rose/Orange = depolarization burn drop · Transparent ≈ 0 dB · Blue = moisture/gain"
+          }
+        }
+      ],
+      "frames": [
+        {
+          "id": "sar-burn-change",
+          "datetime": "2025-03-31",
+          "label": "SAR Change · 2024-12-01/2025-01-06 → 2025-02-01/2025-03-31",
+          "phase": "change",
+          "files": {
+            "sar_burn_class": "data/cases/wildfire-palisades-la/rasters/sar_burn_class.png",
+            "opera_dist": "data/cases/wildfire-palisades-la/rasters/sar_opera_dist.png",
+            "delta_rvi": "data/cases/wildfire-palisades-la/rasters/sar_delta_rvi.png",
+            "log_rbr": "data/cases/wildfire-palisades-la/rasters/sar_log_rbr.png"
           }
         }
       ]
@@ -561,6 +802,43 @@
         [
           "threshold",
           "P(burn) threshold"
+        ]
+      ]
+    },
+    {
+      "id": "sar-burn-extent",
+      "name": "SAR Unsupervised Burn Zone",
+      "type": "line",
+      "status": "real",
+      "simulated": false,
+      "defaultVisible": false,
+      "source": {
+        "type": "geojson",
+        "data": "data/cases/wildfire-palisades-la/sar_burn_extent.geojson"
+      },
+      "paint": {
+        "line-color": "#ec4899",
+        "line-width": 1.6
+      },
+      "legend": {
+        "title": "SAR Unsupervised Burn",
+        "items": [
+          {
+            "color": "#ec4899",
+            "label": "OPERA DIST + K-Means (Class ≥ 2)"
+          }
+        ]
+      },
+      "description": "All-weather burn perimeter derived strictly from dual-pol SAR indices and unsupervised K-means.",
+      "popupFields": [
+        [
+          "area_km2",
+          "SAR burned area",
+          "km²"
+        ],
+        [
+          "pol_mode",
+          "Polarization"
         ]
       ]
     }
@@ -675,6 +953,21 @@
       "burn_prob": "data/cases/wildfire-palisades-la/rasters/burn_prob.png",
       "burn_sev": "data/cases/wildfire-palisades-la/rasters/burn_sev.png",
       "uncertainty": "data/cases/wildfire-palisades-la/rasters/uncertainty.png"
+    },
+    "sarBurn": {
+      "polMode": "VV_VH",
+      "methods": [
+        "opera-adt/dist-s1",
+        "Jando93/Sentinel-1-unsupervised-burned-area-detection",
+        "ErliPinto/Sentinel-1-SAR-vegetation-indices",
+        "mortcanty/eesarseq"
+      ],
+      "stats": {
+        "sarBurnKm2": 30.24,
+        "sarHighBurnKm2": 9.22,
+        "sarDisturbedKm2": 41.54,
+        "sarMeanDeltaRvi": -0.375
+      }
     }
   }
 }

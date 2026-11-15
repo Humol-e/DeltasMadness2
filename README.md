@@ -180,6 +180,7 @@ DeltasMadness2/
 ### 2. `hola` (`glacier-monitor` v0.1.0)
 * Queries **Google Earth Engine** (`COPERNICUS/S1_GRD`, `COPERNICUS/S2_SR_HARMONIZED`, `MODIS/061/MOD10A1`, `MODIS/061/MOD11A1`) and the **NASA ASF Search / HyP3** bridge (`SENTINEL1`, `NISAR`, `NISAR_SCIENCE_PRODUCTS`, `UAVSAR`, `OPERA_S1`), with optional support for `gee-community/sar-asf-to-gee` and GCS/GEE Asset uploads.
 * Exports Before/After composites (`NDSI`, Sentinel-2 RGB, Sentinel-1 `VV`/`VH`, MODIS `% snow`, MODIS `LST °C`), snow-loss GeoJSON polygons (`ndsi_drop_thresh=0.16`, `pre_snow_min=0.28`), and GeoTIFFs for `langtang` and `khumbu` (Nepal).
+* Derives a **SAR wet-snow layer** (`ingestion/sar_wetsnow.py`, CLI `glacier-stage1 sar-wetsnow`) from the same Sentinel-1 `VV`/`VH` Before/After pair: a multitemporal backscatter-ratio classifier (dry-snow reference vs. melt season) that is sensor-agnostic by design, so a calibrated NISAR pair can feed it later. It is published as an extra `SAR Wet Snow · Sentinel-1 ΔdB` dataset (class map + `ΔVV`/`ΔVH` ratio maps), a `SAR Wet Snow Zone` outline, three GeoTIFFs, and a `Wet snow (SAR)` metric in each glacier case.
 
 ### 3. `incendios` (`wildfire-monitor` v0.1.0)
 * Connects to **Microsoft Planetary Computer** STAC (`sentinel-2-l2a`, `sentinel-1-rtc`, `cop-dem-glo-30`) + TiTiler and monitors active Scout alerts (**NASA EONET v3**, **GDACS**, **Copernicus EMS**).
@@ -189,7 +190,7 @@ DeltasMadness2/
 ### 4. 3D Web Viewer (`sar-Madness/sar-Madness`)
 * Built with **Mapbox GL JS `^3.9.0`** and **Vite `^5.4.11`**.
 * Supports **3D Globe**, **Flat Map**, and **3D Terrain** views with `terrarium` elevation tiles, switchable basemaps, and runtime **Esri World Imagery** fallback when Mapbox tile requests hit HTTP `429` rate limits (requires `VITE_MAPBOX_ACCESS_TOKEN` in `.env` to initialize the 3D globe and Satellite Monitoring view).
-* Performs client-side scientific LUT rendering of `gray8` rasters and `rgba` composites, real timestamp stepping without artificial cross-date interpolation, interactive **Before / After** geographic swipe comparison, real cursor pixel probing, GeoJSON perimeter overlays, comparative `.png` plate exports (`src/lib/beforeAfterExport.js`), and raw `.tif` downloads. Note: `src/lib/placeSearch.js` is an offline search/coordinate parser utility (covered by Node tests) not yet wired to a search bar in `src/main.js`.
+* Performs client-side scientific LUT rendering of `gray8` rasters and `rgba` composites, real timestamp stepping without artificial cross-date interpolation, interactive **Before / After** geographic swipe comparison, real cursor pixel probing, GeoJSON perimeter overlays, comparative `.png` plate exports (`src/lib/beforeAfterExport.js`), and raw `.tif` downloads. The home search bar (`src/lib/placeSearch.js`) resolves published events, CLI presets, `lat, lon` coordinates and bounding boxes (plus geocoding) and suggests the nearest published case.
 
 ---
 
@@ -222,6 +223,12 @@ $$\text{NDSI} = \frac{B_3 - B_{11}}{B_3 + B_{11}}, \qquad \text{LST}\ [^\circ\te
 * **Relative snow loss and boolean melt-perimeter criterion:**
 
 $$\text{MeltLoss (\%)} = \max\bigl(0,\; 100 \cdot (\text{NDSI}_{\text{pre}} - \text{NDSI}_{\text{post}})\bigr), \qquad \text{Melt} \iff (\text{NDSI}_{\text{pre}} \ge 0.28) \land (\text{NDSI}_{\text{pre}} - \text{NDSI}_{\text{post}} \ge 0.16)$$
+
+* **SAR wet-snow detection (`Sentinel-1` `VV`/`VH`, multitemporal backscatter ratio).** Liquid water raises the dielectric loss of the snowpack, so C-band backscatter drops when dry winter snow turns wet (Nagler & Rott, 2000; Nagler et al., 2016). In dB the ratio against the dry-snow reference window is a difference, evaluated only where optical snow existed in the reference:
+
+$$R_p = \sigma^0_{p,\text{melt}} - \sigma^0_{p,\text{ref}}\ [\text{dB}],\; p \in \{\text{VV}, \text{VH}\}, \qquad \text{Wet snow} \iff (\text{NDSI}_{\text{pre}} \ge 0.28) \land (R_{\text{VV}} \le -2\text{ dB}) \land (R_{\text{VH}} \le -2\text{ dB})$$
+
+  A drop in a single channel is reported as *possible wet snow*; pixels whose reference is below the noise/shadow floor (`VV < −18 dB`, `VH < −24 dB`) are excluded. **Limitations:** inputs are median composites of `COPERNICUS/S1_GRD` (not terrain-flattened, mixed orbits) and the melt window spans May–Aug, so the layer is a qualitative indicator to read together with the optical snow-loss layer, not a validated snow-wetness retrieval.
 
 ### 3. Wildfires: Optical + SAR Fallback & Uncertainty (`incendios`)
 * **Normalized spectral indices (`Sentinel-2 L2A`) and bounded sigmoid** ($\sigma(x) = (1 + e^{-\operatorname{clip}(x, -30, 30)})^{-1}$):
@@ -323,6 +330,8 @@ wildfire-stage1 publish-madness
 glacier-stage1 list-aois
 glacier-stage1 doctor
 glacier-stage1 publish-madness
+# Derive the SAR wet-snow layer from the published glacier cases (offline, no GEE needed)
+glacier-stage1 sar-wetsnow
 ```
 
 > **Security note:** never commit live tokens, `.env` files, or `service_account.json` credentials to version control.
@@ -336,9 +345,9 @@ Verified on the codebase:
 | Suite / Check | Command | Observed Result |
 | :--- | :--- | :--- |
 | Web catalog validation (`sar-Madness`) | `cd sar-Madness/sar-Madness && node scripts/validate-catalog.mjs` | **6 / 6 valid cases** (`Valid catalog (100% real data)`) |
-| Search & coordinate utility tests (`sar-Madness`) | `cd sar-Madness/sar-Madness && node --test tests/placeSearch.test.mjs` | **3 passed** |
+| Search, raster legend & SAR wet-snow contract tests (`sar-Madness`) | `cd sar-Madness/sar-Madness && node --test tests/*.mjs` | **13 passed** |
 | Biomass unit tests (`biomasa`) | `cd biomasa && py -B -m pytest -p no:cacheprovider -q` | **8 passed** |
-| Glacier unit tests (`hola`) | `cd hola && py -B -m pytest -p no:cacheprovider -q` | **44 passed** |
+| Glacier unit tests (`hola`) | `cd hola && py -B -m pytest -p no:cacheprovider -q` | **56 passed** |
 | Wildfire unit tests (`incendios`) | `cd incendios && py -B -m pytest -p no:cacheprovider -q` | **27 passed** |
 
 ---

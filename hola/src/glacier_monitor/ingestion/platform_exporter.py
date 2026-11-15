@@ -18,6 +18,12 @@ from shapely.geometry import MultiPolygon, Polygon, mapping
 
 from glacier_monitor.config import AOI_PRESETS, PROJECT_ROOT, BoundingBox, Settings, resolve_aoi
 from glacier_monitor.gee_auth import initialize_earth_engine
+from glacier_monitor.ingestion.sar_wetsnow import (
+    WetSnowAssets,
+    attach_wet_snow_to_case,
+    classify_wet_snow,
+    write_wet_snow_assets,
+)
 
 DEFAULT_SAR_MADNESS_PUBLIC = (PROJECT_ROOT.parent / "sar-Madness" / "sar-Madness" / "public").resolve()
 
@@ -81,6 +87,7 @@ class GlacierExportResult(BaseModel):
     snow_post_pct: float
     lst_pre_c: float
     lst_post_c: float
+    sar_wet_snow_km2: float | None = None
 
 
 def compute_grid_spec(bbox: BoundingBox, max_dim: int = 420) -> dict[str, Any]:
@@ -333,8 +340,13 @@ def build_glacier_case_definition(
     post_window: tuple[str, str],
     stats: dict[str, Any],
     downloads: list[dict[str, Any]],
+    wet_snow: WetSnowAssets | None = None,
 ) -> dict[str, Any]:
-    """Build a strictly real schemaVersion=2 definition for a glacier melt case."""
+    """Build a strictly real schemaVersion=2 definition for a glacier melt case.
+
+    When `wet_snow` assets are provided, the SAR wet-snow dataset, vector, downloads and
+    metrics are appended; without them the definition is unchanged.
+    """
     extent = [bbox.min_lon, bbox.min_lat, bbox.max_lon, bbox.max_lat]
     center = [
         round((bbox.min_lon + bbox.max_lon) / 2.0, 5),
@@ -344,7 +356,7 @@ def build_glacier_case_definition(
     pre_label = f"Before · {pre_window[0]} to {pre_window[1]}"
     post_label = f"After · {post_window[0]} to {post_window[1]}"
 
-    return {
+    case_def: dict[str, Any] = {
         "schemaVersion": 2,
         "id": case_id,
         "status": "real",
@@ -662,6 +674,16 @@ def build_glacier_case_definition(
         ],
         "downloads": downloads,
     }
+    if wet_snow is not None:
+        attach_wet_snow_to_case(
+            case_def,
+            wet_snow,
+            case_id=case_id,
+            extent=extent,
+            pre_window=pre_window,
+            post_window=post_window,
+        )
+    return case_def
 
 
 def register_case_in_catalog_v2(catalog_path: Path, case_rel_path: str) -> None:
@@ -878,6 +900,16 @@ def export_glacier_case_to_madness(
     lst_pre_c = _safe_nanmean(lst_pre)
     lst_post_c = _safe_nanmean(lst_post)
 
+    # SAR wet-snow product: Sentinel-1 VV/VH ratio vs. dry-snow reference, inside the optical snow mask.
+    wet_snow_result = classify_wet_snow(
+        _extract_band(arr_s1_pre, "VV"),
+        _extract_band(arr_s1_post, "VV"),
+        _extract_band(arr_s1_pre, "VH"),
+        _extract_band(arr_s1_post, "VH"),
+        ndsi_pre,
+    )
+    wet_snow_assets = write_wet_snow_assets(wet_snow_result, bbox, case_dir, case_id)
+
     stats = {
         "s2_pre_count": s2_pre_count,
         "s2_post_count": s2_post_count,
@@ -909,6 +941,11 @@ def export_glacier_case_to_madness(
             "s1_post": s1_post_ids,
         },
         "stats": stats,
+        "sar_wet_snow": {
+            **wet_snow_assets.stats,
+            "threshold_db": wet_snow_assets.threshold_db,
+            "pre_snow_ndsi_min": wet_snow_assets.pre_snow_ndsi_min,
+        },
     }
     (case_dir / "provenance.json").write_text(
         json.dumps(provenance, indent=2, ensure_ascii=False),
@@ -926,6 +963,7 @@ def export_glacier_case_to_madness(
         post_window=(post_start, post_end),
         stats=stats,
         downloads=downloads,
+        wet_snow=wet_snow_assets,
     )
     (case_dir / "case.json").write_text(
         json.dumps(case_def, indent=2, ensure_ascii=False) + "\n",
@@ -949,4 +987,5 @@ def export_glacier_case_to_madness(
         snow_post_pct=snow_post_pct,
         lst_pre_c=lst_pre_c,
         lst_post_c=lst_post_c,
+        sar_wet_snow_km2=wet_snow_assets.stats["wetSnowKm2"],
     )

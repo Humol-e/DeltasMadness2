@@ -647,6 +647,7 @@ function renderMonitoringInfo(def) {
         [mCopy.metricLabels.snowCover, pair(metrics.snowPrePct, metrics.snowPostPct, '%')],
         [mCopy.metricLabels.surfaceTemp, pair(metrics.lstPreC, metrics.lstPostC, ' °C')],
         [mCopy.metricLabels.meltArea, area(metrics.meltAreaKm2)],
+        [mCopy.metricLabels.sarWetSnow, area(metrics.sarWetSnowKm2)],
       ];
       break;
     case 'deforestation':

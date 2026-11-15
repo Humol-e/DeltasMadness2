@@ -1,0 +1,272 @@
+{
+  "cases": {
+    "glacier-langtang": [
+      {
+        "id": "s2-pre-rgb-tif",
+        "filename": "glacier-langtang_s2_pre_rgb.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-langtang\\glacier-langtang_s2_pre_rgb.tif",
+        "bounds": [
+          85.5,
+          28.18,
+          85.74,
+          28.3
+        ],
+        "size_bytes": 779697
+      },
+      {
+        "id": "s2-post-rgb-tif",
+        "filename": "glacier-langtang_s2_post_rgb.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-langtang\\glacier-langtang_s2_post_rgb.tif",
+        "bounds": [
+          85.5,
+          28.18,
+          85.74,
+          28.3
+        ],
+        "size_bytes": 754825
+      },
+      {
+        "id": "s2-pre-ndsi-tif",
+        "filename": "glacier-langtang_s2_pre_ndsi.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-langtang\\glacier-langtang_s2_pre_ndsi.tif",
+        "bounds": [
+          85.5,
+          28.18,
+          85.74,
+          28.3
+        ],
+        "size_bytes": 320883
+      },
+      {
+        "id": "s2-post-ndsi-tif",
+        "filename": "glacier-langtang_s2_post_ndsi.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-langtang\\glacier-langtang_s2_post_ndsi.tif",
+        "bounds": [
+          85.5,
+          28.18,
+          85.74,
+          28.3
+        ],
+        "size_bytes": 321956
+      },
+      {
+        "id": "s1-pre-sar-tif",
+        "filename": "glacier-langtang_s1_pre_sar.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-langtang\\glacier-langtang_s1_pre_sar.tif",
+        "bounds": [
+          85.5,
+          28.18,
+          85.74,
+          28.3
+        ],
+        "size_bytes": 633475
+      },
+      {
+        "id": "s1-post-sar-tif",
+        "filename": "glacier-langtang_s1_post_sar.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-langtang\\glacier-langtang_s1_post_sar.tif",
+        "bounds": [
+          85.5,
+          28.18,
+          85.74,
+          28.3
+        ],
+        "size_bytes": 627023
+      },
+      {
+        "id": "mod10-pre-snow-tif",
+        "filename": "glacier-langtang_mod10_pre_snow.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-langtang\\glacier-langtang_mod10_pre_snow.tif",
+        "bounds": [
+          85.5,
+          28.18,
+          85.74,
+          28.3
+        ],
+        "size_bytes": 8814
+      },
+      {
+        "id": "mod10-post-snow-tif",
+        "filename": "glacier-langtang_mod10_post_snow.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-langtang\\glacier-langtang_mod10_post_snow.tif",
+        "bounds": [
+          85.5,
+          28.18,
+          85.74,
+          28.3
+        ],
+        "size_bytes": 6034
+      },
+      {
+        "id": "mod11-pre-lst-tif",
+        "filename": "glacier-langtang_mod11_pre_lst.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-langtang\\glacier-langtang_mod11_pre_lst.tif",
+        "bounds": [
+          85.5,
+          28.18,
+          85.74,
+          28.3
+        ],
+        "size_bytes": 7107
+      },
+      {
+        "id": "mod11-post-lst-tif",
+        "filename": "glacier-langtang_mod11_post_lst.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-langtang\\glacier-langtang_mod11_post_lst.tif",
+        "bounds": [
+          85.5,
+          28.18,
+          85.74,
+          28.3
+        ],
+        "size_bytes": 7164
+      },
+      {
+        "id": "melt-loss-tif",
+        "filename": "glacier-langtang_melt_snow_loss.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-langtang\\glacier-langtang_melt_snow_loss.tif",
+        "bounds": [
+          85.5,
+          28.18,
+          85.74,
+          28.3
+        ],
+        "size_bytes": 226526
+      }
+    ],
+    "glacier-khumbu": [
+      {
+        "id": "s2-pre-rgb-tif",
+        "filename": "glacier-khumbu_s2_pre_rgb.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-khumbu\\glacier-khumbu_s2_pre_rgb.tif",
+        "bounds": [
+          86.78,
+          27.9,
+          86.88,
+          28.01
+        ],
+        "size_bytes": 1404256
+      },
+      {
+        "id": "s2-post-rgb-tif",
+        "filename": "glacier-khumbu_s2_post_rgb.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-khumbu\\glacier-khumbu_s2_post_rgb.tif",
+        "bounds": [
+          86.78,
+          27.9,
+          86.88,
+          28.01
+        ],
+        "size_bytes": 1316412
+      },
+      {
+        "id": "s2-pre-ndsi-tif",
+        "filename": "glacier-khumbu_s2_pre_ndsi.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-khumbu\\glacier-khumbu_s2_pre_ndsi.tif",
+        "bounds": [
+          86.78,
+          27.9,
+          86.88,
+          28.01
+        ],
+        "size_bytes": 590053
+      },
+      {
+        "id": "s2-post-ndsi-tif",
+        "filename": "glacier-khumbu_s2_post_ndsi.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-khumbu\\glacier-khumbu_s2_post_ndsi.tif",
+        "bounds": [
+          86.78,
+          27.9,
+          86.88,
+          28.01
+        ],
+        "size_bytes": 584555
+      },
+      {
+        "id": "s1-pre-sar-tif",
+        "filename": "glacier-khumbu_s1_pre_sar.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-khumbu\\glacier-khumbu_s1_pre_sar.tif",
+        "bounds": [
+          86.78,
+          27.9,
+          86.88,
+          28.01
+        ],
+        "size_bytes": 1144775
+      },
+      {
+        "id": "s1-post-sar-tif",
+        "filename": "glacier-khumbu_s1_post_sar.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-khumbu\\glacier-khumbu_s1_post_sar.tif",
+        "bounds": [
+          86.78,
+          27.9,
+          86.88,
+          28.01
+        ],
+        "size_bytes": 1137962
+      },
+      {
+        "id": "mod10-pre-snow-tif",
+        "filename": "glacier-khumbu_mod10_pre_snow.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-khumbu\\glacier-khumbu_mod10_pre_snow.tif",
+        "bounds": [
+          86.78,
+          27.9,
+          86.88,
+          28.01
+        ],
+        "size_bytes": 6411
+      },
+      {
+        "id": "mod10-post-snow-tif",
+        "filename": "glacier-khumbu_mod10_post_snow.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-khumbu\\glacier-khumbu_mod10_post_snow.tif",
+        "bounds": [
+          86.78,
+          27.9,
+          86.88,
+          28.01
+        ],
+        "size_bytes": 3530
+      },
+      {
+        "id": "mod11-pre-lst-tif",
+        "filename": "glacier-khumbu_mod11_pre_lst.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-khumbu\\glacier-khumbu_mod11_pre_lst.tif",
+        "bounds": [
+          86.78,
+          27.9,
+          86.88,
+          28.01
+        ],
+        "size_bytes": 7991
+      },
+      {
+        "id": "mod11-post-lst-tif",
+        "filename": "glacier-khumbu_mod11_post_lst.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-khumbu\\glacier-khumbu_mod11_post_lst.tif",
+        "bounds": [
+          86.78,
+          27.9,
+          86.88,
+          28.01
+        ],
+        "size_bytes": 7970
+      },
+      {
+        "id": "melt-loss-tif",
+        "filename": "glacier-khumbu_melt_snow_loss.tif",
+        "local_path": "C:\\Users\\Rulis\\Desktop\\DELTA MADNESS V 18\\delta madness v67\\DeltasMadness2\\hola\\data\\downloads\\glacier-khumbu\\glacier-khumbu_melt_snow_loss.tif",
+        "bounds": [
+          86.78,
+          27.9,
+          86.88,
+          28.01
+        ],
+        "size_bytes": 373224
+      }
+    ]
+  }
+}

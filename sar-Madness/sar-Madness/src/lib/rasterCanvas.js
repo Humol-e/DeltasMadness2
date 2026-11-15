@@ -1,6 +1,8 @@
-// Utilidades de ráster local (gray8): colorizado con la leyenda, compuestos RGB y lectura de valores.
-// Codificación DEMO: 0 = sin dato; 1..255 = min..max de la leyenda de la variable.
+// Utilidades de ráster local (gray8 y rgba): carga en canvas, colorizado con leyenda y lectura de valores.
+import { resolveUrl } from './registry.js';
+
 const grayCache = new Map();
+const rgbaCache = new Map();
 
 export function loadGray(url) {
   if (!grayCache.has(url)) {
@@ -22,6 +24,22 @@ export function loadGray(url) {
     }));
   }
   return grayCache.get(url);
+}
+
+export function loadRgbaCanvas(url) {
+  if (!rgbaCache.has(url)) {
+    rgbaCache.set(url, new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const c = newCanvas(img.naturalWidth, img.naturalHeight);
+        c.getContext('2d').drawImage(img, 0, 0);
+        resolve(c);
+      };
+      img.onerror = () => { rgbaCache.delete(url); reject(new Error(`No se pudo cargar la imagen ${url.split('/').pop()}`)); };
+      img.src = url;
+    }));
+  }
+  return rgbaCache.get(url);
 }
 
 const hexToRgb = (h) => { const n = parseInt(h.replace('#', ''), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
@@ -50,10 +68,11 @@ export function colorizeGray(gray, colors, nodata = 0) {
   const ctx = c.getContext('2d');
   const img = ctx.createImageData(gray.w, gray.h);
   const lut = buildLut(colors);
+  const fullRange = nodata == null;
   for (let i = 0; i < gray.g.length; i++) {
     const g = gray.g[i];
-    if (g === nodata) continue; // alfa 0
-    const idx = Math.round(((g - 1) / 254) * 255);
+    if (!fullRange && g === nodata) continue; // alfa 0 para sin dato
+    const idx = fullRange ? g : Math.round(((g - 1) / 254) * 255);
     img.data[i * 4] = lut[idx * 3];
     img.data[i * 4 + 1] = lut[idx * 3 + 1];
     img.data[i * 4 + 2] = lut[idx * 3 + 2];
@@ -71,8 +90,9 @@ export function composeRgb(grays, nodata = 0) {
   const c = newCanvas(ref.w, ref.h);
   const ctx = c.getContext('2d');
   const img = ctx.createImageData(ref.w, ref.h);
+  const fullRange = nodata == null;
   for (let i = 0; i < ref.g.length; i++) {
-    if (present.some((k) => grays[k].g[i] === nodata)) continue;
+    if (!fullRange && present.some((k) => grays[k].g[i] === nodata)) continue;
     ['r', 'g', 'b'].forEach((k, ch) => { img.data[i * 4 + ch] = grays[k] ? grays[k].g[i] : 0; });
     img.data[i * 4 + 3] = 255;
   }
@@ -81,6 +101,33 @@ export function composeRgb(grays, nodata = 0) {
 }
 
 export function grayToValue(g, legend, nodata = 0) {
-  if (g === nodata) return null;
+  if (nodata != null && g === nodata) return null;
+  if (nodata == null) return legend.min + (g / 255) * (legend.max - legend.min);
   return legend.min + ((g - 1) / 254) * (legend.max - legend.min);
+}
+
+/** Renderiza un frame (rgba o gray8/composite) sobre un canvas listo para mapa, vista previa o descarga. */
+export async function renderFrameCanvas(dataset, frame, selectionId) {
+  const path = frame.files?.[selectionId];
+  const url = path ? resolveUrl(path) : null;
+  if (dataset.source.encoding === 'rgba') {
+    if (!url) throw new Error(`Falta archivo para ${dataset.id}/${selectionId}`);
+    const canvas = await loadRgbaCanvas(url);
+    return { canvas, url };
+  }
+  const nodata = dataset.source.nodata === undefined ? 0 : dataset.source.nodata;
+  const comp = (dataset.composites ?? []).find((c) => c.id === selectionId);
+  let canvas;
+  if (comp) {
+    const grays = {};
+    for (const ch of ['r', 'g', 'b']) {
+      const chKey = comp.channels[ch];
+      grays[ch] = chKey ? await loadGray(resolveUrl(frame.files[chKey])) : null;
+    }
+    canvas = composeRgb(grays, nodata);
+  } else {
+    const v = dataset.variables.find((x) => x.id === selectionId);
+    canvas = colorizeGray(await loadGray(url), v.legend.colors, nodata);
+  }
+  return { canvas, url: canvas.toDataURL('image/png') };
 }

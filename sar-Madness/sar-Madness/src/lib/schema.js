@@ -47,7 +47,7 @@ export function validateCase(def) {
   if (!def.id || !ID_RE.test(def.id)) err('"id" requerido (letras, números, _ o -)');
   if (!def.title) err('Falta "title"');
   if (!def.view || !Array.isArray(def.view.center) || def.view.center.length !== 2) err('Falta "view.center" [lon, lat]');
-  if (def.status && !['demo', 'real'].includes(def.status)) err('"status" debe ser "demo" o "real"');
+  if (def.status !== 'real' || def.simulated === true) err('Solo se permiten casos con datos reales (status: "real", simulated != true)');
 
   const datasets = def.datasets ?? [];
   const vectors = def.vectors ?? [];
@@ -60,7 +60,7 @@ export function validateCase(def) {
     if (ids.has(d.id)) err(`${tag}: id duplicado`);
     ids.add(d.id);
     if (d.kind && d.kind !== 'raster') err(`${tag}: solo se soporta kind "raster"`);
-    if (d.status && !['demo', 'real'].includes(d.status)) err(`${tag}: status debe ser demo o real`);
+    if (d.status !== 'real') err(`${tag}: solo se permiten datasets con status "real"`);
     const type = d.source?.type;
     if (!['image', 'tiles'].includes(type)) err(`${tag}: source.type debe ser "image" o "tiles"`);
     const encoding = d.source?.encoding ?? (type === 'tiles' ? 'rgba' : 'gray8');
@@ -123,17 +123,29 @@ export function validateCase(def) {
     if (v.time && (!v.time.property || !['asof', 'cumulative'].includes(v.time.mode))) err(`${tag}: time requiere "property" y mode "asof" | "cumulative"`);
     if (v.indicator && !v.indicator.simulated && !v.indicator.validation) warn(`${tag}: indicador no simulado sin "validation" definida`);
   });
+  vectors.forEach((v) => {
+    if (v.status && v.status !== 'real') errors.push(`vector "${v.id}": debe tener status "real"`);
+    if (v.simulated === true) errors.push(`vector "${v.id}": no se permiten vectores simulados`);
+  });
+
+  (def.downloads ?? []).forEach((dl, i) => {
+    const tag = `download "${dl?.id ?? `#${i}`}"`;
+    if (!dl?.id || !dl?.label || typeof dl?.url !== 'string' || !dl.url) errors.push(`${tag}: requiere id, label y url`);
+    if (dl?.format && !['geotiff', 'png', 'geojson'].includes(dl.format)) errors.push(`${tag}: format inválido (${dl.format})`);
+  });
+
   return { errors, warnings };
 }
 
-/** Rellena valores por defecto y ordena frames. Nunca asume "real": lo no declarado es "demo". */
+/** Rellena valores por defecto seguros y ordena frames cronológicamente. */
 export function normalizeCase(def) {
-  def.status ??= 'demo';
+  def.status ??= 'real';
+  def.downloads ??= [];
   def.datasets ??= [];
   def.vectors ??= [];
   for (const d of def.datasets) {
     d.kind ??= 'raster';
-    d.status ??= 'demo';
+    d.status ??= 'real';
     d.render = { opacity: 0.85, resampling: 'linear', ...d.render };
     d.source.encoding ??= d.source.type === 'tiles' ? 'rgba' : 'gray8';
     d.composites = (d.source.type === 'image' && d.source.encoding === 'gray8') ? (d.composites ?? []) : [];

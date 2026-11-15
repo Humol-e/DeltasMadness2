@@ -1,0 +1,38 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Área de estudio"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -121.78,
+              39.68
+            ],
+            [
+              -121.63,
+              39.68
+            ],
+            [
+              -121.63,
+              39.79
+            ],
+            [
+              -121.78,
+              39.79
+            ],
+            [
+              -121.78,
+              39.68
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

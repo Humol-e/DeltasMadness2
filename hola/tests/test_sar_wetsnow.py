@@ -60,10 +60,17 @@ def _scene() -> dict[str, np.ndarray]:
 def test_decode_gray8_db_inverts_encode_gray8_png() -> None:
     values = np.array([[-20.0, -10.0], [-3.0, np.nan]], dtype=np.float32)
     decoded = decode_gray8_db(_png_array(encode_gray8_png(values, -20.0, 2.0)), -20.0, 2.0)
-    assert np.isnan(decoded[0, 0])  # encoded as 0 -> nodata by project convention
+    assert np.isnan(decoded[0, 0])  # encoded as 0 -> nodata sentinel
     assert decoded[0, 1] == pytest.approx(-10.0, abs=0.05)
     assert decoded[1, 0] == pytest.approx(-3.0, abs=0.05)
     assert np.isnan(decoded[1, 1])
+
+    # Schema v2 1..255 quantization preserves the minimum valid endpoint without treating it as 0 nodata
+    schema_v2 = np.array([[0, 1, 255]], dtype=np.uint8)
+    decoded_v2 = decode_gray8_db(schema_v2, -20.0, 2.0, full_range=False)
+    assert np.isnan(decoded_v2[0, 0])
+    assert decoded_v2[0, 1] == pytest.approx(-20.0)
+    assert decoded_v2[0, 2] == pytest.approx(2.0)
 
 
 def test_classify_wet_snow_assigns_classes_and_masks() -> None:

@@ -18,9 +18,9 @@ export const UI_COPY = {
       deforestation: 'Biomass',
     },
     token: {
-      heading: 'Optional Mapbox token not configured',
+      heading: 'WebGL map renderer unavailable',
       bodyHtml:
-        'Using open satellite basemaps by default. Set <code>VITE_MAPBOX_ACCESS_TOKEN</code> in <code>.env</code> and reload to unlock Mapbox 3D terrain &amp; geocoding.',
+        'Using open MapLibre basemaps does not require a token, but WebGL could not initialize in this browser. Enable hardware acceleration (or optionally set <code>VITE_MAPBOX_ACCESS_TOKEN</code> in <code>.env</code>).',
     },
     hero: {
       eyebrow: 'Satellite monitoring',
@@ -276,9 +276,9 @@ export const UI_COPY = {
       deforestation: 'Biomasa',
     },
     token: {
-      heading: 'Token opcional de Mapbox no configurado',
+      heading: 'Motor WebGL no disponible',
       bodyHtml:
-        'Usando mapas base satelitales abiertos por defecto. Configura <code>VITE_MAPBOX_ACCESS_TOKEN</code> en <code>.env</code> y recarga para habilitar terreno 3D y geocodificación de Mapbox.',
+        'Los mapas base abiertos de MapLibre no requieren token, pero WebGL no pudo inicializarse en este navegador. Habilita la aceleración por hardware (u opcionalmente define <code>VITE_MAPBOX_ACCESS_TOKEN</code> en <code>.env</code>).',
     },
     hero: {
       eyebrow: 'Monitoreo satelital',

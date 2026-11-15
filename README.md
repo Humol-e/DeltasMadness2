@@ -5,7 +5,7 @@
 [![NASA Space Apps](https://img.shields.io/badge/NASA_Space_Apps_2026-Dancing_with_the_SARs-0B3D91)](./Delta_Madness_Documentation_English_Version.pdf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB)](#installation-and-quick-start)
-[![Frontend](https://img.shields.io/badge/Viewer-Mapbox_GL_JS_v3.9_%2B_Vite_5-1E293B)](#4-3d-web-viewer-sar-madnesssar-madness)
+[![Frontend](https://img.shields.io/badge/Viewer-MapLibre_GL_JS_%2B_Mapbox_GL_JS_%2B_Vite_5-1E293B)](#4-3d-web-viewer-sar-madnesssar-madness)
 [![Catalog Schema v2](https://img.shields.io/badge/Catalog-6%2F6_Cases_Validated-15803D)](#validated-study-cases)
 
 > **Official NASA Space Apps Challenge Documentation (English PDF):** [Delta Madness Documentation](./Delta_Madness_Documentation_English_Version.pdf)<br>
@@ -17,7 +17,7 @@
 
 * **Primary Source Code & Data Repository:** `https://github.com/Humol-e/DeltasMadness2`
 * **Public 7-Slide Presentation / <= 30-Second Demo Video:** `[PENDING — INSERT PUBLIC PRESENTATION OR <= 30-SECOND VIDEO LINK]`
-* **Public Hosted Web Viewer (Optional):** `[OPTIONAL — INSERT PUBLIC WEB VIEWER URL IF PUBLISHED]`
+* **GitHub Pages Automated Deployment:** Workflow included at [`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml) (builds the tokenless MapLibre GL JS 3D viewer and publishes to `https://humol-e.github.io/DeltasMadness2/` once GitHub Pages is enabled under *Settings → Pages → Source: GitHub Actions*).
 
 ---
 
@@ -39,7 +39,7 @@
 
 ## Project Overview
 
-**Delta Madness** (`DeltasMadness2`) unifies **three Python scientific engines** and an **interactive 3D web viewer built with Mapbox GL JS (`sar-Madness`)** designed to monitor critical environmental changes without relying solely on clear-sky optical imagery:
+**Delta Madness** (`DeltasMadness2`) unifies **three Python scientific engines** and an **interactive 3D web viewer powered by MapLibre GL JS (with optional Mapbox GL JS upgrade) (`sar-Madness`)** designed to monitor critical environmental changes without relying solely on clear-sky optical imagery:
 
 * **Forest biomass & carbon (`biomasa` / `nisar-biomass-monitor`):** vectorized NumPy/SciPy implementation of the **NISAR L3 AGB ATBD** semi-empirical model using calibrated coefficients from `NISAR_Biomass/config/config.ini`. It processes **official NASA pre-launch simulated NISAR L2 GCOV** (`20 m → 1 ha`, derived from UAVSAR/ALOS-2 over NEON LENO, Alabama) to estimate aboveground biomass (`Mg/ha`), carbon density (`0.47 * AGB`), and severe forest loss (`ΔAGB <= -40 Mg/ha`) compared against PlanetScope disturbance validation.
 * **Wildfires (`incendios` / `wildfire-monitor`):** deterministic physical baseline combining optical spectral indices (`dNBR`, `NDVI`, `MNDWI` from Sentinel-2 L2A) with an all-weather polarimetric SAR fallback (`VH` drop from Sentinel-1 RTC where optical observations are obscured/`NaN`), Copernicus DEM terrain slope, Key & Benson (2006) severity classes, a pre-event physical water mask, and Shannon binary-entropy uncertainty.
@@ -126,10 +126,11 @@ DeltasMadness2/
 │   │   ├── platform_exporter.py
 │   │   └── s3_source.py
 │   └── tests/                                             # 9 pytest tests
+├── pyproject.toml                                         # Unified root pytest configuration (99 tests across all 3 engines)
 ├── hola/                                                  # Python package glacier-monitor (CLI: glacier-stage1)
 │   ├── README.md
 │   ├── DATA_GUIDE.md
-│   ├── GUIA_DATOS.md
+│   ├── .env.example
 │   ├── pyproject.toml
 │   ├── requirements.txt
 │   ├── scripts/stage1_cli.py
@@ -142,7 +143,6 @@ DeltasMadness2/
 ├── incendios/                                             # Python package wildfire-monitor (CLI: wildfire-stage1)
 │   ├── README.md
 │   ├── DATA_GUIDE.md
-│   ├── GUIA_DATOS.md
 │   ├── pyproject.toml
 │   ├── requirements.txt
 │   ├── scripts/stage1_cli.py
@@ -153,14 +153,15 @@ DeltasMadness2/
 │   │   └── ingestion/ (geopulse_bridge.py, native_catalog.py, pipeline.py, platform_exporter.py, sar_burn.py)
 │   └── tests/                                             # 33 pytest tests
 ├── NISAR_Biomass/                                         # Vendored reference L3 AGB ATBD science config (config.ini)
-└── sar-Madness/sar-Madness/                               # Active 3D web viewer (Mapbox GL JS v3.9.0 + Vite v5.4.11)
+└── sar-Madness/sar-Madness/                               # Active 3D web viewer (MapLibre GL JS v6 + optional Mapbox GL JS v3.9 + Vite v5.4)
     ├── README.md
     ├── package.json
+    ├── vite.config.js
     ├── index.html
     ├── .env.example
     ├── docs/ (SCHEMA.md, case.example.jsonc, case.template.json)
     ├── scripts/validate-catalog.mjs
-    ├── tests/                                             # 22 Node tests (placeSearch, rasterCanvas, sarBurn, wetSnow)
+    ├── tests/                                             # 25 Node tests (mapFallback, placeSearch, rasterCanvas, sarBurn, wetSnow)
     ├── public/data/ (catalog.json + 6 cases in cases/)
     └── src/
         ├── main.js
@@ -188,8 +189,7 @@ DeltasMadness2/
 * Runs the deterministic physical baseline `compute_wildfire_physics` (`GeoPulse Physics Baseline v0.1.0`): sigmoid fusion of `dNBR` (`DNBR_BURN=0.1`) and fuel `NDVI` (`NDVI_FUEL=0.1`), all-weather Sentinel-1 `VH` drop fallback (`VH_DROP_DB=2.0`, `VH_CANOPY_DB=-17.0`) where `S2` is `NaN`, pre-event physical water constraint (`MNDWI` / `VV`), 4 Key & Benson (2006) severity classes `(0.1, 0.27, 0.44, 0.66)`, Shannon binary-entropy uncertainty $H(p)$, and `burn_extent.geojson` polygons (`P >= 0.50`). Includes **11 preset AOIs** (`palisades`, `camp_paradise`, `martin_nv`, `maui_lahaina`, `jasper_ab`, `valparaiso_cl`, `evros_gr`, `tenerife_es`, `tarahumara_mx`, `pantanal_br`, `los_alerces_ar`).
 
 ### 4. 3D Web Viewer (`sar-Madness/sar-Madness`)
-* Built with **Mapbox GL JS `^3.9.0`** and **Vite `^5.4.11`**.
-* Supports **3D Globe**, **Flat Map**, and **3D Terrain** views with `terrarium` elevation tiles, switchable basemaps, and automatic runtime **open-basemap / Esri World Imagery** fallback when `VITE_MAPBOX_ACCESS_TOKEN` is unset or when Mapbox tile requests hit HTTP `429` rate limits.
+* Runs out-of-the-box without any API token using **MapLibre GL JS `^6.18.0`** (3D Globe projection, AWS Terrarium 3D terrain, Esri World Imagery / CARTO / OSM, and Nominatim search) and **Vite `^5.4.11`**, automatically upgrading to **Mapbox GL JS `^3.9.0`** when `VITE_MAPBOX_ACCESS_TOKEN` is supplied (with runtime MapLibre failover on Mapbox auth errors or HTTP `429` limits).
 * Performs client-side scientific LUT rendering of `gray8` rasters and `rgba` composites, real multi-frame timestamp stepping (`d20210806` -> `pre` -> `post` -> `d20240830`) without artificial cross-date interpolation, interactive **Before / After** geographic swipe comparison, real cursor pixel probing, GeoJSON perimeter overlays, comparative `.png` plate exports (`src/lib/beforeAfterExport.js`), raw `.tif` downloads, and an integrated `#home-search-input` bar (`src/lib/placeSearch.js` + `buildCliCommands`) for jumping to study sites, parsing WGS84 coordinates, and copying ready-to-run wildfire/glacier CLI commands.
 
 ---
@@ -285,7 +285,8 @@ All precomputed cases are already packaged under `sar-Madness/sar-Madness/public
 ```powershell
 cd "sar-Madness/sar-Madness"
 npm install
-Copy-Item .env.example .env   # Optional: paste a public pk.* token into VITE_MAPBOX_ACCESS_TOKEN (auto-falls back to open basemaps)
+# Optional only if you want Mapbox styles + Mapbox geocoding instead of default tokenless MapLibre GL JS:
+# Copy-Item .env.example .env
 npm run validate              # Validates catalog.json and all 6 cases
 npm run dev                   # Starts the local Vite dev server
 ```
@@ -305,6 +306,9 @@ From the `DeltasMadness2/` root:
 py -m pip install -e biomasa
 py -m pip install -e hola
 py -m pip install -e incendios
+
+# Run the entire 99-test Python suite across all three engines from the repo root:
+py -B -m pytest -p no:cacheprovider -q
 ```
 
 Main CLI commands by module:
@@ -320,9 +324,10 @@ wildfire-stage1 doctor
 wildfire-stage1 scout-wildfires --source eonet
 wildfire-stage1 publish-madness
 
-# Glaciers (requires GEE project in hola/.env; ASF/HyP3 uses NASA Earthdata token)
+# Glaciers (copy hola/.env.example to hola/.env for GEE; ASF/HyP3 uses NASA Earthdata token)
 glacier-stage1 list-aois
 glacier-stage1 doctor
+glacier-stage1 sar-wetsnow     # runs 100% offline from published PNGs
 glacier-stage1 publish-madness
 ```
 
@@ -332,12 +337,13 @@ glacier-stage1 publish-madness
 
 ## Testing and Validation
 
-Verified on the codebase:
+Verified on the codebase (**124 passing automated tests** + **6 / 6 Schema v2 catalog checks**):
 
 | Suite / Check | Command | Observed Result |
 | :--- | :--- | :--- |
+| Unified Python suite (root) | `py -B -m pytest -p no:cacheprovider -q` | **99 passed** |
 | Web catalog validation (`sar-Madness`) | `cd sar-Madness/sar-Madness && node scripts/validate-catalog.mjs` | **6 / 6 valid cases** (`Valid catalog (100% real data)`) |
-| Web app & search utility tests (`sar-Madness`) | `cd sar-Madness/sar-Madness && node --test tests/*.test.mjs` | **22 passed** |
+| Web app & search utility tests (`sar-Madness`) | `cd sar-Madness/sar-Madness && node --test tests/*.test.mjs` | **25 passed** |
 | Biomass unit tests (`biomasa`) | `cd biomasa && py -B -m pytest -p no:cacheprovider -q` | **9 passed** |
 | Glacier unit tests (`hola`) | `cd hola && py -B -m pytest -p no:cacheprovider -q` | **57 passed** |
 | Wildfire unit tests (`incendios`) | `cd incendios && py -B -m pytest -p no:cacheprovider -q` | **33 passed** |

@@ -2,7 +2,7 @@
 
 Implementation of **Stage 1: Direct Google Earth Engine Ingestion (Native Catalog + ASF Bridge)**, ready to connect with downstream stages (SAR/DEM analysis engine, lightweight FastAPI/Flask backend, and 3D frontend).
 
-For a step-by-step guide on interpreting each command's output and choosing InSAR pairs or OPERA-S1 time series, see [DATA_GUIDE.md](DATA_GUIDE.md) (mirrored in [GUIA_DATOS.md](GUIA_DATOS.md)).
+For a step-by-step guide on interpreting each command's output and choosing InSAR pairs or OPERA-S1 time series, see [DATA_GUIDE.md](DATA_GUIDE.md).
 
 ### SAR Wet-Snow & Optical Cross-Validation (`sar-wetsnow`)
 The `glacier_monitor.ingestion.sar_wetsnow` module computes Sentinel-1 C-band wet-snow masks (Nagler & Rott 2000 backscatter ratio) and cross-validates SAR subsurface liquid-water zones against optical Sentinel-2 post-event snow cover (`ndsi_post`), publishing `sarSubsurfaceWetSnowKm2` and `sarWetInOpticalSnowPct` (`81.2%` on Langtang, `83.4%` on Khumbu).

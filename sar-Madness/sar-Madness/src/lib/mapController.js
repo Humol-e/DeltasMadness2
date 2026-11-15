@@ -1,4 +1,3 @@
-import mapboxgl from 'mapbox-gl';
 import { frameAt, vectorCutoff } from './timeline.js';
 import { resolveUrl } from './registry.js';
 import { loadGray, grayToValue, renderFrameCanvas } from './rasterCanvas.js';
@@ -26,9 +25,9 @@ const FALLBACK_RASTER_SOURCES = {
   },
 };
 
-function buildFallbackStyle(key) {
+export function buildFallbackStyle(key, { engine = 'maplibre' } = {}) {
   const src = FALLBACK_RASTER_SOURCES[key] || FALLBACK_RASTER_SOURCES.satellite;
-  return {
+  const style = {
     version: 8,
     sources: {
       'esri-fallback': {
@@ -41,6 +40,16 @@ function buildFallbackStyle(key) {
     },
     layers: [{ id: 'esri-fallback', type: 'raster', source: 'esri-fallback' }],
   };
+  if (engine === 'maplibre') {
+    style.projection = { type: 'globe' };
+    style.sky = {
+      'sky-color': '#0b0f17',
+      'horizon-color': key === 'light' ? '#cbd5e1' : '#3b82f6',
+      'fog-color': '#bad2eb',
+      'atmosphere-blend': key === 'light' ? 0.45 : 0.85,
+    };
+  }
+  return style;
 }
 
 const DEM_SOURCE = 'base-dem';
@@ -101,11 +110,18 @@ function getMonitoringZoom(def) {
 }
 
 export class MapController {
-  constructor({ container, token = '', onStatus, lang = DEFAULT_LANG }) {
+  constructor({ container, token = '', glLib, engine, onStatus, onAuthError, lang = DEFAULT_LANG }) {
+    if (!glLib) throw new Error('Map rendering library (glLib) is required.');
+    this.gl = glLib;
     this.hasToken = Boolean(token && String(token).trim());
-    if (this.hasToken) mapboxgl.accessToken = token;
+    this.engine = engine || (this.hasToken ? 'mapbox' : 'maplibre');
+    this.isMapLibre = this.engine === 'maplibre';
+    if (!this.isMapLibre && this.hasToken) this.gl.accessToken = token;
     this.lang = lang;
     this.onStatus = onStatus || (() => {});
+    this.onAuthError = onAuthError || null;
+    this._authErrorReported = false;
+    this._ac = new AbortController();
     this.onFeature = () => {};
     this.onCasePick = () => {};
     this.onWorldClick = () => {};
@@ -143,21 +159,24 @@ export class MapController {
     this.caseFocusTransitionId = 0;
     this.homeLeftPadding = container.clientWidth >= 1024 ? Math.round(Math.min(320, container.clientWidth * 0.22)) : 0;
 
-    this.map = new mapboxgl.Map({
+    const mapOptions = {
       container,
       style: this.#resolveStyle(this.basemap),
       center: WORLD_VIEW.center,
       zoom: WORLD_VIEW.zoom,
       pitch: WORLD_VIEW.pitch,
-      projection: 'globe',
-    });
+    };
+    if (!this.isMapLibre) {
+      mapOptions.projection = 'globe';
+    }
+    this.map = new this.gl.Map(mapOptions);
     this.map.setPadding({ left: this.homeLeftPadding, top: 0, right: 0, bottom: 0 });
     this.map.scrollZoom.disable();
     this.map.dragRotate.disable();
     this.map.getCanvasContainer().addEventListener('contextmenu', (event) => event.preventDefault());
 
     const isInteractiveTarget = (target) => target instanceof Element
-      && target.closest('button, a, input, select, textarea, [role="button"], [role="link"], [contenteditable="true"], .mapboxgl-ctrl');
+      && target.closest('button, a, input, select, textarea, [role="button"], [role="link"], [contenteditable="true"], .mapboxgl-ctrl, .maplibregl-ctrl');
     let mapPointerGesture = null;
     this.map.getContainer().addEventListener('pointerdown', (event) => {
       if (this.mapInteractionEnabled || event.button !== 0 || event.isPrimary === false || isInteractiveTarget(event.target)) {
@@ -176,6 +195,7 @@ export class MapController {
       };
       if (mapPointerGesture.rotatable) this.map.getCanvas().style.cursor = 'grabbing';
     });
+    const listenerOpts = { signal: this._ac.signal };
     window.addEventListener('pointermove', (event) => {
       if (!mapPointerGesture || event.pointerId !== mapPointerGesture.pointerId) return;
       const deltaX = event.clientX - mapPointerGesture.lastX;
@@ -192,7 +212,7 @@ export class MapController {
       }
       mapPointerGesture.lastX = event.clientX;
       mapPointerGesture.lastY = event.clientY;
-    });
+    }, listenerOpts);
     window.addEventListener('pointerup', (event) => {
       if (!mapPointerGesture || event.pointerId !== mapPointerGesture.pointerId) return;
       const { moved, monitoring } = mapPointerGesture;
@@ -203,15 +223,15 @@ export class MapController {
       if (moved && !monitoring && !isInteractiveTarget(event.target) && !this.mapInteractionEnabled && !this.orbitEnabled) {
         this.onWorldClick(event);
       }
-    });
+    }, listenerOpts);
     window.addEventListener('pointercancel', () => {
       mapPointerGesture = null;
       if (this.monitoringMode) this.map.getCanvas().style.cursor = this.mode === 'terrain' ? 'grab' : '';
-    });
+    }, listenerOpts);
 
     this.map.on('dragstart', () => this.setOrbitEnabled(false));
-    this.map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
-    this.map.addControl(new mapboxgl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+    this.map.addControl(new this.gl.FullscreenControl(), 'top-right');
+    this.map.addControl(new this.gl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
     this.ready = new Promise((res) => { if (this.map.isStyleLoaded()) res(); else this.map.once('style.load', res); });
     this.map.once('load', () => this.#startOrbit());
@@ -246,6 +266,14 @@ export class MapController {
     const msgCopy = getUiCopy(this.lang).mapErrors;
     const status = err.status;
     const sourceId = e?.sourceId || '';
+    const rawMessage = String(err.message || '');
+    if (!this.isMapLibre && !this._authErrorReported && (status === 401 || status === 403 || /NO_ACCESS_TOKEN|access token|unauthorized/i.test(rawMessage))) {
+      this._authErrorReported = true;
+      if (this.onAuthError) {
+        this.onAuthError(err);
+        return;
+      }
+    }
     const detail = redact(err.message) || msgCopy.noDetails;
     const key = `${sourceId}|${status}|${detail}`;
     const now = Date.now();
@@ -270,6 +298,15 @@ export class MapController {
       return;
     }
     this.onStatus('error', msgCopy.basemapError(http, sourceId), status === 429 ? 'retry-base' : null);
+  }
+
+  /** Clean up window listeners, timers, popup, and GL context. */
+  destroy() {
+    this.setOrbitEnabled(false);
+    this.setMonitoringOrbitEnabled(false);
+    this._ac?.abort();
+    this.clear();
+    this.map?.remove();
   }
 
   // ───────────── Globe orbit and interaction guards ─────────────
@@ -357,12 +394,14 @@ export class MapController {
     if (!m.getSource(DEM_SOURCE)) {
       m.addSource(DEM_SOURCE, { type: 'raster-dem', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], encoding: 'terrarium', tileSize: 256, maxzoom: 14 });
     }
-    if (!m.getSource('esri-fallback')) {
-      m.addSource('esri-fallback', { type: 'raster', tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 19, attribution: '© Esri, Maxar' });
-    }
-    if (!m.getLayer('esri-fallback')) {
-      const before = m.getLayer('satellite') ? 'satellite' : undefined;
-      m.addLayer({ id: 'esri-fallback', type: 'raster', source: 'esri-fallback', layout: { visibility: 'visible' } }, before);
+    if (!this.isMapLibre) {
+      if (!m.getSource('esri-fallback')) {
+        m.addSource('esri-fallback', { type: 'raster', tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 19, attribution: '© Esri, Maxar' });
+      }
+      if (!m.getLayer('esri-fallback')) {
+        const before = m.getLayer('satellite') ? 'satellite' : undefined;
+        m.addLayer({ id: 'esri-fallback', type: 'raster', source: 'esri-fallback', layout: { visibility: this.hasToken ? 'none' : 'visible' } }, before);
+      }
     }
     // Hillshade: BASE TERRAIN, not SAR data. minzoom avoids requesting global DEM tiles on the globe view.
     if (!m.getLayer(HILLSHADE_LAYER)) {
@@ -373,13 +412,13 @@ export class MapController {
       });
     }
     if (!m.getLayer(ANCHOR_VEC)) m.addLayer({ id: ANCHOR_VEC, type: 'background', paint: { 'background-opacity': 0 } });
-    if (!m.getLayer(SKY_LAYER)) {
+    if (!this.isMapLibre && !m.getLayer(SKY_LAYER)) {
       m.addLayer({ id: SKY_LAYER, type: 'sky', paint: { 'sky-type': 'atmosphere', 'sky-atmosphere-sun': [this.sunAzimuth, 60], 'sky-atmosphere-sun-intensity': 8 } });
     }
   }
 
   #resolveStyle(key) {
-    return this.hasToken ? BASEMAPS[key].style : buildFallbackStyle(key);
+    return (!this.isMapLibre && this.hasToken) ? BASEMAPS[key].style : buildFallbackStyle(key, { engine: this.engine });
   }
 
   #addWorldMarkers() {
@@ -387,7 +426,7 @@ export class MapController {
     if (m.getSource(WORLD_SOURCE)) return;
     m.addSource(WORLD_SOURCE, { type: 'geojson', data: this.#worldData() });
     m.addLayer({ id: WORLD_DOT, type: 'circle', source: WORLD_SOURCE, paint: { 'circle-radius': 7, 'circle-color': '#FFFFFF', 'circle-stroke-color': '#E4572E', 'circle-stroke-width': 3 } });
-    if (this.hasToken) {
+    if (!this.isMapLibre && this.hasToken && m.getStyle()?.glyphs) {
       m.addLayer({
         id: WORLD_LABEL, type: 'symbol', source: WORLD_SOURCE,
         layout: { 'text-field': ['get', 'title'], 'text-size': 12, 'text-offset': [0, 1.4], 'text-anchor': 'top', 'text-max-width': 12 },
@@ -948,7 +987,21 @@ export class MapController {
   #applyMode() {
     const m = this.map;
     if (!m.getSource(DEM_SOURCE)) return;
-    m.setProjection(this.mode === 'globe' ? 'globe' : 'mercator');
+    const projName = this.mode === 'globe' ? 'globe' : 'mercator';
+    if (this.isMapLibre) {
+      try { m.setProjection?.({ type: projName }); } catch {}
+      m.setTerrain(this.mode === 'terrain' ? { source: DEM_SOURCE, exaggeration: this.exaggeration } : null);
+      try {
+        m.setSky?.(this.mode === 'flat' ? undefined : {
+          'sky-color': '#0b0f17',
+          'horizon-color': this.basemap === 'light' ? '#cbd5e1' : '#3b82f6',
+          'fog-color': '#bad2eb',
+          'atmosphere-blend': this.basemap === 'light' ? 0.45 : 0.85,
+        });
+      } catch {}
+      return;
+    }
+    m.setProjection(projName);
     m.setTerrain(this.mode === 'terrain' ? { source: DEM_SOURCE, exaggeration: this.exaggeration } : null);
     m.setFog(this.mode === 'flat' ? null : {
       color: 'rgb(186, 210, 235)', 'high-color': 'rgb(36, 92, 223)', 'horizon-blend': 0.03,
@@ -1005,16 +1058,16 @@ export class MapController {
     this.onFeature(layer, f, e.lngLat);
   }
 
-  /** Display or replace a single Mapbox GL popup anchored at `lngLat`. */
+  /** Display or replace a single GL popup anchored at `lngLat`. */
   showPopup(lngLat, html) {
     this.closePopup();
-    this.popup = new mapboxgl.Popup({ className: 'delta-popup', maxWidth: '300px' })
+    this.popup = new this.gl.Popup({ className: 'delta-popup', maxWidth: '300px' })
       .setLngLat(lngLat)
       .setHTML(html)
       .addTo(this.map);
   }
 
-  /** Close any active Mapbox GL feature popup. */
+  /** Close any active GL feature popup. */
   closePopup() {
     if (this.popup) {
       this.popup.remove();

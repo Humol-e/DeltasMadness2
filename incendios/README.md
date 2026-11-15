@@ -8,7 +8,6 @@ Wildfire ingestion, analysis, and conversion module (`wildfire-monitor` / `wildf
 incendios/
 ├── README.md
 ├── DATA_GUIDE.md
-├── GUIA_DATOS.md
 ├── pyproject.toml
 ├── requirements.txt
 ├── scripts/

@@ -76,10 +76,23 @@ class WetSnowResult:
     threshold_db: float
 
 
-def decode_gray8_db(u8: np.ndarray, vmin: float, vmax: float) -> np.ndarray:
-    """Invert ``encode_gray8_png`` (``0`` = nodata per Schema v2) back to physical dB or index values."""
+def decode_gray8_db(
+    u8: np.ndarray,
+    vmin: float,
+    vmax: float,
+    *,
+    full_range: bool = True,
+) -> np.ndarray:
+    """Invert ``encode_gray8_png`` (``u8 / 255``) or Schema v2 ``1..255`` quantization back to physical values.
+
+    Zero bytes map to ``NaN`` (nodata). Use ``full_range=True`` (default) for inputs written by
+    :func:`platform_exporter.encode_gray8_png` (``u8 in 0..255`` with ``nodata=null`` except ``0``
+    sentinel), or ``full_range=False`` for ``encode_ratio_png`` / Schema v2 rasters reserving ``0``
+    for nodata and linearly scaling ``1..255`` over ``[vmin, vmax]``.
+    """
     arr = np.asarray(u8)
-    out = vmin + arr.astype(np.float32) / 255.0 * (vmax - vmin)
+    scale = (arr.astype(np.float32) / 255.0) if full_range else ((arr.astype(np.float32) - 1.0) / 254.0)
+    out = vmin + scale * (vmax - vmin)
     return np.where(arr > 0, out, np.nan).astype(np.float32)
 
 

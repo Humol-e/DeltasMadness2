@@ -427,9 +427,11 @@ export class MapController {
     this.mode = globeOverview ? 'globe' : 'terrain';
     this.#applyMode();
     if (globeOverview) {
+      const containerWidth = this.map.getContainer().clientWidth || window.innerWidth;
+      const isNarrowViewport = containerWidth <= 900;
       this.flyToWorld(def.view.center, {
-        zoom: WORLD_VIEW.zoom + Math.log2(1.3),
-        leftPadding: 1300,
+        zoom: isNarrowViewport ? WORLD_VIEW.zoom : WORLD_VIEW.zoom + Math.log2(1.3),
+        leftPadding: isNarrowViewport ? 0 : 1300,
       });
     } else {
       this.flyToCase();
@@ -475,11 +477,20 @@ export class MapController {
     });
   }
 
-  flyToCase({ zoomOffset = 0 } = {}) {
+  flyToCase({ zoomOffset = 0, padding } = {}) {
     if (!this.current) return this.map.flyTo({ ...WORLD_VIEW, duration: 1800 });
     const { center, zoom = 10, pitch = 0, bearing = 0 } = this.current.view;
     const tilt = this.mode === 'terrain' ? Math.max(pitch, 55) : this.mode === 'flat' ? 0 : Math.min(pitch, 20);
-    this.map.flyTo({ center, zoom: Math.max(1, zoom + zoomOffset), pitch: tilt, bearing, duration: 3200, curve: 1.6, essential: true });
+    this.map.flyTo({
+      center,
+      zoom: Math.max(1, zoom + zoomOffset),
+      pitch: tilt,
+      bearing,
+      ...(padding && { padding }),
+      duration: 3200,
+      curve: 1.6,
+      essential: true,
+    });
   }
 
   async focusCurrentCase() {
@@ -489,9 +500,16 @@ export class MapController {
     this.monitoringMode = false;
     this.setMonitoringOrbitEnabled(false);
     const transitionId = ++this.caseFocusTransitionId;
+    const container = this.map.getContainer();
+    const containerWidth = container.clientWidth || window.innerWidth;
+    const containerHeight = container.clientHeight || window.innerHeight;
+    const isMobileViewport = containerWidth <= 768;
+    const targetPadding = isMobileViewport
+      ? { top: 56, bottom: Math.round(containerHeight * 0.42), left: 0, right: 0 }
+      : { left: 0, top: 0, right: 0, bottom: 0 };
     const centered = new Promise((resolve) => {
       this.map.easeTo({
-        padding: { left: 0, top: 0, right: 0, bottom: 0 },
+        padding: targetPadding,
         duration: 700,
         easing: smoothStep,
         essential: true,
@@ -507,8 +525,11 @@ export class MapController {
     this.mode = 'flat';
     this.setHillshade(false);
     this.#applyMode();
-    const zoomOffset = getMonitoringZoom(def) - (def.view.zoom ?? 10);
-    this.flyToCase({ zoomOffset });
+    const mobileZoomAdjust = isMobileViewport
+      ? -Math.max(0.45, Math.min(1.25, Math.log2(740 / Math.max(containerWidth, 320))))
+      : 0;
+    const zoomOffset = getMonitoringZoom(def) + mobileZoomAdjust - (def.view.zoom ?? 10);
+    this.flyToCase({ zoomOffset, padding: targetPadding });
     if (this.map.isMoving()) {
       await new Promise((resolve) => this.map.once('moveend', resolve));
     }
